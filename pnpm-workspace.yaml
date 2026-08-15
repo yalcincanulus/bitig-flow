@@ -1,3 +1,6 @@
 allowBuilds:
   esbuild: true
   lightningcss: true
+minimumReleaseAgeExclude:
+  - '@tanstack/react-start-client@1.168.26'
+  - '@tanstack/start-server-core@1.169.27'
