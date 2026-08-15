@@ -1,0 +1,69 @@
+# bitig-flow
+
+A document sharing app: an organization uploads or writes documents, groups them into vaults, and shares them through links that carry access gates. The people who open those links are anonymous, and the product's value is the analytics stream each link produces.
+
+## Language
+
+### Content
+
+**Document**:
+A single piece of shared content — markdown written in the app, or an uploaded PDF or image.
+_Avoid_: file, asset, doc
+
+**Vault**:
+A flat, unordered set of documents, shared as one unit.
+_Avoid_: folder, collection, dataroom, group
+
+### Sharing
+
+**Link**:
+The shareable thing: a public URL pointing at one target, carrying its own gate, options, and analytics stream. A target may have many links, each with different rules.
+_Avoid_: share, shareLink, invite
+
+**Target**:
+What a link points at — either a document or a vault. Never both.
+_Avoid_: subject, resource
+
+**Slug**:
+The short random public identifier in a link's URL. Separate from the link's identity, so it can be rotated without losing analytics history.
+_Avoid_: token, code, short id
+
+**Gate**:
+The set of requirements a link imposes before its target may be seen, and the flow a visitor walks to satisfy them.
+_Avoid_: lock, wall, protection, auth
+
+**Requirement**:
+One condition within a gate — a password, an email address, or a verified email address. A gate with no requirements is public.
+_Avoid_: access level, tier, permission
+
+### The people
+
+**Visitor**:
+The anonymous person who opens a link. A visitor is never a user, holds no account, and appears in no auth table.
+_Avoid_: viewer, guest, recipient, lead
+
+**User**:
+Someone with an account, belonging to one or more organizations. The people who create documents and links.
+_Avoid_: owner (that is a role), account, member (that is also a role)
+
+**Organization**:
+The tenant. Owns documents, vaults, and links; users belong to it with a role of owner, admin, or member.
+_Avoid_: team, workspace, tenant, company
+
+### Analytics
+
+**Visit**:
+One visitor's gated session on one link — created the moment its gate is satisfied, and expiring on its own schedule. The unit every analytics event hangs from.
+_Avoid_: session, visitor session, access
+
+**View**:
+One document being opened within a visit. A visit on a vault link may contain many views.
+_Avoid_: read, open, impression
+
+**Event**:
+A typed analytics record belonging to a visit — page dwell, download, and so on.
+_Avoid_: activity, log, hit
+
+**Visitor id**:
+A long-lived opaque identifier that groups a returning visitor's visits together. Purely for analytics; it never grants access. A captured email supersedes it as the stronger identity.
+_Avoid_: fingerprint, anonymous id, device id
