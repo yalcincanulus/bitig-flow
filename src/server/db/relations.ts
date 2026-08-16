@@ -44,6 +44,10 @@ export const relations = defineRelations(schema, (relation) => ({
       from: relation.document.id.through(relation.vaultItem.documentId),
       to: relation.vault.id.through(relation.vaultItem.vaultId),
     }),
+    links: relation.many.link({
+      from: relation.document.id,
+      to: relation.link.documentId,
+    }),
   },
   vault: {
     organization: relation.one.organization({
@@ -54,6 +58,51 @@ export const relations = defineRelations(schema, (relation) => ({
     documents: relation.many.document({
       from: relation.vault.id.through(relation.vaultItem.vaultId),
       to: relation.document.id.through(relation.vaultItem.documentId),
+    }),
+  },
+  link: {
+    organization: relation.one.organization({
+      from: relation.link.organizationId,
+      to: relation.organization.id,
+      optional: false,
+    }),
+    document: relation.one.document({
+      from: relation.link.documentId,
+      to: relation.document.id,
+      optional: true,
+    }),
+    vault: relation.one.vault({
+      from: relation.link.vaultId,
+      to: relation.vault.id,
+      optional: true,
+    }),
+    creator: relation.one.user({
+      from: relation.link.createdBy,
+      to: relation.user.id,
+      optional: true,
+    }),
+  },
+  visit: {
+    link: relation.one.link({
+      from: relation.visit.linkId,
+      to: relation.link.id,
+      optional: false,
+    }),
+    events: relation.many.visitEvent({
+      from: relation.visit.id,
+      to: relation.visitEvent.visitId,
+    }),
+  },
+  visitEvent: {
+    visit: relation.one.visit({
+      from: relation.visitEvent.visitId,
+      to: relation.visit.id,
+      optional: false,
+    }),
+    document: relation.one.document({
+      from: relation.visitEvent.documentId,
+      to: relation.document.id,
+      optional: true,
     }),
   },
 }));
