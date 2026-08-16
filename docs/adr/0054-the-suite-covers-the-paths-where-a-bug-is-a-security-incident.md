@@ -1,0 +1,13 @@
+# The suite covers the paths where a bug is a security incident
+
+**This replaces the charting-time posture of "access control and gate paths only."** The old line was a proxy for the real criterion and turned out to be narrower than it: upload verification is neither access control nor the gate, but a renamed `.svg` accepted as an image is stored XSS (ADR-0008). The posture is therefore stated as what it always meant — **integration tests cover access control, the gate, and upload verification** — and everything else in the application is untested on purpose.
+
+There is no unit-test pyramid, no coverage target, and no test of anything client-side.
+
+The **gate** is one full journey — a link carrying all three requirements, driven password → email → code through a single cookie jar, with the six-digit code read out of Mailpit's API, ending in a visit row and a served document. Around it: a step submitted out of order, a wrong password that must not advance the receipt, a `gate_version` bump that forces a re-gate where an `allow_download` edit must not (ADR-0004's distinction, and the one most likely to rot silently), an aged visit, and a tripped limiter returning ADR-0043's typed error on the step itself.
+
+**Two of these assert on payloads rather than status codes, and they are written first.** Every terminal state must return byte-identical output — expired, deactivated, rotated slug, deleted target (ADR-0004) — and the gate response must never contain the document's title (ADR-0045). Both guard leaks that no status-code assertion can see, and both encode a decision that a future refactor would cheerfully undo while keeping the whole suite green. Being first is the point: they are the tests most likely to be omitted and least likely to be missed.
+
+Three **server routes** are covered, since ADR-0053's meta-test enumerates server functions and these are not functions. The headline is the pair ADR-0018 exists to guarantee — a visit cookie must not fetch bytes through the dashboard route, and an organization session must not fetch bytes through the gated route. That is exactly the invariant a well-meaning refactor destroys by unifying two auth helpers into one. The beacon is asserted against the *database* rather than its response, because ADR-0027 makes it answer 204 unconditionally: an unauthenticated POST writes nothing, and a replayed `seq` writes one row rather than two. better-auth's catch-all is the library's to test.
+
+**Upload verification** is two tests, not a suite: SVG bytes under a `.png` key are rejected at confirmation, and a truncated or mismatched file is rejected, with the document left `pending` in both.
