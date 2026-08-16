@@ -3,24 +3,24 @@
 // many steps stand between them and it, and which one they're on. A persistent context
 // rail carries the facts; the right pane carries one question at a time. Stacks on mobile
 // with the rail collapsed to a header strip.
-import { AlertCircle, Files, FileText, ImageIcon, Clock } from 'lucide-react'
+import { AlertCircle, Files, FileText, ImageIcon, Clock } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { LINK, MASKED_EMAIL, VAULT_ITEMS, stepOf, type Scenario } from './gate-scenarios'
-import { useCountdown } from './use-countdown'
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LINK, MASKED_EMAIL, VAULT_ITEMS, stepOf, type Scenario } from "./gate-scenarios";
+import { useCountdown } from "./use-countdown";
 
 const STEPS = [
-  { key: 'password', label: 'Password' },
-  { key: 'email', label: 'Your email' },
-  { key: 'code', label: 'Verify email' },
-] as const
+  { key: "password", label: "Password" },
+  { key: "email", label: "Your email" },
+  { key: "code", label: "Verify email" },
+] as const;
 
 export function GateVariantB({ scenario }: { scenario: Scenario }) {
-  const step = stepOf(scenario)
+  const step = stepOf(scenario);
 
-  if (scenario === 'unavailable') return <Unavailable />
-  if (step === null) return <Passed empty={scenario === 'passed-vault-empty'} />
+  if (scenario === "unavailable") return <Unavailable />;
+  if (step === null) return <Passed empty={scenario === "passed-vault-empty"} />;
 
   return (
     <div className="grid min-h-dvh grid-rows-[auto_1fr] lg:grid-cols-[22rem_1fr] lg:grid-rows-1">
@@ -29,14 +29,14 @@ export function GateVariantB({ scenario }: { scenario: Scenario }) {
         <div className="w-full max-w-sm">
           <Stepper current={step} />
           <div className="mt-6">
-            {step === 'password' && <PasswordStep wrong={scenario === 'password-wrong'} />}
-            {step === 'email' && <EmailStep />}
-            {step === 'code' && <CodeStep scenario={scenario} />}
+            {step === "password" && <PasswordStep wrong={scenario === "password-wrong"} />}
+            {step === "email" && <EmailStep />}
+            {step === "code" && <CodeStep scenario={scenario} />}
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }
 
 function ContextRail() {
@@ -67,11 +67,11 @@ function ContextRail() {
         Sent by <span className="text-background">{LINK.senderName}</span> at {LINK.orgName}.
       </p>
     </aside>
-  )
+  );
 }
 
-function Stepper({ current }: { current: 'password' | 'email' | 'code' }) {
-  const i = STEPS.findIndex((s) => s.key === current)
+function Stepper({ current }: { current: "password" | "email" | "code" }) {
+  const i = STEPS.findIndex((s) => s.key === current);
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground">
@@ -82,14 +82,14 @@ function Stepper({ current }: { current: 'password' | 'email' | 'code' }) {
           <li key={s.key} className="flex-1">
             <div
               className={
-                'h-1 rounded-full ' +
-                (n < i ? 'bg-primary/40' : n === i ? 'bg-primary' : 'bg-border')
+                "h-1 rounded-full " +
+                (n < i ? "bg-primary/40" : n === i ? "bg-primary" : "bg-border")
               }
             />
             <span
               className={
-                'mt-1.5 block text-[11px] ' +
-                (n === i ? 'font-medium text-foreground' : 'text-muted-foreground')
+                "mt-1.5 block text-[11px] " +
+                (n === i ? "font-medium text-foreground" : "text-muted-foreground")
               }
             >
               {s.label}
@@ -98,11 +98,15 @@ function Stepper({ current }: { current: 'password' | 'email' | 'code' }) {
         ))}
       </ol>
     </div>
-  )
+  );
 }
 
 function Field({ children }: { children: React.ReactNode }) {
-  return <form onSubmit={(e) => e.preventDefault()} className="space-y-3.5">{children}</form>
+  return (
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-3.5">
+      {children}
+    </form>
+  );
 }
 
 function ErrorLine({ children }: { children: React.ReactNode }) {
@@ -111,7 +115,7 @@ function ErrorLine({ children }: { children: React.ReactNode }) {
       <AlertCircle className="mt-px size-3.5 shrink-0" />
       <span>{children}</span>
     </p>
-  )
+  );
 }
 
 function PasswordStep({ wrong }: { wrong: boolean }) {
@@ -119,9 +123,7 @@ function PasswordStep({ wrong }: { wrong: boolean }) {
     <Field>
       <div>
         <h2 className="text-lg font-semibold">Enter the password</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          It was sent separately from this link.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">It was sent separately from this link.</p>
       </div>
       <Input
         type="password"
@@ -135,7 +137,7 @@ function PasswordStep({ wrong }: { wrong: boolean }) {
         Continue
       </Button>
     </Field>
-  )
+  );
 }
 
 function EmailStep() {
@@ -144,8 +146,8 @@ function EmailStep() {
       <div>
         <h2 className="text-lg font-semibold">Your email address</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {LINK.senderName} asked to know who opens this. It’s recorded against your visit —
-          it isn’t a login, and nothing is sent to you.
+          {LINK.senderName} asked to know who opens this. It’s recorded against your visit — it
+          isn’t a login, and nothing is sent to you.
         </p>
       </div>
       <Input
@@ -159,14 +161,14 @@ function EmailStep() {
         Continue
       </Button>
     </Field>
-  )
+  );
 }
 
 function CodeStep({ scenario }: { scenario: Scenario }) {
-  const [cooldown, reset] = useCountdown(60)
-  const [retry] = useCountdown(scenario === 'rate-limited' ? 247 : 0)
-  const locked = scenario === 'code-locked'
-  const limited = scenario === 'rate-limited'
+  const [cooldown, reset] = useCountdown(60);
+  const [retry] = useCountdown(scenario === "rate-limited" ? 247 : 0);
+  const locked = scenario === "code-locked";
+  const limited = scenario === "rate-limited";
 
   return (
     <Field>
@@ -183,19 +185,15 @@ function CodeStep({ scenario }: { scenario: Scenario }) {
         autoFocus
         disabled={locked || limited}
         placeholder="000000"
-        aria-invalid={scenario === 'code-wrong' || scenario === 'code-expired'}
+        aria-invalid={scenario === "code-wrong" || scenario === "code-expired"}
         className="h-12 text-center font-mono text-2xl tracking-[0.5em]"
       />
-      {scenario === 'code-wrong' && (
-        <ErrorLine>Incorrect code — 3 attempts remaining.</ErrorLine>
-      )}
-      {scenario === 'code-expired' && (
+      {scenario === "code-wrong" && <ErrorLine>Incorrect code — 3 attempts remaining.</ErrorLine>}
+      {scenario === "code-expired" && (
         <ErrorLine>This code has expired. Request a new one below.</ErrorLine>
       )}
       {locked && (
-        <ErrorLine>
-          Too many incorrect codes. Request a new code to reset your attempts.
-        </ErrorLine>
+        <ErrorLine>Too many incorrect codes. Request a new code to reset your attempts.</ErrorLine>
       )}
       {limited && (
         <ErrorLine>
@@ -213,11 +211,11 @@ function CodeStep({ scenario }: { scenario: Scenario }) {
           onClick={reset}
           className="font-medium text-primary underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline"
         >
-          {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+          {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
         </button>
       </div>
     </Field>
-  )
+  );
 }
 
 function Unavailable() {
@@ -230,7 +228,7 @@ function Unavailable() {
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 function Passed({ empty }: { empty: boolean }) {
@@ -267,7 +265,7 @@ function Passed({ empty }: { empty: boolean }) {
                       onClick={(e) => e.preventDefault()}
                       className="flex items-center gap-2.5 font-medium"
                     >
-                      {item.kind === 'image' ? (
+                      {item.kind === "image" ? (
                         <ImageIcon className="size-4 text-muted-foreground" />
                       ) : (
                         <FileText className="size-4 text-muted-foreground" />
@@ -283,5 +281,5 @@ function Passed({ empty }: { empty: boolean }) {
         )}
       </main>
     </div>
-  )
+  );
 }

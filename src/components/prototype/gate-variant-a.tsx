@@ -2,44 +2,36 @@
 // Premise: this is *mail*. A person sent you something. Lead with the person and the
 // title, keep everything on one warm centred card, and treat the gate as a formality
 // between you and a thing you were already invited to see.
-import { FileText, ImageIcon, Lock, Mail, ShieldCheck } from 'lucide-react'
+import { FileText, ImageIcon, Lock, Mail, ShieldCheck } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
-import { LINK, MASKED_EMAIL, VAULT_ITEMS, stepOf, type Scenario } from './gate-scenarios'
-import { useCountdown } from './use-countdown'
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { LINK, MASKED_EMAIL, VAULT_ITEMS, stepOf, type Scenario } from "./gate-scenarios";
+import { useCountdown } from "./use-countdown";
 
 export function GateVariantA({ scenario }: { scenario: Scenario }) {
-  const step = stepOf(scenario)
+  const step = stepOf(scenario);
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-muted/60 to-background px-4 py-10 sm:py-16">
       <div className="mx-auto w-full max-w-md">
-        {scenario === 'unavailable' ? (
+        {scenario === "unavailable" ? (
           <Unavailable />
         ) : step === null ? (
-          <Passed empty={scenario === 'passed-vault-empty'} />
+          <Passed empty={scenario === "passed-vault-empty"} />
         ) : (
           <Envelope scenario={scenario} step={step} />
         )}
-        <p className="mt-8 text-center text-[11px] text-muted-foreground/70">
-          Shared with bitig
-        </p>
+        <p className="mt-8 text-center text-[11px] text-muted-foreground/70">Shared with bitig</p>
       </div>
     </div>
-  )
+  );
 }
 
-function Envelope({
-  scenario,
-  step,
-}: {
-  scenario: Scenario
-  step: 'password' | 'email' | 'code'
-}) {
-  const order: Array<'password' | 'email' | 'code'> = ['password', 'email', 'code']
-  const current = order.indexOf(step)
+function Envelope({ scenario, step }: { scenario: Scenario; step: "password" | "email" | "code" }) {
+  const order: Array<"password" | "email" | "code"> = ["password", "email", "code"];
+  const current = order.indexOf(step);
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -74,9 +66,9 @@ function Envelope({
       </div>
 
       <div className="px-6 pt-6 pb-6">
-        {step === 'password' && <PasswordStep wrong={scenario === 'password-wrong'} />}
-        {step === 'email' && <EmailStep />}
-        {step === 'code' && <CodeStep scenario={scenario} />}
+        {step === "password" && <PasswordStep wrong={scenario === "password-wrong"} />}
+        {step === "email" && <EmailStep />}
+        {step === "code" && <CodeStep scenario={scenario} />}
       </div>
 
       <div className="flex items-center justify-center gap-1.5 border-t bg-muted/20 px-6 py-3">
@@ -84,18 +76,18 @@ function Envelope({
           <span
             key={s}
             className={
-              'h-1.5 rounded-full transition-all ' +
+              "h-1.5 rounded-full transition-all " +
               (i === current
-                ? 'w-5 bg-primary'
+                ? "w-5 bg-primary"
                 : i < current
-                  ? 'w-1.5 bg-primary/40'
-                  : 'w-1.5 bg-foreground/15')
+                  ? "w-1.5 bg-primary/40"
+                  : "w-1.5 bg-foreground/15")
             }
           />
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 function PasswordStep({ wrong }: { wrong: boolean }) {
@@ -122,7 +114,7 @@ function PasswordStep({ wrong }: { wrong: boolean }) {
         Continue
       </Button>
     </form>
-  )
+  );
 }
 
 function EmailStep() {
@@ -141,21 +133,21 @@ function EmailStep() {
         className="h-11 text-base"
       />
       <p className="text-xs text-muted-foreground">
-        {LINK.senderName.split(' ')[0]} sees this next to your visit. You’re not making an
-        account and there’s nothing to sign into.
+        {LINK.senderName.split(" ")[0]} sees this next to your visit. You’re not making an account
+        and there’s nothing to sign into.
       </p>
       <Button type="submit" className="h-11 w-full text-sm">
         Continue
       </Button>
     </form>
-  )
+  );
 }
 
 function CodeStep({ scenario }: { scenario: Scenario }) {
-  const [cooldown, reset] = useCountdown(60)
-  const [retry] = useCountdown(scenario === 'rate-limited' ? 247 : 0)
-  const locked = scenario === 'code-locked'
-  const limited = scenario === 'rate-limited'
+  const [cooldown, reset] = useCountdown(60);
+  const [retry] = useCountdown(scenario === "rate-limited" ? 247 : 0);
+  const locked = scenario === "code-locked";
+  const limited = scenario === "rate-limited";
 
   return (
     <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
@@ -171,12 +163,10 @@ function CodeStep({ scenario }: { scenario: Scenario }) {
         </InputOTPGroup>
       </InputOTP>
 
-      {scenario === 'code-wrong' && (
-        <p className="text-center text-xs text-destructive">
-          That code isn’t right. 3 tries left.
-        </p>
+      {scenario === "code-wrong" && (
+        <p className="text-center text-xs text-destructive">That code isn’t right. 3 tries left.</p>
       )}
-      {scenario === 'code-expired' && (
+      {scenario === "code-expired" && (
         <p className="text-center text-xs text-destructive">
           That code has expired. Send yourself a new one.
         </p>
@@ -201,10 +191,10 @@ function CodeStep({ scenario }: { scenario: Scenario }) {
         onClick={reset}
         className="w-full py-1 text-center text-xs text-muted-foreground underline-offset-4 hover:underline disabled:no-underline disabled:opacity-60"
       >
-        {cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code'}
+        {cooldown > 0 ? `Send a new code in ${cooldown}s` : "Send a new code"}
       </button>
     </form>
-  )
+  );
 }
 
 function Unavailable() {
@@ -215,11 +205,10 @@ function Unavailable() {
       </div>
       <h1 className="mt-4 text-lg font-semibold">This link isn’t available</h1>
       <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-        It may have expired or been turned off. The person who sent it to you can share a new
-        one.
+        It may have expired or been turned off. The person who sent it to you can share a new one.
       </p>
     </div>
-  )
+  );
 }
 
 function Passed({ empty }: { empty: boolean }) {
@@ -235,8 +224,8 @@ function Passed({ empty }: { empty: boolean }) {
         <div className="px-6 py-12 text-center">
           <p className="text-sm font-medium">Nothing here yet</p>
           <p className="mx-auto mt-1.5 max-w-xs text-sm text-muted-foreground">
-            {LINK.senderName.split(' ')[0]} hasn’t added any documents to this one. Check back,
-            or let them know.
+            {LINK.senderName.split(" ")[0]} hasn’t added any documents to this one. Check back, or
+            let them know.
           </p>
         </div>
       ) : (
@@ -248,7 +237,7 @@ function Passed({ empty }: { empty: boolean }) {
                 onClick={(e) => e.preventDefault()}
                 className="flex items-center gap-3 px-6 py-4 hover:bg-muted/40"
               >
-                {item.kind === 'image' ? (
+                {item.kind === "image" ? (
                   <ImageIcon className="size-4 shrink-0 text-muted-foreground" />
                 ) : (
                   <FileText className="size-4 shrink-0 text-muted-foreground" />
@@ -263,5 +252,5 @@ function Passed({ empty }: { empty: boolean }) {
         </ul>
       )}
     </div>
-  )
+  );
 }
