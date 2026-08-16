@@ -32,3 +32,10 @@ export const member = ac.newRole({
   ...memberAc.statements,
   ...applicationStatements,
 });
+
+export const organizationPluginOptions = {
+  ac,
+  roles: { owner, admin, member },
+  teams: { enabled: false },
+  dynamicAccessControl: { enabled: false },
+} as const;

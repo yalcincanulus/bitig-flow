@@ -10,6 +10,12 @@ An oxlint `no-restricted-imports` rule forbids importing `src/server/db` from an
 
 **`OrganizationId` is a zod branded type, minted in exactly one place.** `src/server/ids.ts` exports `z.uuid().brand<"OrganizationId">()` alongside the other entity ids, and `orgMiddleware` parsing `session.activeOrganizationId` is the only sanctioned way to produce one. A bare `string` — a URL parameter, a form field, a value from the request body — will not typecheck into a repository call. One declaration buys both "this is a uuid and not junk" at runtime and "this came from a middleware and not the client" at compile time.
 
-**The viewer path gets its own directory precisely because it has no organization.** A visitor arrives with a slug, no session, and no tenant in scope, so the scoping invariant genuinely does not apply there. Putting those queries in a separate directory makes the absence of an `orgId` a property of *where the file lives* rather than something a reviewer has to notice is missing.
+**The viewer path gets its own directory precisely because it has no organization.** A visitor arrives with a slug, no session, and no tenant in scope, so the scoping invariant genuinely does not apply there. Putting those queries in a separate directory makes the absence of an `orgId` a property of _where the file lives_ rather than something a reviewer has to notice is missing.
 
 **Postgres row-level security was considered and rejected.** It is the stronger guarantee, but it duplicates the tenancy model in SQL, requires a transaction per request to carry `SET LOCAL`, and — decisively — would be fighting the viewer path, which is half the application and legitimately unscoped.
+
+## Amendment: fence the database client, not the schema directory
+
+The original directory-shaped fence was narrowed when the hand-owned schema landed. Dashboard collections need to import the schema's derived validators without gaining access to a query-capable database object, so `no-restricted-imports` guards the client and relations modules rather than all of `src/server/db/`. The invariant is unchanged: writing a query requires importing the fenced client.
+
+There are now three sanctioned client import sites. Organization-scoped repositories and the Viewer are the two query sites described above. `src/server/auth.ts` is the third: it constructs Better Auth's Drizzle adapter over the client and hands the adapter an explicit object of raw auth tables. This exception does not extend to `tests/`; the integration harness constructs its own database handle as required by ADR-0051.
