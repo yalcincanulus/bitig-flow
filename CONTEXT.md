@@ -64,6 +64,10 @@ _Avoid_: lock, wall, protection, auth
 One condition within a gate — a password, an email address, or a verified email address. A gate with no requirements is public.
 _Avoid_: access level, tier, permission
 
+**Gate progress**:
+One visitor's part-way state through one link's gate — which requirements they have cleared, and their outstanding verification code. Short-lived, exists only until the gate is satisfied, and there is exactly one per visitor per link.
+_Avoid_: gate session, pending visit, attempt
+
 ### The people
 
 **Visitor**:

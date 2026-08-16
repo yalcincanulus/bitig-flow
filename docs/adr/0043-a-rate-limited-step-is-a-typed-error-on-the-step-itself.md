@@ -1,0 +1,7 @@
+# A rate-limited step is a typed error on the step itself
+
+ADR-0033 makes `/v/$slug` a single route whose loader decides which Requirement to render, with each step submitting through a `createServerFn` followed by `router.invalidate()`. A rate-limit rejection is therefore not a page and not a navigation — it is a failed step submission that has to surface inside the step the Visitor is already on.
+
+The server function throws a typed `GateRateLimited` error carrying `retryAfterSeconds`, rendered as inline text under the form ("Too many attempts. Try again in about 4 minutes.") with the form disabled until it elapses. Alongside it the response carries a real `429` and `Retry-After` via `setResponseStatus` / `setResponseHeader`, so the wire is honest for a proxy or a log reader even though the UI never leaves the step. No redirect and no error route: introducing either would put the Visitor's progress in the URL, which ADR-0033 exists to prevent.
+
+Authenticated surfaces are a separate mechanism and are not covered by any of this. Better Auth's own rate limiting is enabled over `/api/auth/*` with Redis as its storage and its defaults untouched; the Dashboard's other server functions get no rate limiting at all, because every caller there is an invited member of an organization, so the threat model is a careless colleague rather than a stranger — the same reasoning ADR-0008 used to rule out upload quotas.
