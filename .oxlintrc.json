@@ -1,17 +1,88 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc"],
   "categories": {
     "correctness": "error"
   },
-  "rules": {},
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": [
+              "#/server/db/client",
+              "#/server/db/client.*",
+              "#/server/db/relations",
+              "#/server/db/relations.*",
+              "@/server/db/client",
+              "@/server/db/client.*",
+              "@/server/db/relations",
+              "@/server/db/relations.*",
+              "**/server/db/client",
+              "**/server/db/client.*",
+              "**/server/db/relations",
+              "**/server/db/relations.*",
+              "**/db/client",
+              "**/db/client.*",
+              "**/db/relations",
+              "**/db/relations.*"
+            ],
+            "message": "Database access is limited to src/server/repositories/ and src/server/viewer/."
+          }
+        ]
+      }
+    ]
+  },
   "env": {
     "builtin": true
   },
+  "overrides": [
+    {
+      "files": ["src/server/db/**/*.ts"],
+      "excludeFiles": ["src/server/db/client.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "#/server/db/client",
+                  "#/server/db/client.*",
+                  "#/server/db/relations",
+                  "#/server/db/relations.*",
+                  "@/server/db/client",
+                  "@/server/db/client.*",
+                  "@/server/db/relations",
+                  "@/server/db/relations.*",
+                  "**/server/db/client",
+                  "**/server/db/client.*",
+                  "**/server/db/relations",
+                  "**/server/db/relations.*",
+                  "**/db/client",
+                  "**/db/client.*",
+                  "**/db/relations",
+                  "**/db/relations.*"
+                ],
+                "message": "Database access is limited to src/server/repositories/ and src/server/viewer/."
+              },
+              {
+                "regex": "^(?:\\.\\.?/)+(?:client|relations)(?:\\.[cm]?[jt]sx?)?$",
+                "message": "Only the database client construction site may import these modules from inside src/server/db/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/server/repositories/**/*.ts", "src/server/viewer/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
   "options": {
     "typeAware": true,
     "typeCheck": true
