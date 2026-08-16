@@ -4,6 +4,20 @@ A document sharing app: an organization uploads or writes documents, groups them
 
 ## Language
 
+### Surfaces
+
+**Dashboard**:
+The authenticated, organization-scoped half of the app, at `/dashboard/*`. Backed by TanStack DB collections and therefore not server-rendered; its chrome is.
+_Avoid_: app, admin, console, backoffice
+
+**Viewer**:
+The public, anonymous half, at `/v/<slug>`. Server-rendered, gated, and instrumented — it is where every Visit and Event comes from. It uses no collections.
+_Avoid_: share page, public page, reader
+
+**Chrome**:
+The Dashboard's persistent frame — sidebar, organization switcher, user menu. It lives above the SSR boundary and renders on the server with real data, which is what keeps a cold load from looking empty.
+_Avoid_: shell, layout, frame
+
 ### Content
 
 **Document**:
