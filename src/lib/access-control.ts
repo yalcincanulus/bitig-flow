@@ -1,4 +1,5 @@
 import { createAccessControl } from "better-auth/plugins/access";
+import type { RoleAuthorizeRequest } from "better-auth/plugins/access";
 import {
   adminAc,
   defaultStatements,
@@ -33,9 +34,12 @@ export const member = ac.newRole({
   ...applicationStatements,
 });
 
+export const roles = { owner, admin, member } as const;
+export type PermissionRequest = RoleAuthorizeRequest<typeof ac.statements>;
+
 export const organizationPluginOptions = {
   ac,
-  roles: { owner, admin, member },
+  roles,
   teams: { enabled: false },
   dynamicAccessControl: { enabled: false },
 } as const;
