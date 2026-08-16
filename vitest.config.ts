@@ -18,6 +18,23 @@ export default defineConfig({
           include: ["tests/pure/**/*.test.ts"],
         },
       }),
+      defineProject({
+        resolve: {
+          alias: {
+            "#": sourceDirectory,
+          },
+        },
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          globalSetup: ["./tests/integration/global-setup.ts"],
+          setupFiles: ["./tests/integration/setup.ts"],
+          pool: "threads",
+          fileParallelism: false,
+          maxWorkers: 1,
+        },
+      }),
     ],
   },
 });
