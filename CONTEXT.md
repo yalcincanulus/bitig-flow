@@ -50,6 +50,14 @@ _Avoid_: owner (that is a role), account, member (that is also a role)
 The tenant. Owns documents, vaults, and links; users belong to it with a role of owner, admin, or member.
 _Avoid_: team, workspace, tenant, company
 
+**Role**:
+A user's single, fixed standing within one organization — owner, admin, or member. A user has one role per organization and may hold different roles in different ones. Roles govern people, not content: all three have full access to documents, vaults, and links.
+_Avoid_: permission level, access level (that is a gate concept), group
+
+**Permission**:
+One action on one resource, granted to a role — `document:create`, `analytics:read`. The complete vocabulary lives in the access-control statements. A permission never depends on who created a row.
+_Avoid_: capability, scope, grant, right
+
 ### Analytics
 
 **Visit**:
