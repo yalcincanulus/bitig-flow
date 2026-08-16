@@ -108,17 +108,16 @@ export function isForbiddenError(error: unknown): error is ForbiddenError {
 }
 
 export const authedMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
-  const session = await auth.api.getSession({ headers: getRequest().headers });
-  if (!session) return signInRedirect();
+  const authSession = await auth.api.getSession({ headers: getRequest().headers });
+  if (!authSession) return signInRedirect();
 
-  return next({ context: { userId: session.user.id } });
+  return next({ context: { authSession, userId: authSession.user.id } });
 });
 
 export const orgMiddleware = createMiddleware({ type: "function" })
   .middleware([authedMiddleware])
   .server(async ({ next, context }) => {
-    const session = await auth.api.getSession({ headers: getRequest().headers });
-    const activeOrganizationId = session?.session.activeOrganizationId;
+    const activeOrganizationId = context.authSession.session.activeOrganizationId;
     if (!activeOrganizationId) return signInRedirect();
 
     // This is the only application boundary allowed to mint an OrganizationId.
