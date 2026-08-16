@@ -7,6 +7,11 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
+    "infra:up": "docker compose up -d --wait",
+    "infra:down": "docker compose down",
+    "infra:reset": "docker compose down -v && docker compose up -d --wait",
+    "infra:logs": "docker compose logs -f",
+    "infra:verify": "node --env-file=.env infra/verify.ts",
     "generate-routes": "tsr generate",
     "build": "vite build",
     "preview": "vite preview",
@@ -17,6 +22,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
     "@base-ui/react": "^1.7.0",
     "@fontsource-variable/raleway": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
@@ -37,6 +44,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "1.0.0-rc.4",
     "lucide-react": "^1.31.0",
+    "nodemailer": "^9.0.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "shadcn": "^4.18.0",
@@ -50,6 +58,7 @@
     "@tanstack/devtools-vite": "latest",
     "@tanstack/router-cli": "^1.167.28",
     "@types/node": "^22.20.1",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",

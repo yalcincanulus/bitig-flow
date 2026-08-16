@@ -2,12 +2,50 @@ Welcome to your new TanStack Start app!
 
 # Getting Started
 
-To run this application:
-
 ```bash
 pnpm install
+cp .env.example .env       # then fill in the secrets — see the comments in the file
+pnpm infra:up              # postgres, redis, garage, mailpit
+pnpm infra:verify          # optional: smoke-test the stack end to end
 pnpm dev
 ```
+
+## Local infrastructure
+
+Everything the app talks to runs in Docker, defined in [`compose.yaml`](./compose.yaml).
+
+| Service | What it is | Where |
+| --- | --- | --- |
+| `postgres` | Postgres 19beta — application data | `localhost:5432` |
+| `redis` | Redis 8 — gate sessions, dwell buffering | `localhost:6379` |
+| `garage` | Single-node S3 for document blobs | API `localhost:3900`, admin `localhost:3903` |
+| `mailpit` | Catches all outbound dev mail | SMTP `localhost:1025`, UI <http://localhost:8025> |
+
+Scripts:
+
+| Command | Does |
+| --- | --- |
+| `pnpm infra:up` | Start everything and wait until healthy |
+| `pnpm infra:down` | Stop the stack, keep the data |
+| `pnpm infra:reset` | Destroy the volumes and start clean |
+| `pnpm infra:logs` | Follow logs from all services |
+| `pnpm infra:verify` | putObject + presigned GET/PUT against Garage, SMTP into Mailpit |
+
+### Notes
+
+- **Garage provisions itself.** `garage server --single-node` assigns and applies the
+  cluster layout on first start, and `--default-bucket` creates the bucket and imports
+  the access key from `.env`. A one-shot `garage-init` sidecar then applies bucket CORS
+  (plain S3 `PutBucketCors`, which the Garage CLI does not cover). No manual steps.
+- **Do not rotate `S3_SECRET_ACCESS_KEY` against an existing volume.** Garage refuses
+  to start if the key id already exists with a different secret. Run `pnpm infra:reset`
+  first.
+- **Presign with checksums off.** The AWS SDK signs `x-amz-checksum-*` headers by
+  default; a browser will not send them and the PUT would 403. Use a client configured
+  with `requestChecksumCalculation: "WHEN_REQUIRED"` for presigning — see
+  [`infra/verify.ts`](./infra/verify.ts).
+- Garage is path-style only here: `endpoint: http://127.0.0.1:3900`, `region: "garage"`,
+  `forcePathStyle: true`.
 
 # Building For Production
 

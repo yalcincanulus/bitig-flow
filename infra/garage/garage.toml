@@ -1,0 +1,23 @@
+# Garage configuration for local single-node development.
+#
+# Secrets are NOT in this file — they come from the environment (see compose.yaml):
+#   GARAGE_RPC_SECRET, GARAGE_ADMIN_TOKEN
+#
+# `replication_factor = 1` is required by `garage server --single-node` and means
+# no redundancy. That is correct for a laptop; it is never correct in production.
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+
+[admin]
+api_bind_addr = "[::]:3903"
