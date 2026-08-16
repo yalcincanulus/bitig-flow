@@ -79,12 +79,20 @@ One visitor's gated session on one link — created the moment its gate is satis
 _Avoid_: session, visitor session, access
 
 **View**:
-One document being opened within a visit. A visit on a vault link may contain many views.
+One document being opened within a visit. A visit on a vault link may contain many views, and re-opening the same document is a second view. A view is not a table — it is recorded as a `document_opened` event.
 _Avoid_: read, open, impression
 
 **Event**:
-A typed analytics record belonging to a visit — page dwell, download, and so on.
+A typed, append-only analytics record belonging to a visit and naming a document. The vocabulary is exactly three: `document_opened`, `page_dwell`, `download`. Anything already held as a column on **Visit** — the captured email, its verification, the start and last-seen times — is not an event.
 _Avoid_: activity, log, hit
+
+**Dwell**:
+Time a visitor spent on one page of one document, accumulated in the browser and reported by the **Beacon**. Pages exist for PDFs; markdown and images always report page 1.
+_Avoid_: time on page, engagement, duration
+
+**Beacon**:
+The anonymous `sendBeacon` write that carries dwell from the viewer to our origin. It is authenticated solely by the visit cookie and is the only analytics writer that is not the server itself.
+_Avoid_: ping, telemetry, tracker
 
 **Visitor id**:
 A long-lived opaque identifier that groups a returning visitor's visits together. Purely for analytics; it never grants access. A captured email supersedes it as the stronger identity.
