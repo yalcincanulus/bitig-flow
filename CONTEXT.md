@@ -68,6 +68,14 @@ _Avoid_: access level, tier, permission
 One visitor's part-way state through one link's gate — which requirements they have cleared, and their outstanding verification code. Short-lived, exists only until the gate is satisfied, and there is exactly one per visitor per link.
 _Avoid_: gate session, pending visit, attempt
 
+**Receipt**:
+How the gate shows a visitor their own gate progress — a list of the requirements they have already satisfied. It never names the requirements still ahead, so it discloses nothing to someone who has satisfied none.
+_Avoid_: stepper, progress bar, wizard steps
+
+**Sender line**:
+The one piece of context the gate shows before any requirement is satisfied — the link's creator and their organization, and never the target. Degrades to the organization alone when the creator's account is gone.
+_Avoid_: header, branding, attribution
+
 ### The people
 
 **Visitor**:
