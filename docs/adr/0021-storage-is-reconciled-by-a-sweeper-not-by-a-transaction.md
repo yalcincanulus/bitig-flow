@@ -1,0 +1,9 @@
+# Storage is reconciled by a sweeper, not by a transaction
+
+**Deletion goes database first, object second,** because the failure modes are asymmetric. A failed object delete leaks bytes that nothing can reach. A failed row delete leaves a `ready` document pointing at nothing — a broken viewer behind a live link. Leaking is the better failure. Direct deletes use `DELETE … RETURNING storage_key` to get the keys to remove; deleting an organization drops the whole `org/<orgId>/` prefix outright.
+
+**Cascades are why a sweeper is unavoidable.** ADR-0006 deletes documents through Postgres cascades when a vault or organization goes, so the application never sees the rows that vanished and cannot delete their objects inline. No amount of transactional care fixes this; reconciliation is the mechanism, not a safety net bolted onto one.
+
+**Two passes, two schedules.** Unconfirmed uploads — `pending` older than 24 hours — are deleted object-then-row **daily**; this is the sweeper ADR-0008 said its after-the-fact size check implied. Orphan reconciliation lists the `org/` prefix and deletes keys with no matching document row, **weekly**, since it scales with total objects rather than with recent activity.
+
+**It is a script, not a worker.** `sweepUnconfirmedUploads()` and `sweepOrphanedObjects()` are plain exported functions; the entrypoint calls them and exits, run by a Coolify Scheduled Task (`docker exec` into the app container, so database and S3 credentials are already in scope). BullMQ was considered and rejected for now: it buys retries, backoff, and concurrency control, none of which a sweep that is idempotent by construction and deliberately infrequent needs, and it costs a long-running worker process to keep alive. Keeping the logic in functions rather than in the scheduler makes that reversible — if the analytics work lands a periodic Redis-to-Postgres flush, that ticket can add a queue and wrap these same functions unchanged.

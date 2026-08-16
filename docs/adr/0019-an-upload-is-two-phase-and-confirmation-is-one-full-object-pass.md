@@ -1,0 +1,13 @@
+# An upload is two-phase, and confirmation is one full-object pass
+
+**The row precedes the bytes.** The client mints a uuidv7 `documentId` and calls `createUpload`, which authorizes, inserts the `document` row as `pending` (ADR-0015), and returns a presigned PUT. The client uploads straight to garage. The client then calls `confirmUpload`, which is where the row becomes `ready`. Upload stays presigned even though reads no longer are (ADR-0018): the infrastructure for it is already built and verified, and a server function is a poor file channel — buffering 25 MB through memory to re-emit it is worse than a signed URL.
+
+**The object key carries no filename and no extension:** `org/<orgId>/doc/<documentId>/original`, one object per document. An extension would have to come from the client's *declared* MIME type at presign time, before anything has been sniffed, and ADR-0008 is explicit that the declared type is a claim rather than evidence. Keying by `documentId` also means the same file uploaded twice is simply two documents, with no dedup question to answer and no untrusted string anywhere near a path.
+
+**The original filename is stored in `document.file_name`.** ADR-0008 requires it for `Content-Disposition`, but the schema locked in #11 had no column for it; this adds one (`text NULL`), sanitized on capture and used nowhere else.
+
+**Confirmation reads the whole object once.** A single `GetObject` on an object capped at 25 MB yields, in one pass: the magic-byte check of ADR-0008, the true `byte_size`, a SHA-256 `checksum`, and — for PDFs — `page_count` from pdf.js's legacy build, which parses `numPages` without rendering and so needs no canvas and no new dependency. A client-reported page count was rejected because the analytics work wants it as the denominator of "percentage of the document read", and a denominator the visitor controls is a broken metric. If the node-side parse proves awkward, `page_count` may be left null and read as "unknown" downstream.
+
+**`checksum` is SHA-256 hex, for integrity and debugging only.** Garage's `ETag` was rejected because its meaning depends on whether the upload was multipart, which is a poor thing to store in a column named `checksum`. Nothing may key off this column — not dedup, not authorization, not cache validation.
+
+**The two failure modes get different treatment.** Confirming with no bytes present returns a retryable error and leaves the row `pending`, so the client can simply re-PUT. Bytes uploaded but never confirmed are the leak ADR-0008 anticipated, and are handled by the sweeper in ADR-0021. A link may be created against a `pending` document — blocking it would make upload-then-share wait, and both ends already model the state honestly.

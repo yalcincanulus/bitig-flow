@@ -14,6 +14,20 @@ _Avoid_: file, asset, doc
 A flat, unordered set of documents, shared as one unit.
 _Avoid_: folder, collection, dataroom, group
 
+### Storage
+
+**Storage key**:
+The single object path holding a document's bytes — `org/<orgId>/doc/<documentId>/original`. One object per document, carrying neither the original filename nor an extension.
+_Avoid_: path, object name, blob key
+
+**Confirmation**:
+The step that turns a `pending` document into a `ready` one: the server reads the uploaded object back once, verifies it, and records its true size, type, checksum, and page count. Until it happens, the row exists and the bytes are unproven.
+_Avoid_: finalize, commit, validate
+
+**Sweep**:
+The scheduled reconciliation between the database and the object store — reaping unconfirmed uploads and objects whose document row is gone. The mechanism by which cascade deletes eventually reach storage.
+_Avoid_: cleanup, GC, prune
+
 ### Sharing
 
 **Link**:

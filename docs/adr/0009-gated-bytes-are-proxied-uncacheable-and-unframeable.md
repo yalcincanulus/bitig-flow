@@ -1,5 +1,7 @@
 # Gated bytes are proxied, uncacheable, and unframeable
 
+> **Partly superseded by [ADR-0018](0018-gated-bytes-are-proxied-by-our-origin-and-presigned-get-is-retired.md).** PDFs are proxied too, and presigned GET no longer exists; the final paragraph's caveat about garage owning the PDF response headers no longer applies. Everything else here stands.
+
 **Image bytes are proxied through our origin.** A server route resolves the presigned GET server-side and streams the body, rather than handing the browser a URL on the garage origin. This keeps `img-src 'self'` literally true, so the CSP and the markdown renderer's no-remote-images rule state the same thing rather than approximately the same thing, and it keeps the storage endpoint out of public HTML. PDFs stay on the presigned-redirect path, where the browser navigates rather than embeds. The cost is bytes through the app server, which is acceptable at this app's traffic.
 
 **The viewer route's CSP** is `default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`.
