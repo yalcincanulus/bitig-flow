@@ -150,6 +150,9 @@ importers:
       redis:
         specifier: ^6.2.1
         version: 6.2.1
+      tough-cookie:
+        specifier: ^6.0.2
+        version: 6.0.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

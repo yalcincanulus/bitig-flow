@@ -75,6 +75,7 @@
     "oxlint": "^1.78.0",
     "oxlint-tsgolint": "^7.0.2001",
     "redis": "^6.2.1",
+    "tough-cookie": "^6.0.2",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
