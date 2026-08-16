@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseSync, Visitor, type Expression } from "oxc-parser";
+import { parseSync, Visitor, type EcmaScriptModule, type Expression } from "oxc-parser";
 import { expect, test } from "vitest";
 
 const projectDirectory = fileURLToPath(new URL("../../", import.meta.url));
@@ -11,6 +11,17 @@ const tierMiddlewareNames = new Set(["authedMiddleware", "orgMiddleware"]);
 type ServerFunctionDeclaration = Readonly<{
   name: string;
   declaresTier: boolean;
+}>;
+
+type ChainedMethodCall = Readonly<{
+  methodName: string;
+  receiver: Expression;
+  arguments: Extract<Expression, { type: "CallExpression" }>["arguments"];
+}>;
+
+type ServerFunctionFactories = Readonly<{
+  named: ReadonlySet<string>;
+  namespaces: ReadonlySet<string>;
 }>;
 
 function sourceFilePaths(directory: string): string[] {
@@ -23,22 +34,42 @@ function sourceFilePaths(directory: string): string[] {
     .sort();
 }
 
-function chainCallsMethod(expression: Expression, methodName: string): boolean {
-  if (expression.type !== "CallExpression") return false;
-  if (expression.callee.type !== "MemberExpression" || expression.callee.computed) return false;
+function chainedMethodCall(expression: Expression): ChainedMethodCall | undefined {
+  if (expression.type !== "CallExpression") return undefined;
+  if (expression.callee.type !== "MemberExpression" || expression.callee.computed) return undefined;
+
+  return {
+    methodName: expression.callee.property.name,
+    receiver: expression.callee.object,
+    arguments: expression.arguments,
+  };
+}
+
+function isServerFunctionFactory(
+  expression: Expression,
+  factories: ServerFunctionFactories,
+): boolean {
+  if (expression.type === "Identifier") return factories.named.has(expression.name);
 
   return (
-    expression.callee.property.name === methodName ||
-    chainCallsMethod(expression.callee.object, methodName)
+    expression.type === "MemberExpression" &&
+    !expression.computed &&
+    expression.object.type === "Identifier" &&
+    factories.namespaces.has(expression.object.name) &&
+    expression.property.name === "createServerFn"
   );
 }
 
-function chainStartsWithCreateServerFn(expression: Expression): boolean {
+function chainStartsWithCreateServerFn(
+  expression: Expression,
+  factories: ServerFunctionFactories,
+): boolean {
   if (expression.type !== "CallExpression") return false;
-  if (expression.callee.type === "Identifier") return expression.callee.name === "createServerFn";
-  if (expression.callee.type !== "MemberExpression" || expression.callee.computed) return false;
+  if (isServerFunctionFactory(expression.callee, factories)) return true;
+  const call = chainedMethodCall(expression);
+  if (!call) return false;
 
-  return chainStartsWithCreateServerFn(expression.callee.object);
+  return chainStartsWithCreateServerFn(call.receiver, factories);
 }
 
 function namesTierMiddleware(expression: Expression): boolean {
@@ -52,12 +83,12 @@ function namesTierMiddleware(expression: Expression): boolean {
 }
 
 function chainDeclaresTier(expression: Expression): boolean {
-  if (expression.type !== "CallExpression") return false;
-  if (expression.callee.type !== "MemberExpression" || expression.callee.computed) return false;
+  const call = chainedMethodCall(expression);
+  if (!call) return false;
 
   if (
-    expression.callee.property.name === "middleware" &&
-    expression.arguments.some(
+    call.methodName === "middleware" &&
+    call.arguments.some(
       (argument) =>
         argument.type === "ArrayExpression" &&
         argument.elements.some(
@@ -69,7 +100,28 @@ function chainDeclaresTier(expression: Expression): boolean {
     return true;
   }
 
-  return chainDeclaresTier(expression.callee.object);
+  return chainDeclaresTier(call.receiver);
+}
+
+function sourceLocation(source: string, offset: number): string {
+  const linesBeforeExpression = source.slice(0, offset).split("\n");
+  return `${linesBeforeExpression.length}:${linesBeforeExpression.at(-1)!.length + 1}`;
+}
+
+function serverFunctionFactories(module: EcmaScriptModule): ServerFunctionFactories {
+  const named = new Set<string>();
+  const namespaces = new Set<string>();
+
+  for (const imported of module.staticImports) {
+    if (imported.moduleRequest.value !== "@tanstack/react-start") continue;
+
+    for (const entry of imported.entries) {
+      if (entry.importName.name === "createServerFn") named.add(entry.localName.value);
+      if (entry.importName.name === null) namespaces.add(entry.localName.value);
+    }
+  }
+
+  return { named, namespaces };
 }
 
 function serverFunctionsIn(path: string): ServerFunctionDeclaration[] {
@@ -81,17 +133,17 @@ function serverFunctionsIn(path: string): ServerFunctionDeclaration[] {
     );
   }
   const declarations: ServerFunctionDeclaration[] = [];
+  const factories = serverFunctionFactories(parsed.module);
 
   new Visitor({
-    VariableDeclarator(node) {
+    CallExpression(node) {
       if (
-        node.init &&
-        chainStartsWithCreateServerFn(node.init) &&
-        chainCallsMethod(node.init, "handler")
+        chainedMethodCall(node)?.methodName === "handler" &&
+        chainStartsWithCreateServerFn(node, factories)
       ) {
         declarations.push({
-          name: `${relative(projectDirectory, path)}:${source.slice(node.id.start, node.id.end)}`,
-          declaresTier: chainDeclaresTier(node.init),
+          name: `${relative(projectDirectory, path)}:${sourceLocation(source, node.start)}`,
+          declaresTier: chainDeclaresTier(node),
         });
       }
     },
