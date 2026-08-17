@@ -1,0 +1,7 @@
+import { createServerFn } from "@tanstack/react-start";
+
+import { authedMiddleware } from "#/server/auth";
+
+export const hasAuthenticatedSession = createServerFn({ method: "GET" })
+  .middleware([authedMiddleware])
+  .handler(() => true);

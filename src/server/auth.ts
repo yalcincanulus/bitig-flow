@@ -71,7 +71,7 @@ export const auth = betterAuth({
       ...organizationPluginOptions,
       async sendInvitationEmail({ email, id, organization }) {
         const invitationUrl = new URL(
-          `/accept-invitation?id=${encodeURIComponent(id)}`,
+          `/accept-invitation/${encodeURIComponent(id)}`,
           process.env.BETTER_AUTH_URL,
         );
 
