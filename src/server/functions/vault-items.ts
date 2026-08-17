@@ -1,8 +1,44 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
-import { orgMiddleware } from "#/server/auth-middleware";
-import { listVaultItems as listVaultItemsFromRepository } from "#/server/repositories/vault-items";
+import { orgMiddleware, permission } from "#/server/auth-middleware";
+import { documentIdSchema, vaultIdSchema } from "#/server/ids";
+import {
+  addVaultItem as addVaultItemInRepository,
+  listVaultItems as listVaultItemsFromRepository,
+  removeVaultItem as removeVaultItemInRepository,
+} from "#/server/repositories/vault-items";
+
+const membershipPairSchema = z.object({
+  vaultId: vaultIdSchema,
+  documentId: documentIdSchema,
+});
+
+const addVaultItemSchema = membershipPairSchema.extend({
+  addedAt: z.coerce.date(),
+});
+
+const removeVaultItemSchema = membershipPairSchema;
 
 export const listVaultItems = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])
   .handler(({ context }) => listVaultItemsFromRepository(context.orgId));
+
+export const addVaultItem = createServerFn({ method: "POST" })
+  .middleware([permission({ vault: ["update"] })])
+  .validator(addVaultItemSchema)
+  .handler(async ({ context, data }) => {
+    const added = await addVaultItemInRepository(context.orgId, data);
+    if (!added) throw notFound();
+    return added;
+  });
+
+export const removeVaultItem = createServerFn({ method: "POST" })
+  .middleware([permission({ vault: ["update"] })])
+  .validator(removeVaultItemSchema)
+  .handler(async ({ context, data }) => {
+    const removed = await removeVaultItemInRepository(context.orgId, data);
+    if (!removed) throw notFound();
+    return removed;
+  });

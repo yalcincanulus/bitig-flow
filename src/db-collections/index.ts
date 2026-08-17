@@ -11,7 +11,7 @@ import {
 } from "#/server/db/schema";
 import { listDocuments } from "#/server/functions/documents";
 import { listLinks } from "#/server/functions/links";
-import { listVaultItems } from "#/server/functions/vault-items";
+import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const timestampSchema = z
@@ -62,6 +62,35 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
       // Vault membership is a row keyed by its composite primary key, never an array on the Vault.
       getKey: vaultItemKey,
       schema: vaultItemSchema,
+      onInsert: async ({ transaction, collection }) => {
+        const created = await Promise.all(
+          transaction.mutations.map(({ modified }) =>
+            addVaultItem({
+              data: {
+                vaultId: modified.vaultId,
+                documentId: modified.documentId,
+                addedAt: modified.addedAt,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeInsert(created);
+        return { refetch: false };
+      },
+      onDelete: async ({ transaction, collection }) => {
+        const deleted = await Promise.all(
+          transaction.mutations.map(({ original }) =>
+            removeVaultItem({
+              data: {
+                vaultId: original.vaultId,
+                documentId: original.documentId,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeDelete(deleted.map(vaultItemKey));
+        return { refetch: false };
+      },
     }),
   );
 

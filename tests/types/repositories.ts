@@ -1,7 +1,7 @@
 import type { DocumentId } from "#/server/ids";
 import { findDocument } from "#/server/repositories/documents";
 import { listLinks } from "#/server/repositories/links";
-import { listVaultItems } from "#/server/repositories/vault-items";
+import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/repositories/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/repositories/vaults";
 
 import type { VaultId } from "#/server/ids";
@@ -33,6 +33,16 @@ void deleteVault("untrusted-organization-id", vaultId);
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void listVaultItems("untrusted-organization-id");
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void addVaultItem("untrusted-organization-id", {
+  vaultId,
+  documentId,
+  addedAt: new Date(),
+});
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void removeVaultItem("untrusted-organization-id", { vaultId, documentId });
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void listLinks("untrusted-organization-id");

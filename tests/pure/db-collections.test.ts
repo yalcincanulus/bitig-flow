@@ -13,7 +13,9 @@ vi.mock("#/server/functions/vaults", () => ({
 }));
 
 vi.mock("#/server/functions/vault-items", () => ({
+  addVaultItem: vi.fn(),
   listVaultItems: vi.fn(),
+  removeVaultItem: vi.fn(),
 }));
 
 vi.mock("#/server/functions/links", () => ({
@@ -22,7 +24,7 @@ vi.mock("#/server/functions/links", () => ({
 
 import { getCollections } from "#/db-collections";
 import { listLinks } from "#/server/functions/links";
-import { listVaultItems } from "#/server/functions/vault-items";
+import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const organizationId = "9f989366-f25a-4a0a-bb3c-03d1d2ef62ab";
@@ -205,5 +207,69 @@ describe("getCollections", () => {
     expect(links.get(deletedLink.id)).toBeUndefined();
     expect(vaultItems.get(`${retainedVault.id}:${retainedMembership.documentId}`)).toBeDefined();
     expect(links.get(retainedLink.id)).toBeDefined();
+  });
+
+  test("optimistically inserts Vault membership and direct-writes the confirmed row without refetching", async () => {
+    const membership = {
+      vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
+      documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const confirmed = {
+      ...membership,
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    vi.mocked(listVaultItems).mockResolvedValue([]);
+    vi.mocked(addVaultItem).mockResolvedValue(confirmed);
+    const { vaultItems } = getCollections(new QueryClient(), organizationId);
+    await vaultItems.preload();
+
+    const transaction = vaultItems.insert(membership);
+
+    expect(vaultItems.get(`${membership.vaultId}:${membership.documentId}`)).toMatchObject(
+      membership,
+    );
+
+    await transaction.isPersisted.promise;
+
+    expect(addVaultItem).toHaveBeenCalledWith({
+      data: {
+        vaultId: membership.vaultId,
+        documentId: membership.documentId,
+        addedAt: membership.addedAt,
+      },
+    });
+    expect(vaultItems.get(`${membership.vaultId}:${membership.documentId}`)).toMatchObject(
+      confirmed,
+    );
+    expect(listVaultItems).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically removes Vault membership and direct-writes the deletion without refetching", async () => {
+    const membership = {
+      vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
+      documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    vi.mocked(listVaultItems).mockResolvedValue([membership]);
+    vi.mocked(removeVaultItem).mockResolvedValue(membership);
+    const { vaultItems } = getCollections(new QueryClient(), organizationId);
+    await vaultItems.preload();
+
+    const key = `${membership.vaultId}:${membership.documentId}` as const;
+    const transaction = vaultItems.delete(key);
+
+    expect(vaultItems.get(key)).toBeUndefined();
+
+    await transaction.isPersisted.promise;
+
+    expect(removeVaultItem).toHaveBeenCalledWith({
+      data: {
+        vaultId: membership.vaultId,
+        documentId: membership.documentId,
+      },
+    });
+    expect(vaultItems.get(key)).toBeUndefined();
+    expect(listVaultItems).toHaveBeenCalledTimes(1);
   });
 });
