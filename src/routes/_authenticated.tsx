@@ -8,7 +8,9 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "#/components/ui/sidebar";
+import { OrganizationSwitcher } from "#/components/organization-switcher";
 import { TooltipProvider } from "#/components/ui/tooltip";
+import { listOrganizations } from "#/server/functions/auth";
 import { getDashboardContext } from "#/server/functions/dashboard";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -21,17 +23,21 @@ export const Route = createFileRoute("/_authenticated")({
 
     return dashboardContext;
   },
+  loader: () => listOrganizations(),
   component: DashboardChrome,
 });
 
 function DashboardChrome() {
   const { organization, session } = Route.useRouteContext();
+  const organizations = Route.useLoaderData();
 
   return (
     <TooltipProvider>
       <SidebarProvider>
         <Sidebar collapsible="none">
-          <SidebarHeader>{organization.name}</SidebarHeader>
+          <SidebarHeader>
+            <OrganizationSwitcher activeOrganization={organization} organizations={organizations} />
+          </SidebarHeader>
           <SidebarContent />
           <SidebarFooter>{session.user.name}</SidebarFooter>
         </Sidebar>

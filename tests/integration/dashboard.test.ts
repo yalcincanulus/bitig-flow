@@ -6,9 +6,11 @@ import { member as membershipTable } from "#/server/db/schema";
 import {
   createFixtureDocument,
   createFixtureUser,
+  createOrganizationForFixtureUser,
   createOrganizationFixture,
   database,
 } from "../fixtures";
+import { callServerFunction } from "../fixtures/http";
 import { test } from "./http";
 
 async function expectSignInRedirect(response: Response) {
@@ -61,6 +63,25 @@ test("the Dashboard index redirects to Documents before rendering", async () => 
   expect(response.status).toBe(307);
   expect(response.headers.get("location")).toBe("/dashboard/documents");
   expect(await response.text()).toBe("");
+});
+
+test("an authenticated User can list every Organization they belong to", async () => {
+  const fixture = await createOrganizationFixture();
+  const otherOrganization = await createOrganizationForFixtureUser(fixture.member.user.id);
+
+  const response = await callServerFunction(fixture.member.http, {
+    modulePath: "/src/server/functions/auth.ts",
+    exportName: "listOrganizations",
+    method: "GET",
+  });
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: fixture.organization.id, name: fixture.organization.name }),
+      expect.objectContaining({ id: otherOrganization.id, name: otherOrganization.name }),
+    ]),
+  );
 });
 
 test("no active Organization and eviction redirect Dashboard requests like anonymity", async () => {
