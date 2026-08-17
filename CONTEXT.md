@@ -18,6 +18,10 @@ _Avoid_: share page, public page, reader
 The Dashboard's persistent frame — sidebar, organization switcher, user menu. It lives above the SSR boundary and renders on the server with real data, which is what keeps a cold load from looking empty.
 _Avoid_: shell, layout, frame
 
+**Preview**:
+The owner's view of a rendered **Document**, on the Dashboard. It goes through the same render module the **Viewer** uses, so what an owner checks is what a **Visitor** gets. It is not a pane inside the editor.
+_Avoid_: live preview, draft view, rendered view
+
 ### Content
 
 **Document**:
@@ -27,6 +31,14 @@ _Avoid_: file, asset, doc
 **Vault**:
 A flat, unordered set of documents, shared as one unit.
 _Avoid_: folder, collection, dataroom, group
+
+**Reference**:
+A markdown **Document**'s use of an image Document inside its text. The referenced Document is an ordinary Document that happens to be embedded — it is not a lesser kind of thing, and it holds no bytes of its own beyond the ones it already had.
+_Avoid_: attachment, embed, inline image
+
+**Reachable**:
+The property that decides which documents a **Link** may serve bytes for: its **Target**, the documents in a target Vault, and the **References** of those. One hop, never further. Being reachable permits bytes and is not a **View**.
+_Avoid_: allowed, permitted, in scope
 
 ### Storage
 
@@ -45,7 +57,7 @@ _Avoid_: cleanup, GC, prune
 ### Sharing
 
 **Link**:
-The shareable thing: a public URL pointing at one target, carrying its own gate, options, and analytics stream. A target may have many links, each with different rules.
+The shareable thing: a public URL pointing at one target, carrying its own gate, options, and analytics stream. A target may have many links, each with different rules. Creating one is the act of publication — a **Document** nothing points at is unreachable, which is why there is no separate draft state.
 _Avoid_: share, shareLink, invite
 
 **Target**:
