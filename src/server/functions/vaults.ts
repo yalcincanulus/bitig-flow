@@ -1,8 +1,62 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
-import { orgMiddleware } from "#/server/auth-middleware";
-import { listVaults as listVaultsFromRepository } from "#/server/repositories/vaults";
+import { orgMiddleware, permission } from "#/server/auth-middleware";
+import { vaultIdSchema } from "#/server/ids";
+import {
+  createVault as createVaultInRepository,
+  deleteVault as deleteVaultInRepository,
+  listVaults as listVaultsFromRepository,
+  updateVault as updateVaultInRepository,
+} from "#/server/repositories/vaults";
+
+const createVaultSchema = z.object({
+  vaultId: vaultIdSchema,
+  name: z.string().trim().min(1),
+  description: z.string().trim().optional(),
+});
+
+const updateVaultSchema = z.object({
+  vaultId: vaultIdSchema,
+  name: z.string().trim().min(1),
+  description: z.string().trim().nullable(),
+});
+
+const deleteVaultSchema = z.object({ vaultId: vaultIdSchema });
 
 export const listVaults = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])
   .handler(({ context }) => listVaultsFromRepository(context.orgId));
+
+export const createVault = createServerFn({ method: "POST" })
+  .middleware([permission({ vault: ["create"] })])
+  .validator(createVaultSchema)
+  .handler(({ context, data }) =>
+    createVaultInRepository(context.orgId, {
+      id: data.vaultId,
+      name: data.name,
+      description: data.description || null,
+    }),
+  );
+
+export const updateVault = createServerFn({ method: "POST" })
+  .middleware([permission({ vault: ["update"] })])
+  .validator(updateVaultSchema)
+  .handler(async ({ context, data }) => {
+    const updated = await updateVaultInRepository(context.orgId, data.vaultId, {
+      name: data.name,
+      description: data.description || null,
+    });
+    if (!updated) throw notFound();
+    return updated;
+  });
+
+export const deleteVault = createServerFn({ method: "POST" })
+  .middleware([permission({ vault: ["delete"] })])
+  .validator(deleteVaultSchema)
+  .handler(async ({ context, data }) => {
+    const deleted = await deleteVaultInRepository(context.orgId, data.vaultId);
+    if (!deleted) throw notFound();
+    return deleted;
+  });

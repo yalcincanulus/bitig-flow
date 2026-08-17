@@ -12,7 +12,7 @@ import {
 import { listDocuments } from "#/server/functions/documents";
 import { listLinks } from "#/server/functions/links";
 import { listVaultItems } from "#/server/functions/vault-items";
-import { listVaults } from "#/server/functions/vaults";
+import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const timestampSchema = z
   .union([z.date(), z.iso.datetime()])
@@ -57,6 +57,45 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
       queryFn: () => listVaults(),
       getKey: (vault) => vault.id,
       schema: vaultSchema,
+      onInsert: async ({ transaction, collection }) => {
+        const created = await Promise.all(
+          transaction.mutations.map(({ modified }) =>
+            createVault({
+              data: {
+                vaultId: modified.id,
+                name: modified.name,
+                description: modified.description ?? undefined,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeInsert(created);
+        return { refetch: false };
+      },
+      onUpdate: async ({ transaction, collection }) => {
+        const updated = await Promise.all(
+          transaction.mutations.map(({ modified }) =>
+            updateVault({
+              data: {
+                vaultId: modified.id,
+                name: modified.name,
+                description: modified.description,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeUpdate(updated);
+        return { refetch: false };
+      },
+      onDelete: async ({ transaction, collection }) => {
+        const deleted = await Promise.all(
+          transaction.mutations.map(({ original }) =>
+            deleteVault({ data: { vaultId: original.id } }),
+          ),
+        );
+        collection.utils.writeDelete(deleted.map(({ id }) => id));
+        return { refetch: false };
+      },
     }),
   );
 

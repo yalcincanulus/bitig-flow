@@ -1,12 +1,15 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("#/server/functions/documents", () => ({
   listDocuments: vi.fn(),
 }));
 
 vi.mock("#/server/functions/vaults", () => ({
+  createVault: vi.fn(),
+  deleteVault: vi.fn(),
   listVaults: vi.fn(),
+  updateVault: vi.fn(),
 }));
 
 vi.mock("#/server/functions/vault-items", () => ({
@@ -18,6 +21,26 @@ vi.mock("#/server/functions/links", () => ({
 }));
 
 import { getCollections } from "#/db-collections";
+import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
+
+const organizationId = "9f989366-f25a-4a0a-bb3c-03d1d2ef62ab";
+
+function vaultRow(overrides: Partial<Awaited<ReturnType<typeof listVaults>>[number]> = {}) {
+  const now = new Date("2026-08-17T12:00:00.000Z");
+  return {
+    id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
+    organizationId,
+    name: "Launch notes",
+    description: null,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("getCollections", () => {
   test("memoizes Organization collections by QueryClient and Organization id", () => {
@@ -47,5 +70,86 @@ describe("getCollections", () => {
         addedAt: new Date(),
       }),
     ).toBe("vault-1:document-1");
+  });
+
+  test("optimistically inserts a Vault and direct-writes the confirmed row without refetching", async () => {
+    const confirmed = vaultRow({ description: "Confirmed by the server" });
+    vi.mocked(listVaults).mockResolvedValue([]);
+    vi.mocked(createVault).mockResolvedValue(confirmed);
+    const { vaults } = getCollections(new QueryClient(), organizationId);
+    await vaults.preload();
+
+    const transaction = vaults.insert(vaultRow());
+
+    expect(vaults.get(confirmed.id)).toMatchObject({
+      id: confirmed.id,
+      name: "Launch notes",
+      description: null,
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(createVault).toHaveBeenCalledWith({
+      data: {
+        vaultId: confirmed.id,
+        name: "Launch notes",
+        description: undefined,
+      },
+    });
+    expect(vaults.get(confirmed.id)).toMatchObject(confirmed);
+    expect(listVaults).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically updates a Vault and direct-writes the confirmed row without refetching", async () => {
+    const initial = vaultRow();
+    const confirmed = vaultRow({
+      name: "Launch archive",
+      description: "Confirmed by the server",
+      updatedAt: new Date("2026-08-17T13:00:00.000Z"),
+    });
+    vi.mocked(listVaults).mockResolvedValue([initial]);
+    vi.mocked(updateVault).mockResolvedValue(confirmed);
+    const { vaults } = getCollections(new QueryClient(), organizationId);
+    await vaults.preload();
+
+    const transaction = vaults.update(initial.id, (draft) => {
+      draft.name = "Launch archive";
+      draft.description = "Client edit";
+    });
+
+    expect(vaults.get(initial.id)).toMatchObject({
+      name: "Launch archive",
+      description: "Client edit",
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(updateVault).toHaveBeenCalledWith({
+      data: {
+        vaultId: initial.id,
+        name: "Launch archive",
+        description: "Client edit",
+      },
+    });
+    expect(vaults.get(initial.id)).toMatchObject(confirmed);
+    expect(listVaults).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically deletes a Vault and direct-writes the deletion without refetching", async () => {
+    const initial = vaultRow();
+    vi.mocked(listVaults).mockResolvedValue([initial]);
+    vi.mocked(deleteVault).mockResolvedValue(initial);
+    const { vaults } = getCollections(new QueryClient(), organizationId);
+    await vaults.preload();
+
+    const transaction = vaults.delete(initial.id);
+
+    expect(vaults.get(initial.id)).toBeUndefined();
+
+    await transaction.isPersisted.promise;
+
+    expect(deleteVault).toHaveBeenCalledWith({ data: { vaultId: initial.id } });
+    expect(vaults.get(initial.id)).toBeUndefined();
+    expect(listVaults).toHaveBeenCalledTimes(1);
   });
 });
