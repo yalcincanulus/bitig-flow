@@ -18,8 +18,15 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthAcceptInvitationInvitationIdRouteImport } from './routes/_auth/accept-invitation/$invitationId'
-import { Route as AuthenticatedDashboardDocumentsRouteImport } from './routes/_authenticated/dashboard/documents'
+import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthenticatedDashboardDocumentsIndexRouteImport } from './routes/_authenticated/dashboard/documents/index'
+import { Route as AuthenticatedDashboardLinksIndexRouteImport } from './routes/_authenticated/dashboard/links/index'
+import { Route as AuthenticatedDashboardLinksLinkIdRouteImport } from './routes/_authenticated/dashboard/links/$linkId'
+import { Route as AuthenticatedDashboardVaultsIndexRouteImport } from './routes/_authenticated/dashboard/vaults/index'
+import { Route as AuthenticatedDashboardVaultsVaultIdRouteImport } from './routes/_authenticated/dashboard/vaults/$vaultId'
+import { Route as AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/index'
+import { Route as AuthenticatedDashboardDocumentsDocumentIdEditRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -65,10 +72,10 @@ const AuthAcceptInvitationInvitationIdRoute =
     path: '/accept-invitation/$invitationId',
     getParentRoute: () => AuthRoute,
   } as any)
-const AuthenticatedDashboardDocumentsRoute =
-  AuthenticatedDashboardDocumentsRouteImport.update({
-    id: '/documents',
-    path: '/documents',
+const AuthenticatedDashboardSettingsRoute =
+  AuthenticatedDashboardSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -76,6 +83,48 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDashboardDocumentsIndexRoute =
+  AuthenticatedDashboardDocumentsIndexRouteImport.update({
+    id: '/documents/',
+    path: '/documents/',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardLinksIndexRoute =
+  AuthenticatedDashboardLinksIndexRouteImport.update({
+    id: '/links/',
+    path: '/links/',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardLinksLinkIdRoute =
+  AuthenticatedDashboardLinksLinkIdRouteImport.update({
+    id: '/links/$linkId',
+    path: '/links/$linkId',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardVaultsIndexRoute =
+  AuthenticatedDashboardVaultsIndexRouteImport.update({
+    id: '/vaults/',
+    path: '/vaults/',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardVaultsVaultIdRoute =
+  AuthenticatedDashboardVaultsVaultIdRouteImport.update({
+    id: '/vaults/$vaultId',
+    path: '/vaults/$vaultId',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardDocumentsDocumentIdIndexRoute =
+  AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport.update({
+    id: '/documents/$documentId/',
+    path: '/documents/$documentId/',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardDocumentsDocumentIdEditRoute =
+  AuthenticatedDashboardDocumentsDocumentIdEditRouteImport.update({
+    id: '/documents/$documentId/edit',
+    path: '/documents/$documentId/edit',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -85,8 +134,15 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
-  '/dashboard/documents': typeof AuthenticatedDashboardDocumentsRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
+  '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/dashboard/documents/': typeof AuthenticatedDashboardDocumentsIndexRoute
+  '/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
+  '/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
+  '/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  '/dashboard/documents/$documentId/': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,8 +152,15 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
-  '/dashboard/documents': typeof AuthenticatedDashboardDocumentsRoute
+  '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
+  '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/dashboard/documents': typeof AuthenticatedDashboardDocumentsIndexRoute
+  '/dashboard/links': typeof AuthenticatedDashboardLinksIndexRoute
+  '/dashboard/vaults': typeof AuthenticatedDashboardVaultsIndexRoute
+  '/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  '/dashboard/documents/$documentId': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,8 +173,15 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/_auth/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
-  '/_authenticated/dashboard/documents': typeof AuthenticatedDashboardDocumentsRoute
+  '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_authenticated/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
+  '/_authenticated/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/_authenticated/dashboard/documents/': typeof AuthenticatedDashboardDocumentsIndexRoute
+  '/_authenticated/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
+  '/_authenticated/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
+  '/_authenticated/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  '/_authenticated/dashboard/documents/$documentId/': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,8 +193,15 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/dashboard'
     | '/accept-invitation/$invitationId'
-    | '/dashboard/documents'
+    | '/dashboard/settings'
     | '/api/auth/$'
+    | '/dashboard/links/$linkId'
+    | '/dashboard/vaults/$vaultId'
+    | '/dashboard/documents/'
+    | '/dashboard/links/'
+    | '/dashboard/vaults/'
+    | '/dashboard/documents/$documentId/edit'
+    | '/dashboard/documents/$documentId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -134,8 +211,15 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/dashboard'
     | '/accept-invitation/$invitationId'
-    | '/dashboard/documents'
+    | '/dashboard/settings'
     | '/api/auth/$'
+    | '/dashboard/links/$linkId'
+    | '/dashboard/vaults/$vaultId'
+    | '/dashboard/documents'
+    | '/dashboard/links'
+    | '/dashboard/vaults'
+    | '/dashboard/documents/$documentId/edit'
+    | '/dashboard/documents/$documentId'
   id:
     | '__root__'
     | '/'
@@ -147,8 +231,15 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/_authenticated/dashboard'
     | '/_auth/accept-invitation/$invitationId'
-    | '/_authenticated/dashboard/documents'
+    | '/_authenticated/dashboard/settings'
     | '/api/auth/$'
+    | '/_authenticated/dashboard/links/$linkId'
+    | '/_authenticated/dashboard/vaults/$vaultId'
+    | '/_authenticated/dashboard/documents/'
+    | '/_authenticated/dashboard/links/'
+    | '/_authenticated/dashboard/vaults/'
+    | '/_authenticated/dashboard/documents/$documentId/edit'
+    | '/_authenticated/dashboard/documents/$documentId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,11 +314,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAcceptInvitationInvitationIdRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/_authenticated/dashboard/documents': {
-      id: '/_authenticated/dashboard/documents'
-      path: '/documents'
-      fullPath: '/dashboard/documents'
-      preLoaderRoute: typeof AuthenticatedDashboardDocumentsRouteImport
+    '/_authenticated/dashboard/settings': {
+      id: '/_authenticated/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof AuthenticatedDashboardSettingsRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
     '/api/auth/$': {
@@ -236,6 +327,55 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard/documents/': {
+      id: '/_authenticated/dashboard/documents/'
+      path: '/documents'
+      fullPath: '/dashboard/documents/'
+      preLoaderRoute: typeof AuthenticatedDashboardDocumentsIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/links/': {
+      id: '/_authenticated/dashboard/links/'
+      path: '/links'
+      fullPath: '/dashboard/links/'
+      preLoaderRoute: typeof AuthenticatedDashboardLinksIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/links/$linkId': {
+      id: '/_authenticated/dashboard/links/$linkId'
+      path: '/links/$linkId'
+      fullPath: '/dashboard/links/$linkId'
+      preLoaderRoute: typeof AuthenticatedDashboardLinksLinkIdRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/vaults/': {
+      id: '/_authenticated/dashboard/vaults/'
+      path: '/vaults'
+      fullPath: '/dashboard/vaults/'
+      preLoaderRoute: typeof AuthenticatedDashboardVaultsIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/vaults/$vaultId': {
+      id: '/_authenticated/dashboard/vaults/$vaultId'
+      path: '/vaults/$vaultId'
+      fullPath: '/dashboard/vaults/$vaultId'
+      preLoaderRoute: typeof AuthenticatedDashboardVaultsVaultIdRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/documents/$documentId/': {
+      id: '/_authenticated/dashboard/documents/$documentId/'
+      path: '/documents/$documentId'
+      fullPath: '/dashboard/documents/$documentId/'
+      preLoaderRoute: typeof AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/documents/$documentId/edit': {
+      id: '/_authenticated/dashboard/documents/$documentId/edit'
+      path: '/documents/$documentId/edit'
+      fullPath: '/dashboard/documents/$documentId/edit'
+      preLoaderRoute: typeof AuthenticatedDashboardDocumentsDocumentIdEditRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
     }
   }
 }
@@ -259,12 +399,33 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface AuthenticatedDashboardRouteChildren {
-  AuthenticatedDashboardDocumentsRoute: typeof AuthenticatedDashboardDocumentsRoute
+  AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
+  AuthenticatedDashboardLinksLinkIdRoute: typeof AuthenticatedDashboardLinksLinkIdRoute
+  AuthenticatedDashboardVaultsVaultIdRoute: typeof AuthenticatedDashboardVaultsVaultIdRoute
+  AuthenticatedDashboardDocumentsIndexRoute: typeof AuthenticatedDashboardDocumentsIndexRoute
+  AuthenticatedDashboardLinksIndexRoute: typeof AuthenticatedDashboardLinksIndexRoute
+  AuthenticatedDashboardVaultsIndexRoute: typeof AuthenticatedDashboardVaultsIndexRoute
+  AuthenticatedDashboardDocumentsDocumentIdEditRoute: typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  AuthenticatedDashboardDocumentsDocumentIdIndexRoute: typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 
 const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
   {
-    AuthenticatedDashboardDocumentsRoute: AuthenticatedDashboardDocumentsRoute,
+    AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
+    AuthenticatedDashboardLinksLinkIdRoute:
+      AuthenticatedDashboardLinksLinkIdRoute,
+    AuthenticatedDashboardVaultsVaultIdRoute:
+      AuthenticatedDashboardVaultsVaultIdRoute,
+    AuthenticatedDashboardDocumentsIndexRoute:
+      AuthenticatedDashboardDocumentsIndexRoute,
+    AuthenticatedDashboardLinksIndexRoute:
+      AuthenticatedDashboardLinksIndexRoute,
+    AuthenticatedDashboardVaultsIndexRoute:
+      AuthenticatedDashboardVaultsIndexRoute,
+    AuthenticatedDashboardDocumentsDocumentIdEditRoute:
+      AuthenticatedDashboardDocumentsDocumentIdEditRoute,
+    AuthenticatedDashboardDocumentsDocumentIdIndexRoute:
+      AuthenticatedDashboardDocumentsDocumentIdIndexRoute,
   }
 
 const AuthenticatedDashboardRouteWithChildren =

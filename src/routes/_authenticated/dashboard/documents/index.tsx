@@ -3,7 +3,7 @@ import { useLiveQuery } from "@tanstack/react-db";
 
 import { getCollections } from "#/db-collections";
 
-export const Route = createFileRoute("/_authenticated/dashboard/documents")({
+export const Route = createFileRoute("/_authenticated/dashboard/documents/")({
   component: DocumentsPage,
 });
 

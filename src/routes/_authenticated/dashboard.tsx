@@ -17,8 +17,19 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
     ]);
   },
   pendingComponent: DashboardPending,
+  // One boundary for the three detail routes: the not-found lands here, inside the Chrome,
+  // so the User keeps their navigation and can move somewhere else.
+  notFoundComponent: DashboardNotFound,
   component: Outlet,
 });
+
+function DashboardNotFound() {
+  return (
+    <div className="p-4" aria-label="Not found">
+      <p>Not found</p>
+    </div>
+  );
+}
 
 function DashboardPending() {
   return (

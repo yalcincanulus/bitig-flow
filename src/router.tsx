@@ -12,6 +12,9 @@ export function getRouter() {
     context,
     scrollRestoration: true,
     defaultPreload: "intent",
+    // A not-found renders at the nearest parent that declares a boundary — for a detail route
+    // that is the Dashboard layout, so the Chrome survives.
+    notFoundMode: "fuzzy",
   });
 
   setupRouterSsrQueryIntegration({ router, queryClient: context.queryClient });
