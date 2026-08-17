@@ -6,7 +6,15 @@ import { getCollections } from "#/db-collections";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
   loader: async ({ context: { organization, queryClient } }) => {
-    await getCollections(queryClient, organization.id).documents.preload();
+    const { documents, vaults, vaultItems, links } = getCollections(queryClient, organization.id);
+
+    // One warm sync for every Dashboard screen, because they cross-reference each other constantly.
+    await Promise.all([
+      documents.preload(),
+      vaults.preload(),
+      vaultItems.preload(),
+      links.preload(),
+    ]);
   },
   pendingComponent: DashboardPending,
   component: Outlet,

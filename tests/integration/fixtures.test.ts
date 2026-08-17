@@ -2,7 +2,10 @@ import { expect, test } from "vitest";
 
 import {
   createFixtureDocument,
+  createFixtureLink,
   createFixtureUser,
+  createFixtureVault,
+  createFixtureVaultItem,
   createOrganizationFixture,
   pool,
 } from "../fixtures";
@@ -73,17 +76,66 @@ test("Document fixtures use fresh uuidv7 ids and return the inserted rows", asyn
   expect(firstDocument.createdBy).toBe(fixture.member.user.id);
 });
 
+test("Vault, Vault membership, and Link fixtures return the rows they inserted", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+  });
+  const fixtureVault = await createFixtureVault({ organizationId: fixture.organization.id });
+  const [membership, documentLink, vaultLink] = await Promise.all([
+    createFixtureVaultItem({ vaultId: fixtureVault.id, documentId: fixtureDocument.id }),
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: fixtureDocument.id,
+    }),
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      vaultId: fixtureVault.id,
+    }),
+  ]);
+
+  expect(fixtureVault.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/);
+  expect(fixtureVault.organizationId).toBe(fixture.organization.id);
+  expect(membership).toMatchObject({
+    vaultId: fixtureVault.id,
+    documentId: fixtureDocument.id,
+  });
+  expect(documentLink).toMatchObject({
+    organizationId: fixture.organization.id,
+    documentId: fixtureDocument.id,
+    vaultId: null,
+  });
+  expect(vaultLink).toMatchObject({ vaultId: fixtureVault.id, documentId: null });
+  expect(documentLink.slug).not.toBe(vaultLink.slug);
+});
+
 test("fixture rows do not leak past the reset between tests", async () => {
   const counts = await pool.query<{
     users: string;
     organizations: string;
     documents: string;
+    vaults: string;
+    vaultItems: string;
+    links: string;
   }>(
     `SELECT
       (SELECT COUNT(*) FROM "user") AS users,
       (SELECT COUNT(*) FROM organization) AS organizations,
-      (SELECT COUNT(*) FROM document) AS documents`,
+      (SELECT COUNT(*) FROM document) AS documents,
+      (SELECT COUNT(*) FROM vault) AS vaults,
+      (SELECT COUNT(*) FROM vault_item) AS "vaultItems",
+      (SELECT COUNT(*) FROM link) AS links`,
   );
 
-  expect(counts.rows[0]).toEqual({ users: "0", organizations: "0", documents: "0" });
+  expect(counts.rows[0]).toEqual({
+    users: "0",
+    organizations: "0",
+    documents: "0",
+    vaults: "0",
+    vaultItems: "0",
+    links: "0",
+  });
 });

@@ -1,23 +1,14 @@
-import { sql } from 'drizzle-orm'
-import {
-  boolean,
-  index,
-  snakeCase,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from 'drizzle-orm/pg-core'
+import { sql } from "drizzle-orm";
+import { boolean, index, snakeCase, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-const timestampWithTimezone = () =>
-  timestamp({ withTimezone: true, mode: 'date' })
+const timestampWithTimezone = () => timestamp({ withTimezone: true, mode: "date" });
 
 const primaryKey = () =>
   uuid()
     .primaryKey()
-    .default(sql`uuidv7()`)
+    .default(sql`uuidv7()`);
 
-export const user = snakeCase.table('user', {
+export const user = snakeCase.table("user", {
   id: primaryKey(),
   name: text().notNull(),
   email: text().notNull().unique(),
@@ -28,10 +19,10 @@ export const user = snakeCase.table('user', {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-})
+});
 
 export const session = snakeCase.table(
-  'session',
+  "session",
   {
     id: primaryKey(),
     expiresAt: timestampWithTimezone().notNull(),
@@ -44,21 +35,21 @@ export const session = snakeCase.table(
     userAgent: text(),
     userId: uuid()
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: "cascade" }),
     activeOrganizationId: uuid(),
   },
-  (table) => [index('session_user_id_idx').on(table.userId)],
-)
+  (table) => [index("session_user_id_idx").on(table.userId)],
+);
 
 export const account = snakeCase.table(
-  'account',
+  "account",
   {
     id: primaryKey(),
     accountId: text().notNull(),
     providerId: text().notNull(),
     userId: uuid()
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: "cascade" }),
     accessToken: text(),
     refreshToken: text(),
     idToken: text(),
@@ -71,11 +62,11 @@ export const account = snakeCase.table(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index('account_user_id_idx').on(table.userId)],
-)
+  (table) => [index("account_user_id_idx").on(table.userId)],
+);
 
 export const verification = snakeCase.table(
-  'verification',
+  "verification",
   {
     id: primaryKey(),
     identifier: text().notNull(),
@@ -87,11 +78,11 @@ export const verification = snakeCase.table(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index('verification_identifier_idx').on(table.identifier)],
-)
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
 
 export const organization = snakeCase.table(
-  'organization',
+  "organization",
   {
     id: primaryKey(),
     name: text().notNull(),
@@ -100,51 +91,48 @@ export const organization = snakeCase.table(
     createdAt: timestampWithTimezone().notNull(),
     metadata: text(),
   },
-  (table) => [uniqueIndex('organization_slug_uidx').on(table.slug)],
-)
+  (table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
+);
 
 export const member = snakeCase.table(
-  'member',
+  "member",
   {
     id: primaryKey(),
     organizationId: uuid()
       .notNull()
-      .references(() => organization.id, { onDelete: 'cascade' }),
+      .references(() => organization.id, { onDelete: "cascade" }),
     userId: uuid()
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    role: text().default('member').notNull(),
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text().default("member").notNull(),
     createdAt: timestampWithTimezone().notNull(),
   },
   (table) => [
-    index('member_organization_id_idx').on(table.organizationId),
-    index('member_user_id_idx').on(table.userId),
+    index("member_organization_id_idx").on(table.organizationId),
+    index("member_user_id_idx").on(table.userId),
     // ADR-0013: every authenticated request looks up this user's current role.
-    index('member_user_id_organization_id_idx').on(
-      table.userId,
-      table.organizationId,
-    ),
+    index("member_user_id_organization_id_idx").on(table.userId, table.organizationId),
   ],
-)
+);
 
 export const invitation = snakeCase.table(
-  'invitation',
+  "invitation",
   {
     id: primaryKey(),
     organizationId: uuid()
       .notNull()
-      .references(() => organization.id, { onDelete: 'cascade' }),
+      .references(() => organization.id, { onDelete: "cascade" }),
     email: text().notNull(),
     role: text(),
-    status: text().default('pending').notNull(),
+    status: text().default("pending").notNull(),
     expiresAt: timestampWithTimezone().notNull(),
     createdAt: timestampWithTimezone().defaultNow().notNull(),
     inviterId: uuid()
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    index('invitation_organization_id_idx').on(table.organizationId),
-    index('invitation_email_idx').on(table.email),
+    index("invitation_organization_id_idx").on(table.organizationId),
+    index("invitation_email_idx").on(table.email),
   ],
-)
+);
