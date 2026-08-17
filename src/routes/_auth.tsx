@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 
-import { hasAuthenticatedSession } from "#/server/functions/auth";
+import { hasAuthenticatedSession, listOrganizations } from "#/server/functions/auth";
 
 export const Route = createFileRoute("/_auth")({
   beforeLoad: async () => {
@@ -9,6 +9,11 @@ export const Route = createFileRoute("/_auth")({
     } catch (error) {
       if (isRedirect(error)) return;
       throw error;
+    }
+
+    const organizations = (await listOrganizations()) ?? [];
+    if (organizations.length === 0) {
+      throw redirect({ href: "/onboarding" });
     }
 
     throw redirect({ to: "/dashboard/documents" });

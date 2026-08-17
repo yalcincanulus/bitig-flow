@@ -13,6 +13,10 @@ function signInRedirect(): never {
   throw redirect({ href: "/sign-in" });
 }
 
+function onboardingRedirect(): never {
+  throw redirect({ href: "/onboarding" });
+}
+
 export type ForbiddenError = Readonly<{
   name: "ForbiddenError";
   code: "FORBIDDEN";
@@ -38,18 +42,36 @@ export const authedMiddleware = createMiddleware({ type: "function" }).server(as
 export const orgMiddleware = createMiddleware({ type: "function" })
   .middleware([authedMiddleware])
   .server(async ({ next, context }) => {
+    const headers = getRequest().headers;
+    const organizations = (await auth.api.listOrganizations({ headers })) ?? [];
+    if (organizations.length === 0) return onboardingRedirect();
+
     const activeOrganizationId = context.authSession.session.activeOrganizationId;
-    if (!activeOrganizationId) return signInRedirect();
+    if (activeOrganizationId) {
+      const orgId = organizationIdSchema.parse(activeOrganizationId);
+      const membership = await findOrganizationMembership(orgId, context.userId);
+      if (membership) {
+        return next({
+          context: {
+            orgId,
+            organization: membership.organization,
+            role: roleSchema.parse(membership.role),
+          },
+        });
+      }
+    }
 
-    // This is the only application boundary allowed to mint an OrganizationId.
-    const orgId = organizationIdSchema.parse(activeOrganizationId);
-    const membership = await findOrganizationMembership(orgId, context.userId);
-
-    if (!membership) return signInRedirect();
+    const fallbackId = organizationIdSchema.parse(organizations[0]!.id);
+    await auth.api.setActiveOrganization({
+      body: { organizationId: fallbackId },
+      headers,
+    });
+    const membership = await findOrganizationMembership(fallbackId, context.userId);
+    if (!membership) return onboardingRedirect();
 
     return next({
       context: {
-        orgId,
+        orgId: fallbackId,
         organization: membership.organization,
         role: roleSchema.parse(membership.role),
       },

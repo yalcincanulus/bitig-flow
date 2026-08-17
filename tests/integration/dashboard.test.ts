@@ -84,8 +84,8 @@ test("an authenticated User can list every Organization they belong to", async (
   );
 });
 
-test("no active Organization and eviction redirect Dashboard requests like anonymity", async () => {
-  const userWithoutActiveOrganization = await createFixtureUser();
+test("no memberships and eviction send Dashboard requests to onboarding", async () => {
+  const userWithoutMemberships = await createFixtureUser();
   const organizationFixture = await createOrganizationFixture();
 
   await database
@@ -98,7 +98,7 @@ test("no active Organization and eviction redirect Dashboard requests like anony
     );
 
   const responses = await Promise.all(
-    [userWithoutActiveOrganization.http, organizationFixture.member.http].map((http) =>
+    [userWithoutMemberships.http, organizationFixture.member.http].map((http) =>
       http(new URL("/dashboard/documents", process.env.BETTER_AUTH_URL), {
         redirect: "manual",
       }),
@@ -106,6 +106,23 @@ test("no active Organization and eviction redirect Dashboard requests like anony
   );
 
   for (const response of responses) {
-    await expectSignInRedirect(response);
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("/onboarding");
+    expect(await response.text()).toBe("");
   }
+});
+
+test("a User with memberships and no active Organization still reaches the Dashboard", async () => {
+  const fixture = await createFixtureUser();
+  const organization = await createOrganizationForFixtureUser(fixture.user.id);
+
+  const response = await fixture.http(
+    new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const html = await response.text();
+
+  expect(response.status).toBe(200);
+  expect(html).toContain(organization.name);
+  expect(html).toContain(">Sign out</");
 });

@@ -1,3 +1,4 @@
+import { AuthPage } from "#/components/auth-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_auth/accept-invitation/$invitationId")({
@@ -5,5 +6,5 @@ export const Route = createFileRoute("/_auth/accept-invitation/$invitationId")({
 });
 
 function AcceptInvitationPage() {
-  return <h1>Accept invitation</h1>;
+  return <AuthPage title="Accept invitation" />;
 }

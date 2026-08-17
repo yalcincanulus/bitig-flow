@@ -1,3 +1,4 @@
+import { AuthPage } from "#/components/auth-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_auth/reset-password")({
@@ -5,5 +6,5 @@ export const Route = createFileRoute("/_auth/reset-password")({
 });
 
 function ResetPasswordPage() {
-  return <h1>Reset password</h1>;
+  return <AuthPage title="Reset password" />;
 }

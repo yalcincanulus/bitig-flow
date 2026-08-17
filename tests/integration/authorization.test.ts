@@ -35,8 +35,8 @@ test("a request with no session is redirected to sign in", async () => {
   expect(await response.text()).toBe("");
 });
 
-test("no active Organization and eviction both redirect to sign in", async () => {
-  const userWithoutActiveOrganization = await createFixtureUser();
+test("no memberships and eviction both redirect listDocuments to onboarding", async () => {
+  const userWithoutMemberships = await createFixtureUser();
   const organizationFixture = await createOrganizationFixture();
 
   await database
@@ -48,8 +48,8 @@ test("no active Organization and eviction both redirect to sign in", async () =>
       ),
     );
 
-  const [noActiveOrganizationResponse, evictedResponse] = await Promise.all([
-    callServerFunction(userWithoutActiveOrganization.http, {
+  const [noMembershipsResponse, evictedResponse] = await Promise.all([
+    callServerFunction(userWithoutMemberships.http, {
       modulePath: documentsModulePath,
       exportName: "listDocuments",
       method: "GET",
@@ -61,8 +61,10 @@ test("no active Organization and eviction both redirect to sign in", async () =>
     }),
   ]);
 
-  expectSignInRedirect(noActiveOrganizationResponse);
-  expectSignInRedirect(evictedResponse);
+  expect(noMembershipsResponse.status).toBe(307);
+  expect(noMembershipsResponse.headers.get("location")).toBe("/onboarding");
+  expect(evictedResponse.status).toBe(307);
+  expect(evictedResponse.headers.get("location")).toBe("/onboarding");
 });
 
 test("Better Auth refuses Organization updates for a member and allows an admin", async () => {

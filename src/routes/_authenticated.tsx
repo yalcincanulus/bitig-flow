@@ -9,6 +9,7 @@ import {
   SidebarProvider,
 } from "#/components/ui/sidebar";
 import { OrganizationSwitcher } from "#/components/organization-switcher";
+import { SignOutButton } from "#/components/sign-out-button";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { listOrganizations } from "#/server/functions/auth";
 import { getDashboardContext } from "#/server/functions/dashboard";
@@ -39,7 +40,10 @@ function DashboardChrome() {
             <OrganizationSwitcher activeOrganization={organization} organizations={organizations} />
           </SidebarHeader>
           <SidebarContent />
-          <SidebarFooter>{session.user.name}</SidebarFooter>
+          <SidebarFooter className="flex flex-row items-center justify-between gap-2">
+            <span>{session.user.name}</span>
+            <SignOutButton />
+          </SidebarFooter>
         </Sidebar>
         <SidebarInset>
           <Outlet />
