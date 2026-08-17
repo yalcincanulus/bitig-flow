@@ -21,6 +21,8 @@ vi.mock("#/server/functions/links", () => ({
 }));
 
 import { getCollections } from "#/db-collections";
+import { listLinks } from "#/server/functions/links";
+import { listVaultItems } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const organizationId = "9f989366-f25a-4a0a-bb3c-03d1d2ef62ab";
@@ -151,5 +153,57 @@ describe("getCollections", () => {
     expect(deleteVault).toHaveBeenCalledWith({ data: { vaultId: initial.id } });
     expect(vaults.get(initial.id)).toBeUndefined();
     expect(listVaults).toHaveBeenCalledTimes(1);
+  });
+
+  test("removes a deleted Vault's resident memberships and Links after persistence", async () => {
+    const deletedVault = vaultRow();
+    const retainedVault = vaultRow({ id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10202" });
+    const deletedMembership = {
+      vaultId: deletedVault.id,
+      documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const retainedMembership = {
+      vaultId: retainedVault.id,
+      documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10404",
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const deletedLink = {
+      id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10505",
+      organizationId,
+      documentId: null,
+      vaultId: deletedVault.id,
+      slug: "deleted-link",
+      name: null,
+      requiresEmail: false,
+      requiresVerification: false,
+      gateVersion: 1,
+      allowDownload: false,
+      expiresAt: null,
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date("2026-08-17T12:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const retainedLink = {
+      ...deletedLink,
+      id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10606",
+      vaultId: retainedVault.id,
+      slug: "retained-link",
+    };
+    vi.mocked(listVaults).mockResolvedValue([deletedVault, retainedVault]);
+    vi.mocked(listVaultItems).mockResolvedValue([deletedMembership, retainedMembership]);
+    vi.mocked(listLinks).mockResolvedValue([deletedLink, retainedLink]);
+    vi.mocked(deleteVault).mockResolvedValue(deletedVault);
+    const { vaults, vaultItems, links } = getCollections(new QueryClient(), organizationId);
+    await Promise.all([vaults.preload(), vaultItems.preload(), links.preload()]);
+
+    const transaction = vaults.delete(deletedVault.id);
+    await transaction.isPersisted.promise;
+
+    expect(vaultItems.get(`${deletedVault.id}:${deletedMembership.documentId}`)).toBeUndefined();
+    expect(links.get(deletedLink.id)).toBeUndefined();
+    expect(vaultItems.get(`${retainedVault.id}:${retainedMembership.documentId}`)).toBeDefined();
+    expect(links.get(retainedLink.id)).toBeDefined();
   });
 });

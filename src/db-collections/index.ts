@@ -39,6 +39,10 @@ const linkSchema = linkSelectSchema.omit({ passwordHash: true }).extend({
   updatedAt: timestampSchema,
 });
 
+function vaultItemKey({ vaultId, documentId }: { vaultId: string; documentId: string }) {
+  return `${vaultId}:${documentId}` as const;
+}
+
 function createCollections(queryClient: QueryClient, organizationId: string) {
   const documents = createCollection(
     queryCollectionOptions({
@@ -47,6 +51,27 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
       queryFn: () => listDocuments(),
       getKey: (document) => document.id,
       schema: documentSchema,
+    }),
+  );
+
+  const vaultItems = createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: ["organizations", organizationId, "vault-items"],
+      queryFn: () => listVaultItems(),
+      // Vault membership is a row keyed by its composite primary key, never an array on the Vault.
+      getKey: vaultItemKey,
+      schema: vaultItemSchema,
+    }),
+  );
+
+  const links = createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: ["organizations", organizationId, "links"],
+      queryFn: () => listLinks(),
+      getKey: (link) => link.id,
+      schema: linkSchema,
     }),
   );
 
@@ -93,30 +118,19 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
             deleteVault({ data: { vaultId: original.id } }),
           ),
         );
-        collection.utils.writeDelete(deleted.map(({ id }) => id));
+        const deletedVaultIds = new Set(deleted.map(({ id }) => id));
+        const membershipKeys = vaultItems.toArray
+          .filter(({ vaultId }) => deletedVaultIds.has(vaultId))
+          .map(vaultItemKey);
+        const linkIds = links.toArray
+          .filter(({ vaultId }) => vaultId && deletedVaultIds.has(vaultId))
+          .map(({ id }) => id);
+
+        collection.utils.writeDelete([...deletedVaultIds]);
+        if (membershipKeys.length > 0) vaultItems.utils.writeDelete(membershipKeys);
+        if (linkIds.length > 0) links.utils.writeDelete(linkIds);
         return { refetch: false };
       },
-    }),
-  );
-
-  const vaultItems = createCollection(
-    queryCollectionOptions({
-      queryClient,
-      queryKey: ["organizations", organizationId, "vault-items"],
-      queryFn: () => listVaultItems(),
-      // Vault membership is a row keyed by its composite primary key, never an array on the Vault.
-      getKey: (vaultItem) => `${vaultItem.vaultId}:${vaultItem.documentId}`,
-      schema: vaultItemSchema,
-    }),
-  );
-
-  const links = createCollection(
-    queryCollectionOptions({
-      queryClient,
-      queryKey: ["organizations", organizationId, "links"],
-      queryFn: () => listLinks(),
-      getKey: (link) => link.id,
-      schema: linkSchema,
     }),
   );
 

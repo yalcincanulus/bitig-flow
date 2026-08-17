@@ -2,7 +2,7 @@ import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { orgMiddleware, permission } from "#/server/auth-middleware";
+import { permission } from "#/server/auth-middleware";
 import { vaultIdSchema } from "#/server/ids";
 import {
   createVault as createVaultInRepository,
@@ -26,7 +26,7 @@ const updateVaultSchema = z.object({
 const deleteVaultSchema = z.object({ vaultId: vaultIdSchema });
 
 export const listVaults = createServerFn({ method: "GET" })
-  .middleware([orgMiddleware])
+  .middleware([permission({ vault: ["read"] })])
   .handler(({ context }) => listVaultsFromRepository(context.orgId));
 
 export const createVault = createServerFn({ method: "POST" })

@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "#/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
 import {
   Card,
@@ -63,6 +64,14 @@ function normalizedDescription(formData: FormData) {
   return description || null;
 }
 
+function vaultFormValues(form: HTMLFormElement) {
+  const formData = new FormData(form);
+  return {
+    name: textValue(formData, "name").trim(),
+    description: normalizedDescription(formData),
+  };
+}
+
 function VaultsPage() {
   const { organization, queryClient } = Route.useRouteContext();
   const { vaults } = getCollections(queryClient, organization.id);
@@ -98,9 +107,9 @@ function VaultsPage() {
       </header>
 
       {mutationError && (
-        <p className="text-sm text-destructive" role="alert" aria-live="polite">
-          {mutationError}
-        </p>
+        <Alert variant="destructive" aria-live="polite">
+          <AlertDescription>{mutationError}</AlertDescription>
+        </Alert>
       )}
 
       {data.length === 0 ? (
@@ -179,8 +188,7 @@ function CreateVaultDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const name = textValue(formData, "name").trim();
+    const { name, description } = vaultFormValues(event.currentTarget);
     if (!name) {
       setNameError("Enter a Vault name.");
       return;
@@ -191,7 +199,7 @@ function CreateVaultDialog({
       id: uuidv7(),
       organizationId,
       name,
-      description: normalizedDescription(formData),
+      description,
       createdAt: now,
       updatedAt: now,
     });
@@ -210,25 +218,9 @@ function CreateVaultDialog({
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create Vault</DialogTitle>
-            <DialogDescription>Give this group a name and optional description.</DialogDescription>
+            <DialogDescription>Give this Vault a name and optional description.</DialogDescription>
           </DialogHeader>
-          <FieldGroup>
-            <Field data-invalid={Boolean(nameError)}>
-              <FieldLabel htmlFor="create-vault-name">Name</FieldLabel>
-              <Input
-                id="create-vault-name"
-                name="name"
-                autoComplete="off"
-                aria-invalid={Boolean(nameError)}
-                required
-              />
-              <FieldError>{nameError}</FieldError>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="create-vault-description">Description</FieldLabel>
-              <Textarea id="create-vault-description" name="description" />
-            </Field>
-          </FieldGroup>
+          <VaultFields idPrefix="create-vault" nameError={nameError} />
           <DialogFooter showCloseButton>
             <Button type="submit">Create Vault</Button>
           </DialogFooter>
@@ -252,14 +244,12 @@ function EditVaultDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const name = textValue(formData, "name").trim();
+    const { name, description } = vaultFormValues(event.currentTarget);
     if (!name) {
       setNameError("Enter a Vault name.");
       return;
     }
 
-    const description = normalizedDescription(formData);
     const transaction = vaults.update(vault.id, (draft) => {
       draft.name = name;
       draft.description = description;
@@ -281,34 +271,54 @@ function EditVaultDialog({
             <DialogTitle>Edit Vault</DialogTitle>
             <DialogDescription>Rename the Vault or update its description.</DialogDescription>
           </DialogHeader>
-          <FieldGroup>
-            <Field data-invalid={Boolean(nameError)}>
-              <FieldLabel htmlFor={`edit-vault-name-${vault.id}`}>Name</FieldLabel>
-              <Input
-                id={`edit-vault-name-${vault.id}`}
-                name="name"
-                defaultValue={vault.name}
-                autoComplete="off"
-                aria-invalid={Boolean(nameError)}
-                required
-              />
-              <FieldError>{nameError}</FieldError>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`edit-vault-description-${vault.id}`}>Description</FieldLabel>
-              <Textarea
-                id={`edit-vault-description-${vault.id}`}
-                name="description"
-                defaultValue={vault.description ?? ""}
-              />
-            </Field>
-          </FieldGroup>
+          <VaultFields
+            idPrefix={`edit-vault-${vault.id}`}
+            nameError={nameError}
+            defaultName={vault.name}
+            defaultDescription={vault.description ?? ""}
+          />
           <DialogFooter showCloseButton>
             <Button type="submit">Save changes</Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function VaultFields({
+  idPrefix,
+  nameError,
+  defaultName,
+  defaultDescription,
+}: {
+  idPrefix: string;
+  nameError: string | null;
+  defaultName?: string;
+  defaultDescription?: string;
+}) {
+  const nameId = `${idPrefix}-name`;
+  const descriptionId = `${idPrefix}-description`;
+
+  return (
+    <FieldGroup>
+      <Field data-invalid={Boolean(nameError)}>
+        <FieldLabel htmlFor={nameId}>Name</FieldLabel>
+        <Input
+          id={nameId}
+          name="name"
+          defaultValue={defaultName}
+          autoComplete="off"
+          aria-invalid={Boolean(nameError)}
+          required
+        />
+        <FieldError>{nameError}</FieldError>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={descriptionId}>Description</FieldLabel>
+        <Textarea id={descriptionId} name="description" defaultValue={defaultDescription} />
+      </Field>
+    </FieldGroup>
   );
 }
 
