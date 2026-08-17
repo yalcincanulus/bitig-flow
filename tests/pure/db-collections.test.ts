@@ -2,6 +2,8 @@ import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("#/server/functions/documents", () => ({
+  createDocument: vi.fn(),
+  deleteDocument: vi.fn(),
   listDocuments: vi.fn(),
 }));
 
@@ -23,11 +25,34 @@ vi.mock("#/server/functions/links", () => ({
 }));
 
 import { getCollections } from "#/db-collections";
+import { createDocument, deleteDocument, listDocuments } from "#/server/functions/documents";
 import { listLinks } from "#/server/functions/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const organizationId = "9f989366-f25a-4a0a-bb3c-03d1d2ef62ab";
+
+function documentRow(overrides: Partial<Awaited<ReturnType<typeof listDocuments>>[number]> = {}) {
+  const now = new Date("2026-08-17T12:00:00.000Z");
+  return {
+    id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20101",
+    organizationId,
+    title: "Launch notes",
+    kind: "markdown" as const,
+    status: "ready" as const,
+    content: "",
+    storageKey: null,
+    fileName: null,
+    mimeType: null,
+    byteSize: null,
+    checksum: null,
+    pageCount: null,
+    createdBy: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20000",
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
 
 function vaultRow(overrides: Partial<Awaited<ReturnType<typeof listVaults>>[number]> = {}) {
   const now = new Date("2026-08-17T12:00:00.000Z");
@@ -271,5 +296,92 @@ describe("getCollections", () => {
     });
     expect(vaultItems.get(key)).toBeUndefined();
     expect(listVaultItems).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically inserts a markdown Document and direct-writes the confirmed row without refetching", async () => {
+    const confirmed = documentRow({ title: "Untitled" });
+    vi.mocked(listDocuments).mockResolvedValue([]);
+    vi.mocked(createDocument).mockResolvedValue(confirmed);
+    const { documents } = getCollections(new QueryClient(), organizationId);
+    await documents.preload();
+
+    const transaction = documents.insert(documentRow({ title: "" }));
+
+    expect(documents.get(confirmed.id)).toMatchObject({
+      id: confirmed.id,
+      title: "",
+      kind: "markdown",
+      status: "ready",
+      content: "",
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(createDocument).toHaveBeenCalledWith({
+      data: {
+        documentId: confirmed.id,
+        title: "",
+      },
+    });
+    expect(documents.get(confirmed.id)).toMatchObject(confirmed);
+    expect(listDocuments).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically deletes a Document and removes its memberships and Links after persistence", async () => {
+    const deletedDocument = documentRow();
+    const retainedDocument = documentRow({ id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20102" });
+    const deletedMembership = {
+      vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
+      documentId: deletedDocument.id,
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const retainedMembership = {
+      vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
+      documentId: retainedDocument.id,
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const deletedLink = {
+      id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10505",
+      organizationId,
+      documentId: deletedDocument.id,
+      vaultId: null,
+      slug: "deleted-link",
+      name: null,
+      requiresEmail: false,
+      requiresVerification: false,
+      gateVersion: 1,
+      allowDownload: false,
+      expiresAt: null,
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date("2026-08-17T12:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const retainedLink = {
+      ...deletedLink,
+      id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10606",
+      documentId: retainedDocument.id,
+      slug: "retained-link",
+    };
+    vi.mocked(listDocuments).mockResolvedValue([deletedDocument, retainedDocument]);
+    vi.mocked(listVaultItems).mockResolvedValue([deletedMembership, retainedMembership]);
+    vi.mocked(listLinks).mockResolvedValue([deletedLink, retainedLink]);
+    vi.mocked(deleteDocument).mockResolvedValue(deletedDocument);
+    const { documents, vaultItems, links } = getCollections(new QueryClient(), organizationId);
+    await Promise.all([documents.preload(), vaultItems.preload(), links.preload()]);
+
+    const transaction = documents.delete(deletedDocument.id);
+    expect(documents.get(deletedDocument.id)).toBeUndefined();
+
+    await transaction.isPersisted.promise;
+
+    expect(deleteDocument).toHaveBeenCalledWith({ data: { documentId: deletedDocument.id } });
+    expect(documents.get(deletedDocument.id)).toBeUndefined();
+    expect(documents.get(retainedDocument.id)).toBeDefined();
+    expect(vaultItems.get(`${deletedMembership.vaultId}:${deletedDocument.id}`)).toBeUndefined();
+    expect(links.get(deletedLink.id)).toBeUndefined();
+    expect(vaultItems.get(`${retainedMembership.vaultId}:${retainedDocument.id}`)).toBeDefined();
+    expect(links.get(retainedLink.id)).toBeDefined();
+    expect(listDocuments).toHaveBeenCalledTimes(1);
   });
 });

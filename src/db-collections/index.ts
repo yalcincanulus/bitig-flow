@@ -9,7 +9,7 @@ import {
   vaultItemSelectSchema,
   vaultSelectSchema,
 } from "#/server/db/schema";
-import { listDocuments } from "#/server/functions/documents";
+import { createDocument, deleteDocument, listDocuments } from "#/server/functions/documents";
 import { listLinks } from "#/server/functions/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
@@ -44,16 +44,6 @@ function vaultItemKey({ vaultId, documentId }: { vaultId: string; documentId: st
 }
 
 function createCollections(queryClient: QueryClient, organizationId: string) {
-  const documents = createCollection(
-    queryCollectionOptions({
-      queryClient,
-      queryKey: ["organizations", organizationId, "documents"],
-      queryFn: () => listDocuments(),
-      getKey: (document) => document.id,
-      schema: documentSchema,
-    }),
-  );
-
   const vaultItems = createCollection(
     queryCollectionOptions({
       queryClient,
@@ -101,6 +91,49 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
       queryFn: () => listLinks(),
       getKey: (link) => link.id,
       schema: linkSchema,
+    }),
+  );
+
+  const documents = createCollection(
+    queryCollectionOptions({
+      queryClient,
+      queryKey: ["organizations", organizationId, "documents"],
+      queryFn: () => listDocuments(),
+      getKey: (document) => document.id,
+      schema: documentSchema,
+      onInsert: async ({ transaction, collection }) => {
+        const created = await Promise.all(
+          transaction.mutations.map(({ modified }) =>
+            createDocument({
+              data: {
+                documentId: modified.id,
+                title: modified.title,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeInsert(created);
+        return { refetch: false };
+      },
+      onDelete: async ({ transaction, collection }) => {
+        const deleted = await Promise.all(
+          transaction.mutations.map(({ original }) =>
+            deleteDocument({ data: { documentId: original.id } }),
+          ),
+        );
+        const deletedDocumentIds = new Set(deleted.map(({ id }) => id));
+        const membershipKeys = vaultItems.toArray
+          .filter(({ documentId }) => deletedDocumentIds.has(documentId))
+          .map(vaultItemKey);
+        const linkIds = links.toArray
+          .filter(({ documentId }) => documentId && deletedDocumentIds.has(documentId))
+          .map(({ id }) => id);
+
+        collection.utils.writeDelete([...deletedDocumentIds]);
+        if (membershipKeys.length > 0) vaultItems.utils.writeDelete(membershipKeys);
+        if (linkIds.length > 0) links.utils.writeDelete(linkIds);
+        return { refetch: false };
+      },
     }),
   );
 
