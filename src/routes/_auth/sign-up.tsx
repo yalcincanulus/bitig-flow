@@ -1,166 +1,188 @@
+import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 
 import { AuthPage } from "#/components/auth-page";
+import { OtpField } from "#/components/otp-field";
+import { TextFormField } from "#/components/text-form-field";
 import { Button } from "#/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
-import { Input } from "#/components/ui/input";
+import { FieldError, FieldGroup } from "#/components/ui/field";
+import { goToDashboardOrOnboarding } from "#/lib/after-authentication";
 import { authClient } from "#/lib/auth-client";
-import { formText } from "#/lib/form-text";
+import { otpSchema, signUpSchema } from "#/lib/auth-form-schemas";
 
 export const Route = createFileRoute("/_auth/sign-up")({ component: SignUpPage });
 
 function SignUpPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"details" | "otp">("details");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>();
-  const [pending, setPending] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string }>();
 
-  async function handleDetails(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
+  if (credentials) {
+    return <SignUpOtpForm credentials={credentials} navigate={navigate} />;
+  }
 
-    const form = new FormData(event.currentTarget);
-    const nextName = formText(form, "name").trim();
-    const nextEmail = formText(form, "email").trim();
-    const nextPassword = formText(form, "password");
+  return <SignUpDetailsForm onSignedUp={setCredentials} />;
+}
 
-    setPending(true);
-    setError(undefined);
-
-    try {
-      const result = await authClient.signUp.email({
-        name: nextName,
-        email: nextEmail,
-        password: nextPassword,
-      });
+function SignUpDetailsForm({
+  onSignedUp,
+}: {
+  onSignedUp: (credentials: { email: string; password: string }) => void;
+}) {
+  const [submitError, setSubmitError] = useState<string>();
+  const form = useForm({
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+    },
+    validators: {
+      onSubmit: signUpSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setSubmitError(undefined);
+      const result = await authClient.signUp.email(value);
       if (result.error) {
-        setError(result.error.message ?? "Could not sign up");
+        setSubmitError(result.error.message ?? "Could not sign up");
         return;
       }
-
-      setEmail(nextEmail);
-      setPassword(nextPassword);
-      setStep("otp");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function handleOtp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
-
-    const otp = formText(new FormData(event.currentTarget), "otp").trim();
-    setPending(true);
-    setError(undefined);
-
-    try {
-      const verified = await authClient.emailOtp.verifyEmail({ email, otp });
-      if (verified.error) {
-        setError(verified.error.message ?? "Could not verify email");
-        return;
-      }
-
-      const signedIn = await authClient.signIn.email({ email, password });
-      if (signedIn.error) {
-        setError(signedIn.error.message ?? "Email verified. Sign in.");
-        await navigate({ to: "/sign-in" });
-        return;
-      }
-
-      const organizations = await authClient.organization.list();
-      if ((organizations.data?.length ?? 0) === 0) {
-        await navigate({ href: "/onboarding" });
-        return;
-      }
-      await navigate({ to: "/dashboard/documents" });
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function resend() {
-    if (pending) return;
-    setPending(true);
-    setError(undefined);
-
-    try {
-      const result = await authClient.emailOtp.sendVerificationOtp({
-        email,
-        type: "email-verification",
-      });
-      if (result.error) setError(result.error.message ?? "Could not resend the code");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  if (step === "otp") {
-    return (
-      <AuthPage title="Sign up">
-        <p className="text-sm text-muted-foreground">Enter the 6-digit code sent to {email}.</p>
-        <form className="flex flex-col gap-4" onSubmit={(event) => void handleOtp(event)}>
-          <FieldGroup>
-            <Field data-invalid={Boolean(error)}>
-              <FieldLabel htmlFor="otp">Code</FieldLabel>
-              <Input
-                id="otp"
-                name="otp"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                required
-                minLength={6}
-                maxLength={6}
-              />
-              <FieldError>{error}</FieldError>
-            </Field>
-          </FieldGroup>
-          <Button type="submit" disabled={pending}>
-            Verify
-          </Button>
-        </form>
-        <Button type="button" variant="ghost" disabled={pending} onClick={() => void resend()}>
-          Resend code
-        </Button>
-      </AuthPage>
-    );
-  }
+      onSignedUp({ email: value.email, password: value.password });
+    },
+  });
 
   return (
     <AuthPage title="Sign up">
-      <form className="flex flex-col gap-4" onSubmit={(event) => void handleDetails(event)}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void form.handleSubmit();
+        }}
+      >
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="name">Name</FieldLabel>
-            <Input id="name" name="name" autoComplete="name" required />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
-            <Input id="email" name="email" type="email" autoComplete="email" required />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="password">Password</FieldLabel>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-          </Field>
-          <FieldError>{error}</FieldError>
+          <form.Field
+            name="name"
+            children={(field) => <TextFormField field={field} label="Name" autoComplete="name" />}
+          />
+          <form.Field
+            name="email"
+            children={(field) => (
+              <TextFormField field={field} label="Email" type="email" autoComplete="email" />
+            )}
+          />
+          <form.Field
+            name="password"
+            children={(field) => (
+              <TextFormField
+                field={field}
+                label="Password"
+                type="password"
+                autoComplete="new-password"
+              />
+            )}
+          />
+          <FieldError>{submitError}</FieldError>
         </FieldGroup>
-        <Button type="submit" disabled={pending}>
-          Continue
-        </Button>
+        <form.Subscribe
+          selector={(state) => [state.canSubmit, state.isSubmitting] as const}
+          children={([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              Continue
+            </Button>
+          )}
+        />
       </form>
       <p className="text-sm text-muted-foreground">
         Already have an account? <Link to="/sign-in">Sign in</Link>
       </p>
+    </AuthPage>
+  );
+}
+
+function SignUpOtpForm({
+  credentials,
+  navigate,
+}: {
+  credentials: { email: string; password: string };
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const [submitError, setSubmitError] = useState<string>();
+  const form = useForm({
+    defaultValues: { otp: "" },
+    validators: {
+      onSubmit: otpSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setSubmitError(undefined);
+      const verified = await authClient.emailOtp.verifyEmail({
+        email: credentials.email,
+        otp: value.otp,
+      });
+      if (verified.error) {
+        setSubmitError(verified.error.message ?? "Could not verify email");
+        return;
+      }
+
+      const signedIn = await authClient.signIn.email(credentials);
+      if (signedIn.error) {
+        await navigate({ to: "/sign-in" });
+        return;
+      }
+
+      await goToDashboardOrOnboarding(navigate);
+    },
+  });
+
+  async function resend() {
+    const result = await authClient.emailOtp.sendVerificationOtp({
+      email: credentials.email,
+      type: "email-verification",
+    });
+    if (result.error) {
+      setSubmitError(result.error.message ?? "Could not resend the code");
+    }
+  }
+
+  return (
+    <AuthPage title="Sign up">
+      <p className="text-sm text-muted-foreground">
+        Enter the 6-digit code sent to {credentials.email}.
+      </p>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void form.handleSubmit();
+        }}
+      >
+        <FieldGroup>
+          <form.Field name="otp" children={(field) => <OtpField field={field} />} />
+          <FieldError>{submitError}</FieldError>
+        </FieldGroup>
+        <form.Subscribe
+          selector={(state) => [state.canSubmit, state.isSubmitting] as const}
+          children={([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              Verify
+            </Button>
+          )}
+        />
+      </form>
+      <form.Subscribe
+        selector={(state) => state.isSubmitting}
+        children={(isSubmitting) => (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isSubmitting}
+            onClick={() => void resend()}
+          >
+            Resend code
+          </Button>
+        )}
+      />
     </AuthPage>
   );
 }

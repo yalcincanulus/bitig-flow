@@ -1,14 +1,15 @@
+import { useForm } from "@tanstack/react-form";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import { AuthPage } from "#/components/auth-page";
 import { SignOutButton } from "#/components/sign-out-button";
+import { TextFormField } from "#/components/text-form-field";
 import { Button } from "#/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
-import { Input } from "#/components/ui/input";
+import { FieldError, FieldGroup } from "#/components/ui/field";
 import { authClient } from "#/lib/auth-client";
-import { formText } from "#/lib/form-text";
+import { onboardingSchema } from "#/lib/auth-form-schemas";
 import { organizationSlugFromName } from "#/lib/organization-slug";
 import { hasAuthenticatedSession, listOrganizations } from "#/server/functions/auth";
 
@@ -25,59 +26,61 @@ export const Route = createFileRoute("/onboarding")({
 
 function OnboardingPage() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string>();
-  const [pending, setPending] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
-
-    const name = formText(new FormData(event.currentTarget), "name").trim();
-    if (!name) {
-      setError("Name your Organization");
-      return;
-    }
-
-    setPending(true);
-    setError(undefined);
-
-    try {
-      const baseSlug = organizationSlugFromName(name);
-      let created = false;
+  const [submitError, setSubmitError] = useState<string>();
+  const form = useForm({
+    defaultValues: { name: "" },
+    validators: {
+      onSubmit: onboardingSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setSubmitError(undefined);
+      const baseSlug = organizationSlugFromName(value.name);
+      let lastError = "Could not create Organization";
 
       for (let attempt = 0; attempt < 5; attempt++) {
         const slug = attempt === 0 ? baseSlug : `${baseSlug.slice(0, 40)}-${uuidv7().slice(0, 8)}`;
-        const result = await authClient.organization.create({ name, slug });
+        const result = await authClient.organization.create({ name: value.name, slug });
         if (!result.error) {
           if (result.data?.id) {
             await authClient.organization.setActive({ organizationId: result.data.id });
           }
-          created = true;
-          break;
+          await navigate({ to: "/dashboard/documents" });
+          return;
         }
-        setError(result.error.message ?? "Could not create Organization");
+        lastError = result.error.message ?? lastError;
       }
 
-      if (!created) return;
-      await navigate({ to: "/dashboard/documents" });
-    } finally {
-      setPending(false);
-    }
-  }
+      setSubmitError(lastError);
+    },
+  });
 
   return (
     <AuthPage title="Create your Organization">
-      <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void form.handleSubmit();
+        }}
+      >
         <FieldGroup>
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="organization-name">Name</FieldLabel>
-            <Input id="organization-name" name="name" required autoComplete="organization" />
-            <FieldError>{error}</FieldError>
-          </Field>
+          <form.Field
+            name="name"
+            children={(field) => (
+              <TextFormField field={field} label="Name" autoComplete="organization" />
+            )}
+          />
+          <FieldError>{submitError}</FieldError>
         </FieldGroup>
-        <Button type="submit" disabled={pending}>
-          Continue
-        </Button>
+        <form.Subscribe
+          selector={(state) => [state.canSubmit, state.isSubmitting] as const}
+          children={([canSubmit, isSubmitting]) => (
+            <Button type="submit" disabled={!canSubmit || isSubmitting}>
+              Continue
+            </Button>
+          )}
+        />
       </form>
       <SignOutButton />
     </AuthPage>
