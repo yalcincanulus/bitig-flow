@@ -1,9 +1,13 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 import { Skeleton } from "#/components/ui/skeleton";
+import { getCollections } from "#/db-collections";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
+  loader: async ({ context: { organization, queryClient } }) => {
+    await getCollections(queryClient, organization.id).documents.preload();
+  },
   pendingComponent: DashboardPending,
   component: Outlet,
 });

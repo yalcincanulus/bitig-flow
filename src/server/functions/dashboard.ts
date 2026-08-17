@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { orgMiddleware } from "#/server/auth";
+import { orgMiddleware } from "#/server/auth-middleware";
 
 export const getDashboardContext = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])

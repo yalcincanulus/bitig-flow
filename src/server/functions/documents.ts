@@ -2,7 +2,7 @@ import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { orgMiddleware } from "#/server/auth";
+import { orgMiddleware } from "#/server/auth-middleware";
 import { documentIdSchema } from "#/server/ids";
 import {
   findDocument,
