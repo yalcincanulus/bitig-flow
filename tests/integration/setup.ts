@@ -38,5 +38,9 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await Promise.all([pool.end(), redis.quit()]);
+  const applicationPool = (
+    globalThis as typeof globalThis & { bitigFlowDatabasePool?: typeof pool }
+  ).bitigFlowDatabasePool;
+
+  await Promise.all([pool.end(), redis.quit(), applicationPool?.end() ?? Promise.resolve()]);
 });

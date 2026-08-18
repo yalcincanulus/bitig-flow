@@ -1,4 +1,9 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { isUploadOverSizeCap, uploadMaxBytes } from "#/lib/upload";
@@ -75,6 +80,29 @@ export async function getStoredObject(key: string): Promise<StoredObject | undef
 
 export async function deleteStoredObject(key: string) {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export async function listStoredObjectKeys(prefix: string) {
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const response = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    for (const object of response.Contents ?? []) {
+      if (object.Key) keys.push(object.Key);
+    }
+
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return keys;
 }
 
 export function presignPutObject(key: string) {

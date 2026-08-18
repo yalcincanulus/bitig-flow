@@ -28,7 +28,7 @@
               "**/db/relations",
               "**/db/relations.*"
             ],
-            "message": "Database access is limited to src/server/repositories/ and src/server/viewer/."
+            "message": "Database access is limited to src/server/repositories/, src/server/viewer/, and src/server/sweep.ts."
           }
         ]
       }
@@ -65,7 +65,7 @@
                   "**/db/relations",
                   "**/db/relations.*"
                 ],
-                "message": "Database access is limited to src/server/repositories/ and src/server/viewer/."
+                "message": "Database access is limited to src/server/repositories/, src/server/viewer/, and src/server/sweep.ts."
               },
               {
                 "regex": "^(?:\\.\\.?/)+(?:client|relations)(?:\\.[cm]?[jt]sx?)?$",
@@ -80,7 +80,8 @@
       "files": [
         "src/server/auth.ts",
         "src/server/repositories/**/*.ts",
-        "src/server/viewer/**/*.ts"
+        "src/server/viewer/**/*.ts",
+        "src/server/sweep.ts"
       ],
       "rules": {
         "no-restricted-imports": "off"
