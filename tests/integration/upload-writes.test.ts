@@ -94,6 +94,47 @@ test("a User can upload a PDF and see the row as pending before the bytes land",
   ]);
 });
 
+test("a browser-shaped PUT with Content-Type still confirms to ready", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af2040a";
+  const created = (await (
+    await createUpload(fixture.member.http, {
+      documentId,
+      fileName: "resume.pdf",
+      contentType: "application/pdf",
+    })
+  ).json()) as UploadCreated;
+
+  for (const origin of ["http://localhost:3000", "http://127.0.0.1:3000"] as const) {
+    const preflight = await fetch(created.uploadUrl, {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "PUT",
+        "Access-Control-Request-Headers": "content-type",
+      },
+    });
+    expect(preflight.status).toBeLessThan(400);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
+    expect(preflight.headers.get("access-control-allow-methods")?.toUpperCase()).toContain("PUT");
+  }
+
+  const putResponse = await fetch(created.uploadUrl, {
+    method: "PUT",
+    body: twoPagePdf,
+    headers: { Origin: "http://127.0.0.1:3000", "Content-Type": "application/pdf" },
+  });
+  expect(putResponse.status).toBeLessThan(400);
+
+  const confirmResponse = await confirmUpload(fixture.member.http, documentId);
+  expect(confirmResponse.ok).toBe(true);
+  expect(await confirmResponse.json()).toMatchObject({
+    id: documentId,
+    status: "ready",
+    mimeType: "application/pdf",
+  });
+});
+
 test("confirmation records sniffed type, size, checksum, and PDF page count after a direct PUT", async () => {
   const fixture = await createOrganizationFixture();
   const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af20402";

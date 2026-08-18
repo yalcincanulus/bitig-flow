@@ -7,9 +7,9 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
-    "infra:up": "docker compose up -d --wait",
+    "infra:up": "docker compose up -d --wait postgres redis garage mailpit && docker compose run --rm garage-init",
     "infra:down": "docker compose down",
-    "infra:reset": "docker compose down -v && docker compose up -d --wait",
+    "infra:reset": "docker compose down -v && docker compose up -d --wait postgres redis garage mailpit && docker compose run --rm garage-init",
     "infra:logs": "docker compose logs -f",
     "infra:verify": "node --env-file=.env infra/verify.ts",
     "db:generate": "drizzle-kit generate",

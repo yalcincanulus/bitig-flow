@@ -8,11 +8,24 @@
   own origin in production (ADR-0009), so the browser does not normally read from
   this origin.
 
+  Vite prints http://127.0.0.1:3000 while BETTER_AUTH_URL defaults to
+  http://localhost:3000. Those are different CORS origins; both must be allowed
+  or a File PUT never lands and Confirmation leaves the Document pending.
+
   ExposeHeaders ETag lets the uploading page read the ETag off the PUT response.
 -->
 <CORSConfiguration>
   <CORSRule>
     <AllowedOrigin>http://localhost:3000</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>3000</MaxAgeSeconds>
+  </CORSRule>
+  <CORSRule>
+    <AllowedOrigin>http://127.0.0.1:3000</AllowedOrigin>
     <AllowedMethod>GET</AllowedMethod>
     <AllowedMethod>PUT</AllowedMethod>
     <AllowedMethod>HEAD</AllowedMethod>

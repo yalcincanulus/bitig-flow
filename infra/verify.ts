@@ -51,11 +51,20 @@ async function verifyStorage() {
   pass("putObject", `${key} → ETag ${put.ETag}`);
 
   const cors = await s3.send(new GetBucketCorsCommand({ Bucket: bucket }));
-  const rule = cors.CORSRules?.[0];
-  if (!rule?.AllowedMethods?.includes("PUT")) {
+  const allowedOrigins = new Set(
+    (cors.CORSRules ?? []).flatMap((rule) => rule.AllowedOrigins ?? []),
+  );
+  if (!(cors.CORSRules ?? []).some((rule) => rule.AllowedMethods?.includes("PUT"))) {
     throw new Error("Bucket CORS does not allow PUT — did the garage-init sidecar run?");
   }
-  pass("bucket CORS", `${rule.AllowedOrigins?.join(", ")} allows ${rule.AllowedMethods.join("/")}`);
+  for (const origin of ["http://localhost:3000", "http://127.0.0.1:3000"]) {
+    if (!allowedOrigins.has(origin)) {
+      throw new Error(
+        `Bucket CORS does not allow ${origin} — a Vite File PUT from that origin would stay pending`,
+      );
+    }
+  }
+  pass("bucket CORS", `${[...allowedOrigins].join(", ")} allows PUT`);
 
   const getUrl = await getSignedUrl(presigner, new GetObjectCommand({ Bucket: bucket, Key: key }), {
     expiresIn: 60,

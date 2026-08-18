@@ -222,8 +222,9 @@ test("conditional request headers do not produce an ETag or a 304", async () => 
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(pixelPng);
 });
 
-test("the Dashboard document pane names connect-src self in its CSP", async () => {
+test("the Dashboard document pane allows connect-src to Storage so a presigned PUT is not blocked", async () => {
   const fixture = await createOrganizationFixture();
+  const storageOrigin = new URL(process.env.S3_ENDPOINT!).origin;
 
   const response = await fixture.member.http(
     new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
@@ -232,5 +233,5 @@ test("the Dashboard document pane names connect-src self in its CSP", async () =
   const csp = response.headers.get("content-security-policy") ?? (await response.text());
 
   expect(response.status).toBe(200);
-  expect(csp).toContain("connect-src 'self'");
+  expect(csp).toContain(`connect-src 'self' ${storageOrigin}`);
 });
