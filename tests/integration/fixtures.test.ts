@@ -3,11 +3,14 @@ import { expect, test } from "vitest";
 import {
   createFixtureDocument,
   createFixtureLink,
+  createFixturePendingDocument,
   createFixtureUser,
   createFixtureVault,
   createFixtureVaultItem,
   createOrganizationFixture,
+  fixtureObjectExists,
   pool,
+  readUploadSample,
 } from "../fixtures";
 
 test("a fixture User fetches their own Better Auth session over HTTP", async () => {
@@ -57,6 +60,20 @@ test("the Organization fixture returns three jars resolving to distinct Users an
   }
 
   expect(resolvedUserIds.size).toBe(3);
+});
+
+test("a pending PDF fixture can place real bytes at a Storage key", async () => {
+  const fixture = await createOrganizationFixture();
+  const pending = await createFixturePendingDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    bytes: readUploadSample("one-page.pdf"),
+  });
+
+  expect(pending.status).toBe("pending");
+  expect(pending.kind).toBe("pdf");
+  expect(pending.storageKey).toBe(`org/${fixture.organization.id}/doc/${pending.id}/original`);
+  expect(await fixtureObjectExists(pending.storageKey!)).toBe(true);
 });
 
 test("Document fixtures use fresh uuidv7 ids and return the inserted rows", async () => {

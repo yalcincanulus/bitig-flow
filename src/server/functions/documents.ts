@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseStatus } from "@tanstack/react-start/server";
@@ -8,16 +10,33 @@ import {
   markdownContentMaxBytes,
   utf8ByteLength,
 } from "#/lib/markdown-limits";
+import {
+  allowedUploadMimeTypes,
+  documentKindFromMimeType,
+  isUploadOverSizeCap,
+  sanitizeFileName,
+  sniffUploadMimeType,
+  storageKeyForDocument,
+} from "#/lib/upload";
 import { orgMiddleware, permission } from "#/server/auth-middleware";
 import { documentIdSchema, userIdSchema } from "#/server/ids";
+import { countPdfPages } from "#/server/pdf-page-count";
 import {
   createDocument as createDocumentInRepository,
+  createPendingUpload as createPendingUploadInRepository,
   deleteDocument as deleteDocumentInRepository,
   findDocument,
   isDocumentWriteConflict,
   listDocuments as listDocumentsFromRepository,
+  markDocumentReady as markDocumentReadyInRepository,
   upsertDocument as upsertDocumentInRepository,
 } from "#/server/repositories/documents";
+import {
+  deleteStoredObject,
+  getStoredObject,
+  presignPutObject,
+  putStoredObject,
+} from "#/server/storage";
 
 const timestampSchema = z
   .union([z.date(), z.iso.datetime()])
@@ -36,6 +55,17 @@ const updateDocumentSchema = z.object({
 });
 
 const deleteDocumentSchema = z.object({ documentId: documentIdSchema });
+
+const createUploadSchema = z.object({
+  documentId: documentIdSchema,
+  fileName: z.string(),
+  contentType: z.enum(allowedUploadMimeTypes),
+});
+
+const confirmUploadSchema = z.object({
+  documentId: documentIdSchema,
+  contentType: z.enum(allowedUploadMimeTypes),
+});
 
 export type DocumentConflictError = Readonly<{
   name: "DocumentConflictError";
@@ -65,8 +95,67 @@ function documentConflictError(
   };
 }
 
+export type UploadIncompleteError = Readonly<{
+  name: "UploadIncompleteError";
+  code: "UPLOAD_INCOMPLETE";
+  retryable: true;
+}>;
+
+export type UploadConfirmationError = Readonly<{
+  name: "UploadConfirmationError";
+  code: "UPLOAD_CONFIRMATION";
+  check: "type" | "size";
+  retryable: false;
+}>;
+
+export function isUploadIncompleteError(error: unknown): error is UploadIncompleteError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "UPLOAD_INCOMPLETE"
+  );
+}
+
+export function isUploadConfirmationError(error: unknown): error is UploadConfirmationError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "UPLOAD_CONFIRMATION"
+  );
+}
+
+function uploadIncompleteError(): UploadIncompleteError {
+  return { name: "UploadIncompleteError", code: "UPLOAD_INCOMPLETE", retryable: true };
+}
+
+function uploadConfirmationError(check: "type" | "size"): UploadConfirmationError {
+  return { name: "UploadConfirmationError", code: "UPLOAD_CONFIRMATION", check, retryable: false };
+}
+
 function authoredTitle(title: string) {
   return title.trim() || "Untitled";
+}
+
+async function deleteObjectAfterRow(storageKey: string) {
+  try {
+    await deleteStoredObject(storageKey);
+  } catch {
+    // A leaked object is better than a ready Document pointing at nothing.
+  }
+}
+
+async function refuseUpload(
+  storageKey: string,
+  orgId: Parameters<typeof deleteDocumentInRepository>[0],
+  documentId: z.infer<typeof documentIdSchema>,
+  check: "type" | "size",
+): Promise<never> {
+  await deleteDocumentInRepository(orgId, documentId);
+  await deleteObjectAfterRow(storageKey);
+  setResponseStatus(422);
+  throw uploadConfirmationError(check);
 }
 
 export const listDocuments = createServerFn({ method: "GET" })
@@ -120,11 +209,78 @@ export const updateDocument = createServerFn({ method: "POST" })
     return result;
   });
 
+export const createUpload = createServerFn({ method: "POST" })
+  .middleware([permission({ document: ["create"] })])
+  .validator(createUploadSchema)
+  .handler(async ({ context, data }) => {
+    const fileName = sanitizeFileName(data.fileName);
+    const storageKey = storageKeyForDocument(context.orgId, data.documentId);
+    const document = await createPendingUploadInRepository(context.orgId, {
+      id: data.documentId,
+      title: authoredTitle(fileName).slice(0, documentTitleMaxLength),
+      kind: documentKindFromMimeType(data.contentType),
+      fileName: fileName || null,
+      storageKey,
+      createdBy: userIdSchema.parse(context.userId),
+    });
+    const uploadUrl = await presignPutObject(document.storageKey ?? storageKey);
+    return { document, uploadUrl };
+  });
+
+export const confirmUpload = createServerFn({ method: "POST" })
+  .middleware([permission({ document: ["create"] })])
+  .validator(confirmUploadSchema)
+  .handler(async ({ context, data }) => {
+    const found = await findDocument(context.orgId, data.documentId);
+    if (!found) throw notFound();
+    if (found.status === "ready") return found;
+    if (found.kind === "markdown" || !found.storageKey) throw notFound();
+
+    const stored = await getStoredObject(found.storageKey);
+    if (!stored) {
+      setResponseStatus(409);
+      throw uploadIncompleteError();
+    }
+    if (
+      stored.oversized ||
+      stored.bytes.byteLength === 0 ||
+      isUploadOverSizeCap(stored.bytes.byteLength)
+    ) {
+      return await refuseUpload(found.storageKey, context.orgId, data.documentId, "size");
+    }
+
+    const sniffed = sniffUploadMimeType(stored.bytes);
+    if (!sniffed || sniffed !== data.contentType) {
+      return await refuseUpload(found.storageKey, context.orgId, data.documentId, "type");
+    }
+
+    const checksum = createHash("sha256").update(stored.bytes).digest("hex");
+    const pageCount =
+      sniffed === "application/pdf" ? ((await countPdfPages(stored.bytes)) ?? null) : null;
+    await putStoredObject(found.storageKey, stored.bytes, sniffed);
+
+    const confirmed = await markDocumentReadyInRepository(context.orgId, data.documentId, {
+      mimeType: sniffed,
+      byteSize: stored.bytes.byteLength,
+      checksum,
+      pageCount,
+    });
+    if (!confirmed) {
+      const raced = await findDocument(context.orgId, data.documentId);
+      if (raced?.status === "ready") return raced;
+      throw notFound();
+    }
+    return confirmed;
+  });
+
 export const deleteDocument = createServerFn({ method: "POST" })
   .middleware([permission({ document: ["delete"] })])
   .validator(deleteDocumentSchema)
   .handler(async ({ context, data }) => {
     const deleted = await deleteDocumentInRepository(context.orgId, data.documentId);
     if (!deleted) throw notFound();
+    if (deleted.storageKey) {
+      await deleteObjectAfterRow(deleted.storageKey);
+    }
     return deleted;
   });

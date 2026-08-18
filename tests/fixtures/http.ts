@@ -115,6 +115,24 @@ export async function callServerFunction(http: typeof fetch, call: ServerFunctio
       return Response.json(decoded.error, { status: 409 });
     }
 
+    if (
+      typeof decoded.error === "object" &&
+      decoded.error !== null &&
+      "code" in decoded.error &&
+      decoded.error.code === "UPLOAD_INCOMPLETE"
+    ) {
+      return Response.json(decoded.error, { status: 409 });
+    }
+
+    if (
+      typeof decoded.error === "object" &&
+      decoded.error !== null &&
+      "code" in decoded.error &&
+      decoded.error.code === "UPLOAD_CONFIRMATION"
+    ) {
+      return Response.json(decoded.error, { status: 422 });
+    }
+
     if (decoded.error !== undefined) {
       return Response.json({ error: decoded.error }, { status: 500 });
     }

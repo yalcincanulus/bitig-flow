@@ -10,6 +10,22 @@ type NewMarkdownDocument = Readonly<{
   createdBy: UserId;
 }>;
 
+type NewPendingUpload = Readonly<{
+  id: DocumentId;
+  title: string;
+  kind: "pdf" | "image";
+  fileName: string | null;
+  storageKey: string;
+  createdBy: UserId;
+}>;
+
+type ConfirmedUpload = Readonly<{
+  mimeType: string;
+  byteSize: number;
+  checksum: string;
+  pageCount: number | null;
+}>;
+
 export type MarkdownDocumentWrite = Readonly<{
   id: DocumentId;
   title: string;
@@ -187,6 +203,60 @@ export async function upsertDocument(orgId: OrganizationId, write: MarkdownDocum
     if (!raced) return undefined;
     return applyMarkdownWrite(orgId, raced, write);
   }
+}
+
+export async function createPendingUpload(orgId: OrganizationId, pending: NewPendingUpload) {
+  const now = new Date();
+  const [created] = await db
+    .insert(document)
+    .values({
+      id: pending.id,
+      organizationId: orgId,
+      title: pending.title,
+      kind: pending.kind,
+      status: "pending",
+      fileName: pending.fileName,
+      storageKey: pending.storageKey,
+      createdBy: pending.createdBy,
+      updatedBy: pending.createdBy,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (created) return created;
+
+  const existing = await findDocument(orgId, pending.id);
+  if (existing) return existing;
+  throw new Error("Document insert returned no row");
+}
+
+export async function markDocumentReady(
+  orgId: OrganizationId,
+  documentId: DocumentId,
+  confirmed: ConfirmedUpload,
+) {
+  const [updated] = await db
+    .update(document)
+    .set({
+      status: "ready",
+      mimeType: confirmed.mimeType,
+      byteSize: confirmed.byteSize,
+      checksum: confirmed.checksum,
+      pageCount: confirmed.pageCount,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(document.organizationId, orgId),
+        eq(document.id, documentId),
+        eq(document.status, "pending"),
+      ),
+    )
+    .returning();
+
+  return updated;
 }
 
 export async function deleteDocument(orgId: OrganizationId, documentId: DocumentId) {

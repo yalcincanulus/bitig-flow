@@ -3,7 +3,8 @@ export {
   createOrganizationFixture,
   createOrganizationForFixtureUser,
 } from "./auth";
-export { createFixtureDocument } from "./documents";
+export { createFixtureDocument, createFixturePendingDocument, readUploadSample } from "./documents";
+export { fixtureObjectExists } from "./storage";
 export { callServerFunction, createCookieClient } from "./http";
 export { createFixtureLink } from "./links";
 export { database, pool, redis } from "./services";

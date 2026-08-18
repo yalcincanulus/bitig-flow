@@ -1,7 +1,7 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { eq, ilike, useLiveQuery } from "@tanstack/react-db";
-import { FileTextIcon, PlusIcon, TrashIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { FileTextIcon, PlusIcon, TrashIcon, UploadIcon } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import {
@@ -47,6 +47,14 @@ import { Input } from "#/components/ui/input";
 import { getCollections } from "#/db-collections";
 import { documentsSearchSchema } from "#/lib/dashboard-search";
 import { rememberDocumentInsert } from "#/lib/document-editor-lifecycle";
+import {
+  documentKindFromMimeType,
+  isAllowedUploadMimeType,
+  mimeTypeFromFileName,
+  sanitizeFileName,
+  uploadMaxBytes,
+} from "#/lib/upload";
+import { createUpload, confirmUpload } from "#/server/functions/documents";
 
 export const Route = createFileRoute("/_authenticated/dashboard/documents/")({
   validateSearch: documentsSearchSchema,
@@ -104,14 +112,24 @@ function DocumentsPage() {
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-heading text-lg font-medium">Documents</h1>
-          <p className="text-sm text-muted-foreground">Write markdown Documents from this pane.</p>
+          <p className="text-sm text-muted-foreground">
+            Write markdown Documents or upload a PDF or image from this pane.
+          </p>
         </div>
-        <CreateDocumentDialog
-          organizationId={organization.id}
-          createdBy={session.user.id}
-          documents={documents}
-          watchPersistence={watchPersistence}
-        />
+        <div className="flex gap-2">
+          <UploadDocumentButton
+            organizationId={organization.id}
+            createdBy={session.user.id}
+            documents={documents}
+            onError={setMutationError}
+          />
+          <CreateDocumentDialog
+            organizationId={organization.id}
+            createdBy={session.user.id}
+            documents={documents}
+            watchPersistence={watchPersistence}
+          />
+        </div>
       </header>
 
       {mutationError && (
@@ -140,7 +158,9 @@ function DocumentsPage() {
                 <FileTextIcon />
               </EmptyMedia>
               <EmptyTitle>No Documents yet</EmptyTitle>
-              <EmptyDescription>Create a markdown Document to start writing.</EmptyDescription>
+              <EmptyDescription>
+                Create a markdown Document or upload a PDF or image.
+              </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <CreateDocumentDialog
@@ -168,7 +188,13 @@ function DocumentsPage() {
                   </Link>
                 </CardTitle>
                 <CardDescription>{document.kind}</CardDescription>
-                <CardAction>{document.$synced ? null : "Saving…"}</CardAction>
+                <CardAction>
+                  {document.status === "pending"
+                    ? "Uploading…"
+                    : document.$synced
+                      ? null
+                      : "Saving…"}
+                </CardAction>
               </CardHeader>
               <CardFooter className="gap-2">
                 {document.kind === "markdown" ? (
@@ -192,6 +218,97 @@ function DocumentsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function UploadDocumentButton({
+  organizationId,
+  createdBy,
+  documents,
+  onError,
+}: {
+  organizationId: string;
+  createdBy: string;
+  documents: DocumentCollection;
+  onError: (message: string | null) => void;
+}) {
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function handleFiles(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+
+    const contentType = isAllowedUploadMimeType(file.type)
+      ? file.type
+      : mimeTypeFromFileName(file.name);
+    if (!contentType) {
+      onError("That Document type cannot be uploaded.");
+      return;
+    }
+    if (file.size > uploadMaxBytes) {
+      onError("That Document is larger than 25 MB.");
+      return;
+    }
+
+    const documentId = uuidv7();
+    const now = new Date();
+    const fileName = sanitizeFileName(file.name) || file.name;
+    const pending = {
+      id: documentId,
+      organizationId,
+      title: fileName.trim() || "Untitled",
+      kind: documentKindFromMimeType(contentType),
+      status: "pending" as const,
+      content: null,
+      storageKey: null,
+      fileName,
+      mimeType: null,
+      byteSize: null,
+      checksum: null,
+      pageCount: null,
+      createdBy,
+      updatedBy: createdBy,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    onError(null);
+    documents.utils.writeInsert(pending);
+
+    try {
+      const created = await createUpload({
+        data: { documentId, fileName: file.name, contentType },
+      });
+      documents.utils.writeUpdate(created.document);
+
+      const uploaded = await fetch(created.uploadUrl, { method: "PUT", body: file });
+      if (!uploaded.ok) throw new Error("put failed");
+
+      const confirmed = await confirmUpload({ data: { documentId, contentType } });
+      documents.utils.writeUpdate(confirmed);
+    } catch {
+      documents.utils.writeDelete(documentId);
+      onError(`Could not upload “${fileName}”.`);
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf,.png,.jpg,.jpeg,.webp,.gif"
+        className="sr-only"
+        onChange={(event) => {
+          void handleFiles(event.currentTarget.files);
+          event.currentTarget.value = "";
+        }}
+      />
+      <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
+        <UploadIcon data-icon="inline-start" />
+        Upload
+      </Button>
+    </>
   );
 }
 
