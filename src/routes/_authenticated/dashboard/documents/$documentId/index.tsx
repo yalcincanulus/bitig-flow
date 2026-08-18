@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
@@ -30,10 +31,11 @@ function DocumentPage() {
   const { document, html } = Route.useLoaderData();
 
   return (
-    <main className="flex flex-col gap-4 p-4">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-lg font-medium">{document.title}</h1>
-        <div className="flex gap-2">
+    <Page>
+      <PageHeader>
+        <PageTitle>{document.title}</PageTitle>
+        <PageDescription>What a Visitor gets for this Document.</PageDescription>
+        <PageActions>
           {document.kind === "markdown" ? (
             <Link to="/dashboard/documents/$documentId/edit" params={{ documentId: document.id }}>
               <Button variant="outline" size="sm">
@@ -48,8 +50,8 @@ function DocumentPage() {
               </Button>
             </a>
           ) : null}
-        </div>
-      </header>
+        </PageActions>
+      </PageHeader>
       {document.status === "pending" ? (
         <p>Uploading…</p>
       ) : document.kind === "image" ? (
@@ -60,6 +62,6 @@ function DocumentPage() {
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : null}
-    </main>
+    </Page>
   );
 }

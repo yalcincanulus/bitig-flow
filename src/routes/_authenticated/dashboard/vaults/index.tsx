@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "#/components/ui/alert-dialog";
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
 import {
@@ -46,6 +47,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field
 import { Input } from "#/components/ui/input";
 import { Textarea } from "#/components/ui/textarea";
 import { getCollections } from "#/db-collections";
+import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
 export const Route = createFileRoute("/_authenticated/dashboard/vaults/")({
   component: VaultsPage,
@@ -91,20 +93,18 @@ function VaultsPage() {
   }
 
   return (
-    <main className="flex flex-col gap-4 p-4">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-lg font-medium">Vaults</h1>
-          <p className="text-sm text-muted-foreground">
-            Group Documents that should be shared together.
-          </p>
-        </div>
-        <CreateVaultDialog
-          organizationId={organization.id}
-          vaults={vaults}
-          watchPersistence={watchPersistence}
-        />
-      </header>
+    <Page>
+      <PageHeader>
+        <PageTitle>{dashboardDestinations.vaults.label}</PageTitle>
+        <PageDescription>Group Documents that should be shared together.</PageDescription>
+        <PageActions>
+          <CreateVaultDialog
+            organizationId={organization.id}
+            vaults={vaults}
+            watchPersistence={watchPersistence}
+          />
+        </PageActions>
+      </PageHeader>
 
       {mutationError && (
         <Alert variant="destructive" aria-live="polite">
@@ -163,7 +163,7 @@ function VaultsPage() {
           ))}
         </div>
       )}
-    </main>
+    </Page>
   );
 }
 

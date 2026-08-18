@@ -3,6 +3,7 @@ import { and, debounceStrategy, eq, useLiveQuery, usePacedMutations } from "@tan
 import { ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 
+import { Page, PageActions, PageHeader } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import {
   AlertDialog,
@@ -360,38 +361,41 @@ function DocumentEditorPage() {
   }
 
   return (
-    <main className="flex h-full min-h-0 flex-col gap-3 p-4">
-      <header className="flex flex-wrap items-center gap-3">
-        <Input
-          aria-label="Title"
-          value={title}
-          maxLength={documentTitleMaxLength}
-          readOnly={frozen}
-          onChange={(event) => handleTitleChange(event.target.value)}
-          className="h-9 min-w-48 flex-1 border-0 bg-transparent px-0 text-lg font-medium md:text-lg"
-        />
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {statusLine(status)}
+    <Page className="h-full min-h-0">
+      <PageHeader>
+        <div className="min-w-0 sm:col-start-1">
+          <Input
+            aria-label="Title"
+            value={title}
+            maxLength={documentTitleMaxLength}
+            readOnly={frozen}
+            onChange={(event) => handleTitleChange(event.target.value)}
+            className="h-9 w-full border-0 bg-transparent px-0 text-lg font-medium md:text-lg"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:col-start-1">
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {statusLine(status)}
+          </p>
           {status === "failed" ? (
-            <>
-              {" "}
-              <Button variant="link" className="h-auto px-0" onClick={retryFailedSave}>
-                Retry
-              </Button>
-            </>
+            <Button variant="link" className="h-auto px-0" onClick={retryFailedSave}>
+              Retry
+            </Button>
           ) : null}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={frozen}
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon data-icon="inline-start" />
-          Insert image
-        </Button>
-      </header>
+        </div>
+        <PageActions>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={frozen}
+            onClick={() => setPickerOpen(true)}
+          >
+            <ImageIcon data-icon="inline-start" />
+            Insert image
+          </Button>
+        </PageActions>
+      </PageHeader>
 
       {atCap ? (
         <Alert variant="destructive">
@@ -478,7 +482,7 @@ function DocumentEditorPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </Page>
   );
 }
 

@@ -3,6 +3,7 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { FileTextIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
 import {
@@ -90,22 +91,22 @@ function VaultPage() {
   }
 
   return (
-    <main className="flex flex-col gap-4 p-4">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-lg font-medium">{vault.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {vault.description || "Documents in this Vault are shared together."}
-          </p>
-        </div>
-        <AddDocumentsDialog
-          documents={organizationDocuments}
-          documentsInVault={documentsInVault}
-          vaultId={vault.id}
-          vaultItems={vaultItems}
-          watchPersistence={watchPersistence}
-        />
-      </header>
+    <Page>
+      <PageHeader>
+        <PageTitle>{vault.name}</PageTitle>
+        <PageDescription>
+          {vault.description || "Documents in this Vault are shared together."}
+        </PageDescription>
+        <PageActions>
+          <AddDocumentsDialog
+            documents={organizationDocuments}
+            documentsInVault={documentsInVault}
+            vaultId={vault.id}
+            vaultItems={vaultItems}
+            watchPersistence={watchPersistence}
+          />
+        </PageActions>
+      </PageHeader>
 
       {mutationError && (
         <Alert variant="destructive" aria-live="polite">
@@ -170,7 +171,7 @@ function VaultPage() {
           ))}
         </div>
       )}
-    </main>
+    </Page>
   );
 }
 

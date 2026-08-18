@@ -34,6 +34,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "#/components/ui/dialog";
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
   Empty,
   EmptyContent,
@@ -45,6 +46,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { getCollections } from "#/db-collections";
+import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { documentsSearchSchema } from "#/lib/dashboard-search";
 import { documentBytesUrl } from "#/lib/document-bytes";
 import { rememberDocumentInsert } from "#/lib/document-editor-lifecycle";
@@ -137,15 +139,13 @@ function DocumentsPage() {
   }
 
   return (
-    <main className="flex flex-col gap-4 p-4">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-lg font-medium">Documents</h1>
-          <p className="text-sm text-muted-foreground">
-            Write markdown Documents or upload a PDF or image from this pane.
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <Page>
+      <PageHeader>
+        <PageTitle>{dashboardDestinations.documents.label}</PageTitle>
+        <PageDescription>
+          Write markdown Documents or upload a PDF or image from this pane.
+        </PageDescription>
+        <PageActions>
           <UploadDocumentButton
             organizationId={organization.id}
             createdBy={session.user.id}
@@ -158,8 +158,8 @@ function DocumentsPage() {
             documents={documents}
             watchPersistence={watchPersistence}
           />
-        </div>
-      </header>
+        </PageActions>
+      </PageHeader>
 
       {mutationError && (
         <Alert variant="destructive" aria-live="polite">
@@ -253,7 +253,7 @@ function DocumentsPage() {
           ))}
         </div>
       )}
-    </main>
+    </Page>
   );
 }
 
