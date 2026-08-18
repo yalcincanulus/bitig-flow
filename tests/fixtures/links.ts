@@ -7,10 +7,21 @@ import { database } from "./services";
 type LinkTarget = { documentId: string; vaultId?: never } | { vaultId: string; documentId?: never };
 
 type LinkFixtureOptions = Pick<typeof link.$inferInsert, "organizationId" | "createdBy"> &
-  LinkTarget & {
-    name?: string;
-    slug?: string;
-  };
+  LinkTarget &
+  Partial<
+    Pick<
+      typeof link.$inferInsert,
+      | "name"
+      | "slug"
+      | "passwordHash"
+      | "requiresEmail"
+      | "requiresVerification"
+      | "gateVersion"
+      | "allowDownload"
+      | "expiresAt"
+      | "isActive"
+    >
+  >;
 
 export async function createFixtureLink(options: LinkFixtureOptions) {
   const now = new Date();
@@ -25,6 +36,13 @@ export async function createFixtureLink(options: LinkFixtureOptions) {
       vaultId: options.vaultId ?? null,
       slug: options.slug ?? randomUUID().replaceAll("-", "").slice(0, 12),
       name: options.name ?? `Fixture Link ${randomUUID()}`,
+      passwordHash: options.passwordHash,
+      requiresEmail: options.requiresEmail,
+      requiresVerification: options.requiresVerification,
+      gateVersion: options.gateVersion,
+      allowDownload: options.allowDownload,
+      expiresAt: options.expiresAt,
+      isActive: options.isActive,
       createdAt: now,
       updatedAt: now,
     })

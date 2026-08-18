@@ -10,7 +10,9 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import {
   documentContentSecurityPolicy,
+  isViewerPath,
   storageOriginFromEndpoint,
+  viewerContentSecurityPolicy,
 } from "#/lib/content-security-policy";
 
 interface MyRouterContext {
@@ -18,10 +20,10 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  headers: () => ({
-    "Content-Security-Policy": documentContentSecurityPolicy(
-      storageOriginFromEndpoint(process.env.S3_ENDPOINT ?? ""),
-    ),
+  headers: ({ matches }) => ({
+    "Content-Security-Policy": matches.some((match) => isViewerPath(match.pathname))
+      ? viewerContentSecurityPolicy()
+      : documentContentSecurityPolicy(storageOriginFromEndpoint(process.env.S3_ENDPOINT ?? "")),
   }),
   head: () => ({
     meta: [
