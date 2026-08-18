@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { UnimplementedDashboardPage } from "#/components/unimplemented-dashboard-page";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { getAnalytics } from "#/server/functions/analytics";
 
@@ -11,7 +12,5 @@ export const Route = createFileRoute("/_authenticated/dashboard/analytics")({
 });
 
 function AnalyticsPage() {
-  const analytics = Route.useLoaderData();
-
-  return <p>{analytics.links.length}</p>;
+  return <UnimplementedDashboardPage destination="analytics" />;
 }

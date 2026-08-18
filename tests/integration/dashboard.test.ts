@@ -3,6 +3,8 @@ import { expect } from "vitest";
 
 import { member as membershipTable } from "#/server/db/schema";
 
+import { dashboardDestinations } from "#/lib/dashboard-destinations";
+
 import {
   createFixtureDocument,
   createFixtureLink,
@@ -293,6 +295,31 @@ test("a Vault detail breadcrumb hangs the Vault under a navigable Vaults", async
   expect(trail).toContain('href="/dashboard/vaults"');
   expect(trail).toContain(">Vault</span>");
   expect(trail).not.toContain(fixtureVault.id);
+});
+
+test("every Role can reach Links, Analytics, and Settings", async () => {
+  const fixture = await createOrganizationFixture();
+  const unfinished = [
+    dashboardDestinations.links,
+    dashboardDestinations.analytics,
+    dashboardDestinations.settings,
+  ];
+
+  for (const role of ["owner", "admin", "member"] as const) {
+    for (const destination of unfinished) {
+      const path = destination.link.to;
+      const response = await fixture[role].http(new URL(path, process.env.BETTER_AUTH_URL), {
+        redirect: "manual",
+      });
+      const serverRenderedMarkup = serverRenderedMarkupOf(await response.text());
+
+      expect(response.status, `${role} ${path}`).toBe(200);
+      expect(serverRenderedMarkup, `${role} ${path}`).toContain('data-slot="sidebar"');
+      expect(navigationLink(serverRenderedMarkup, destination.label)).toContain(
+        'aria-current="page"',
+      );
+    }
+  }
 });
 
 test("Documents, Links, Analytics, and Settings name themselves without an Overview above them", async () => {
