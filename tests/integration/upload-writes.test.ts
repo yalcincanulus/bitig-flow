@@ -8,7 +8,7 @@ import {
   fixtureObjectExists,
   readUploadSample,
 } from "../fixtures";
-import { uploadMaxBytes } from "#/lib/upload";
+import { uploadMaxBytes, storageKeyForDocument, storageKeyPrefix } from "#/lib/upload";
 
 const documentsModulePath = "/src/server/functions/documents.ts";
 
@@ -73,7 +73,7 @@ test("a User can upload a PDF and see the row as pending before the bytes land",
     kind: "pdf",
     status: "pending",
     fileName: "launch notes.pdf",
-    storageKey: `org/${fixture.organization.id}/doc/${documentId}/original`,
+    storageKey: storageKeyForDocument(fixture.organization.id, documentId, storageKeyPrefix()),
     mimeType: null,
     byteSize: null,
     checksum: null,

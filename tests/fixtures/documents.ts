@@ -4,6 +4,7 @@ import { v7 as uuidv7 } from "uuid";
 import {
   documentKindFromMimeType,
   storageKeyForDocument,
+  storageKeyPrefix,
   type AllowedUploadMimeType,
 } from "#/lib/upload";
 import { document } from "#/server/db/schema";
@@ -54,7 +55,7 @@ export async function createFixtureDocument(options: DocumentFixtureOptions) {
 export async function createFixturePendingDocument(options: PendingDocumentFixtureOptions) {
   const now = new Date();
   const id = uuidv7();
-  const storageKey = storageKeyForDocument(options.organizationId, id);
+  const storageKey = storageKeyForDocument(options.organizationId, id, storageKeyPrefix());
   const kind = options.kind ?? "pdf";
   const fileName = options.fileName ?? "fixture.pdf";
 
@@ -100,7 +101,7 @@ type UploadedDocumentFixtureOptions = Pick<
 export async function createFixtureUploadedDocument(options: UploadedDocumentFixtureOptions) {
   const now = new Date();
   const id = uuidv7();
-  const storageKey = storageKeyForDocument(options.organizationId, id);
+  const storageKey = storageKeyForDocument(options.organizationId, id, storageKeyPrefix());
   const fileName = options.fileName ?? "fixture.bin";
   const kind = documentKindFromMimeType(options.contentType);
 

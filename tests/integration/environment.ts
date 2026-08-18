@@ -1,5 +1,6 @@
 export const testDatabaseName = "bitig_test";
 export const testRedisIndex = "15";
+export const testStorageKeyPrefix = "test/";
 export const testPort = "3100";
 export const testBaseUrl = `http://127.0.0.1:${testPort}`;
 

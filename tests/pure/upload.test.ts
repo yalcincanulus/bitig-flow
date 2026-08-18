@@ -51,4 +51,13 @@ test("the Storage key is org/orgId/doc/documentId/original", () => {
   ).toBe(
     "org/0198b8f1-6ae4-7c39-9c3d-3cfd7af20000/doc/0198b8f1-6ae4-7c39-9c3d-3cfd7af20101/original",
   );
+  expect(
+    storageKeyForDocument(
+      "0198b8f1-6ae4-7c39-9c3d-3cfd7af20000",
+      "0198b8f1-6ae4-7c39-9c3d-3cfd7af20101",
+      "test/",
+    ),
+  ).toBe(
+    "test/org/0198b8f1-6ae4-7c39-9c3d-3cfd7af20000/doc/0198b8f1-6ae4-7c39-9c3d-3cfd7af20101/original",
+  );
 });

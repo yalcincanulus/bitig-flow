@@ -7,7 +7,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import { expect, test } from "vitest";
 
-import { storageKeyForDocument } from "#/lib/upload";
+import { storageKeyForDocument, storageKeyPrefix } from "#/lib/upload";
 import { document } from "#/server/db/schema";
 import { sweepOrphanedObjects, sweepUnconfirmedUploads } from "#/server/sweep";
 
@@ -90,9 +90,20 @@ test("a recently created pending Document is untouched", async () => {
   ]);
 });
 
+test("orphan Sweep does not remove a development Storage key", async () => {
+  const fixture = await createOrganizationFixture();
+  const developmentKey = `org/${fixture.organization.id}/doc/${uuidv7()}/original`;
+  await putFixtureObject(developmentKey, pixelPng, "image/png");
+
+  const report = await sweepOrphanedObjects();
+
+  expect(report.removedStorageKeys).not.toContain(developmentKey);
+  expect(await fixtureObjectExists(developmentKey)).toBe(true);
+});
+
 test("an object with no matching Document row is removed", async () => {
   const fixture = await createOrganizationFixture();
-  const storageKey = storageKeyForDocument(fixture.organization.id, uuidv7());
+  const storageKey = storageKeyForDocument(fixture.organization.id, uuidv7(), storageKeyPrefix());
   await putFixtureObject(storageKey, pixelPng, "image/png");
 
   const report = await sweepOrphanedObjects();
@@ -132,7 +143,7 @@ test("sweeping unconfirmed uploads twice changes nothing the second time", async
 
 test("sweeping orphaned objects twice changes nothing the second time", async () => {
   const fixture = await createOrganizationFixture();
-  const orphanKey = storageKeyForDocument(fixture.organization.id, uuidv7());
+  const orphanKey = storageKeyForDocument(fixture.organization.id, uuidv7(), storageKeyPrefix());
   await putFixtureObject(orphanKey, pixelPng, "image/png");
 
   const first = await sweepOrphanedObjects();

@@ -2,10 +2,10 @@ import { and, eq, isNotNull, lt } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
 import { document } from "#/server/db/schema";
+import { storageKeyPrefix } from "#/lib/upload";
 import { deleteStoredObject, listStoredObjectKeys } from "#/server/storage";
 
 const unconfirmedOlderThanMs = 24 * 60 * 60 * 1000;
-const storagePrefix = "org/";
 
 export type UnconfirmedSweepReport = Readonly<{
   removedDocumentIds: ReadonlyArray<string>;
@@ -40,7 +40,7 @@ export async function sweepUnconfirmedUploads(): Promise<UnconfirmedSweepReport>
 
 export async function sweepOrphanedObjects(): Promise<OrphanSweepReport> {
   const [keys, rows] = await Promise.all([
-    listStoredObjectKeys(storagePrefix),
+    listStoredObjectKeys(`${storageKeyPrefix()}org/`),
     db
       .select({ storageKey: document.storageKey })
       .from(document)

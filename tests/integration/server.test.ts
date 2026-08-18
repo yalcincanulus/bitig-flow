@@ -3,6 +3,7 @@ import { parseEnv } from "node:util";
 
 import { expect } from "vitest";
 
+import { testStorageKeyPrefix } from "./environment";
 import { test } from "./http";
 
 test("the integration project reaches the running dev server", async ({ http }) => {
@@ -25,4 +26,6 @@ test("the integration project is isolated from development state", () => {
   expect(Number(developmentRedis.pathname.slice(1) || "0")).not.toBe(15);
   expect(process.env.PORT).toBe("3100");
   expect(authBaseUrl.port).toBe(process.env.PORT);
+  expect(process.env.S3_KEY_PREFIX).toBe(testStorageKeyPrefix);
+  expect(development.S3_KEY_PREFIX ?? "").not.toBe(testStorageKeyPrefix);
 });

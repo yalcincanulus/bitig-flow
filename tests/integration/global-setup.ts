@@ -18,6 +18,7 @@ import {
   testDatabaseName,
   testPort,
   testRedisIndex,
+  testStorageKeyPrefix,
 } from "./environment";
 
 function deriveTestEnvironment(): NodeJS.ProcessEnv {
@@ -38,12 +39,19 @@ function deriveTestEnvironment(): NodeJS.ProcessEnv {
   }
   redisUrl.pathname = `/${testRedisIndex}`;
 
+  if ((environment.S3_KEY_PREFIX ?? "") === testStorageKeyPrefix) {
+    throw new Error(
+      `The development S3_KEY_PREFIX must not use the reserved test prefix ${testStorageKeyPrefix}`,
+    );
+  }
+
   return {
     ...environment,
     DATABASE_URL: databaseUrl.toString(),
     REDIS_URL: redisUrl.toString(),
     PORT: testPort,
     BETTER_AUTH_URL: testBaseUrl,
+    S3_KEY_PREFIX: testStorageKeyPrefix,
   };
 }
 

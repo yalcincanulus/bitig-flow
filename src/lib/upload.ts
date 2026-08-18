@@ -72,6 +72,10 @@ export function mimeTypeFromFileName(fileName: string) {
   return extension ? mimeTypeByExtension[extension] : undefined;
 }
 
-export function storageKeyForDocument(organizationId: string, documentId: string) {
-  return `org/${organizationId}/doc/${documentId}/original`;
+export function storageKeyPrefix() {
+  return process.env.S3_KEY_PREFIX ?? "";
+}
+
+export function storageKeyForDocument(organizationId: string, documentId: string, prefix = "") {
+  return `${prefix}org/${organizationId}/doc/${documentId}/original`;
 }

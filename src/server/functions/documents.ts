@@ -19,6 +19,7 @@ import {
   sanitizeFileName,
   sniffUploadMimeType,
   storageKeyForDocument,
+  storageKeyPrefix,
 } from "#/lib/upload";
 import { orgMiddleware, permission } from "#/server/auth-middleware";
 import { documentIdSchema, userIdSchema } from "#/server/ids";
@@ -230,7 +231,7 @@ export const createUpload = createServerFn({ method: "POST" })
   .validator(createUploadSchema)
   .handler(async ({ context, data }) => {
     const fileName = sanitizeFileName(data.fileName);
-    const storageKey = storageKeyForDocument(context.orgId, data.documentId);
+    const storageKey = storageKeyForDocument(context.orgId, data.documentId, storageKeyPrefix());
     const document = await createPendingUploadInRepository(context.orgId, {
       id: data.documentId,
       title: authoredTitle(fileName).slice(0, documentTitleMaxLength),
