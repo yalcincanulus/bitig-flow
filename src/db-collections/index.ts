@@ -9,7 +9,12 @@ import {
   vaultItemSelectSchema,
   vaultSelectSchema,
 } from "#/server/db/schema";
-import { createDocument, deleteDocument, listDocuments } from "#/server/functions/documents";
+import {
+  createDocument,
+  deleteDocument,
+  listDocuments,
+  updateDocument,
+} from "#/server/functions/documents";
 import { listLinks } from "#/server/functions/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
@@ -113,6 +118,22 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
           ),
         );
         collection.utils.writeInsert(created);
+        return { refetch: false };
+      },
+      onUpdate: async ({ transaction, collection }) => {
+        const updated = await Promise.all(
+          transaction.mutations.map(({ modified, original }) =>
+            updateDocument({
+              data: {
+                documentId: modified.id,
+                title: modified.title,
+                content: modified.content ?? "",
+                updatedAt: original.updatedAt,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeUpdate(updated);
         return { refetch: false };
       },
       onDelete: async ({ transaction, collection }) => {

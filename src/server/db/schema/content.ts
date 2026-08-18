@@ -43,6 +43,7 @@ export const document = snakeCase.table(
     checksum: text(),
     pageCount: integer(),
     createdBy: uuid().references(() => user.id, { onDelete: "set null" }),
+    updatedBy: uuid().references(() => user.id, { onDelete: "set null" }),
     createdAt: timestampWithTimezone().notNull(),
     updatedAt: timestampWithTimezone().notNull(),
   },

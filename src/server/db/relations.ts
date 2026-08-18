@@ -40,6 +40,11 @@ export const relations = defineRelations(schema, (relation) => ({
       to: relation.user.id,
       optional: true,
     }),
+    updater: relation.one.user({
+      from: relation.document.updatedBy,
+      to: relation.user.id,
+      optional: true,
+    }),
     vaults: relation.many.vault({
       from: relation.document.id.through(relation.vaultItem.documentId),
       to: relation.vault.id.through(relation.vaultItem.vaultId),

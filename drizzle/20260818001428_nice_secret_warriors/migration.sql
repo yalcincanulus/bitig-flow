@@ -1,0 +1,2 @@
+ALTER TABLE "document" ADD COLUMN "updated_by" uuid;--> statement-breakpoint
+ALTER TABLE "document" ADD CONSTRAINT "document_updated_by_user_id_fkey" FOREIGN KEY ("updated_by") REFERENCES "user"("id") ON DELETE SET NULL;

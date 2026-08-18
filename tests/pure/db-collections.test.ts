@@ -5,6 +5,7 @@ vi.mock("#/server/functions/documents", () => ({
   createDocument: vi.fn(),
   deleteDocument: vi.fn(),
   listDocuments: vi.fn(),
+  updateDocument: vi.fn(),
 }));
 
 vi.mock("#/server/functions/vaults", () => ({
@@ -25,7 +26,12 @@ vi.mock("#/server/functions/links", () => ({
 }));
 
 import { getCollections } from "#/db-collections";
-import { createDocument, deleteDocument, listDocuments } from "#/server/functions/documents";
+import {
+  createDocument,
+  deleteDocument,
+  listDocuments,
+  updateDocument,
+} from "#/server/functions/documents";
 import { listLinks } from "#/server/functions/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
@@ -48,6 +54,7 @@ function documentRow(overrides: Partial<Awaited<ReturnType<typeof listDocuments>
     checksum: null,
     pageCount: null,
     createdBy: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20000",
+    updatedBy: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20000",
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -324,6 +331,42 @@ describe("getCollections", () => {
       },
     });
     expect(documents.get(confirmed.id)).toMatchObject(confirmed);
+    expect(listDocuments).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically updates a markdown Document and direct-writes the confirmed row without refetching", async () => {
+    const initial = documentRow();
+    const confirmed = documentRow({
+      title: "Launch archive",
+      content: "Confirmed by the server",
+      updatedAt: new Date("2026-08-17T13:00:00.000Z"),
+    });
+    vi.mocked(listDocuments).mockResolvedValue([initial]);
+    vi.mocked(updateDocument).mockResolvedValue(confirmed);
+    const { documents } = getCollections(new QueryClient(), organizationId);
+    await documents.preload();
+
+    const transaction = documents.update(initial.id, (draft) => {
+      draft.title = "Launch archive";
+      draft.content = "Client edit";
+    });
+
+    expect(documents.get(initial.id)).toMatchObject({
+      title: "Launch archive",
+      content: "Client edit",
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(updateDocument).toHaveBeenCalledWith({
+      data: {
+        documentId: initial.id,
+        title: "Launch archive",
+        content: "Client edit",
+        updatedAt: initial.updatedAt,
+      },
+    });
+    expect(documents.get(initial.id)).toMatchObject(confirmed);
     expect(listDocuments).toHaveBeenCalledTimes(1);
   });
 

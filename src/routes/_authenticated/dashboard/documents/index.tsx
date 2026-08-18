@@ -46,6 +46,7 @@ import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { getCollections } from "#/db-collections";
 import { documentsSearchSchema } from "#/lib/dashboard-search";
+import { rememberDocumentInsert } from "#/lib/document-editor-lifecycle";
 
 export const Route = createFileRoute("/_authenticated/dashboard/documents/")({
   validateSearch: documentsSearchSchema,
@@ -170,6 +171,16 @@ function DocumentsPage() {
                 <CardAction>{document.$synced ? null : "Saving…"}</CardAction>
               </CardHeader>
               <CardFooter className="gap-2">
+                {document.kind === "markdown" ? (
+                  <Link
+                    to="/dashboard/documents/$documentId/edit"
+                    params={{ documentId: document.id }}
+                  >
+                    <Button variant="outline" size="sm">
+                      Edit
+                    </Button>
+                  </Link>
+                ) : null}
                 <DeleteDocumentDialog
                   document={document}
                   documents={documents}
@@ -221,9 +232,11 @@ function CreateDocumentDialog({
       checksum: null,
       pageCount: null,
       createdBy,
+      updatedBy: createdBy,
       createdAt: now,
       updatedAt: now,
     });
+    rememberDocumentInsert(documentId, transaction.isPersisted.promise);
     watchPersistence(transaction, `Could not create the Document. Your change was rolled back.`);
     setOpen(false);
     void navigate({

@@ -106,6 +106,15 @@ export async function callServerFunction(http: typeof fetch, call: ServerFunctio
       return Response.json(decoded.error, { status: 403 });
     }
 
+    if (
+      typeof decoded.error === "object" &&
+      decoded.error !== null &&
+      "code" in decoded.error &&
+      decoded.error.code === "DOCUMENT_CONFLICT"
+    ) {
+      return Response.json(decoded.error, { status: 409 });
+    }
+
     if (decoded.error !== undefined) {
       return Response.json({ error: decoded.error }, { status: 500 });
     }

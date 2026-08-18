@@ -1,5 +1,10 @@
 import type { DocumentId, UserId, VaultId } from "#/server/ids";
-import { createDocument, deleteDocument, findDocument } from "#/server/repositories/documents";
+import {
+  createDocument,
+  deleteDocument,
+  findDocument,
+  upsertDocument,
+} from "#/server/repositories/documents";
 import { listLinks } from "#/server/repositories/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/repositories/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/repositories/vaults";
@@ -16,6 +21,15 @@ void createDocument("untrusted-organization-id", {
   id: documentId,
   title: "Untitled",
   createdBy: userId,
+});
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void upsertDocument("untrusted-organization-id", {
+  id: documentId,
+  title: "Untitled",
+  content: "",
+  updatedAt: new Date(),
+  writtenBy: userId,
 });
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.

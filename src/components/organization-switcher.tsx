@@ -13,6 +13,7 @@ import {
 } from "#/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "#/components/ui/sidebar";
 import { authClient } from "#/lib/auth-client";
+import { flushDocumentEditor } from "#/lib/document-editor-lifecycle";
 
 type OrganizationSummary = Readonly<{
   id: string;
@@ -50,6 +51,7 @@ export function OrganizationSwitcher({
     setError(undefined);
 
     try {
+      await flushDocumentEditor();
       const result = await authClient.organization.setActive({ organizationId });
       if (result.error) {
         setError(result.error.message ?? "Could not switch Organization");
