@@ -1,15 +1,17 @@
-import type { DocumentId, UserId, VaultId } from "#/server/ids";
+import type { DocumentId, LinkId, UserId, VaultId } from "#/server/ids";
 import {
   createDocument,
   deleteDocument,
   findDocument,
   upsertDocument,
 } from "#/server/repositories/documents";
+import { isDocumentReachableFromLink } from "#/server/viewer/reachability";
 import { listLinks } from "#/server/repositories/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/repositories/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/repositories/vaults";
 
 declare const documentId: DocumentId;
+declare const linkId: LinkId;
 declare const userId: UserId;
 declare const vaultId: VaultId;
 
@@ -69,3 +71,8 @@ void removeVaultItem("untrusted-organization-id", { vaultId, documentId });
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void listLinks("untrusted-organization-id");
+
+// @ts-expect-error A bare request string is not a LinkId.
+void isDocumentReachableFromLink("untrusted-link-id", documentId);
+
+void isDocumentReachableFromLink(linkId, documentId);

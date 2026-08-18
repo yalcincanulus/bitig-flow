@@ -26,7 +26,6 @@ import { Input } from "#/components/ui/input";
 import { Textarea } from "#/components/ui/textarea";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
-import { documentBytesUrl } from "#/lib/document-bytes";
 import { clipboardLooksLikeRemoteImage, imageReferenceMarkdown } from "#/lib/document-references";
 import {
   continueListItem,
@@ -449,14 +448,9 @@ function DocumentEditorPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-auto w-full justify-start gap-3 py-2"
+                    className="h-auto w-full justify-start py-2"
                     onClick={() => insertPickedImage(image)}
                   >
-                    <img
-                      src={documentBytesUrl(image.id)}
-                      alt=""
-                      className="size-10 rounded-md object-cover"
-                    />
                     <span className="truncate">{image.title}</span>
                   </Button>
                 </li>

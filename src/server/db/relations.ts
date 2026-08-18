@@ -53,6 +53,10 @@ export const relations = defineRelations(schema, (relation) => ({
       from: relation.document.id,
       to: relation.link.documentId,
     }),
+    referencedDocuments: relation.many.document({
+      from: relation.document.id.through(relation.documentReference.sourceDocumentId),
+      to: relation.document.id.through(relation.documentReference.targetDocumentId),
+    }),
   },
   vault: {
     organization: relation.one.organization({

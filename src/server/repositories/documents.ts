@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { extractDocumentReferences } from "#/lib/document-references";
 import { db } from "#/server/db/client";
 import { document, documentReference, user } from "#/server/db/schema";
-import { documentIdSchema, type DocumentId, type OrganizationId, type UserId } from "#/server/ids";
+import { type DocumentId, type OrganizationId, type UserId } from "#/server/ids";
 
 type NewMarkdownDocument = Readonly<{
   id: DocumentId;
@@ -143,11 +143,7 @@ async function replaceDocumentReferences(
   sourceDocumentId: DocumentId,
   content: string,
 ) {
-  const referencedIds = extractDocumentReferences(content).flatMap((id) => {
-    const parsed = documentIdSchema.safeParse(id);
-    if (!parsed.success || parsed.data === sourceDocumentId) return [];
-    return [parsed.data];
-  });
+  const referencedIds = extractDocumentReferences(content).filter((id) => id !== sourceDocumentId);
 
   await executor
     .delete(documentReference)

@@ -14,7 +14,8 @@ test("extractDocumentReferences collects unique doc/ image ids from markdown sou
     `# Launch notes`,
     ``,
     `![logo](doc/${logo}) and a repeat ![logo](doc/${logo})`,
-    `![chart](doc/${chart})`,
+    `![chart](doc/${chart} "Q3")`,
+    `![spaced]( doc/${logo} )`,
     `![beacon](https://evil.example/pixel.png)`,
     `![broken](doc/not-a-uuid)`,
     "```",
@@ -44,6 +45,7 @@ test("imageReferenceMarkdown stores a scheme-less relative reference", () => {
 test("clipboardLooksLikeRemoteImage is true for a remote image URL and false for a Document reference", () => {
   expect(clipboardLooksLikeRemoteImage("https://evil.example/pixel.png")).toBe(true);
   expect(clipboardLooksLikeRemoteImage(`![logo](https://evil.example/pixel.png)`)).toBe(true);
+  expect(clipboardLooksLikeRemoteImage("https://example.com/notes")).toBe(false);
   expect(clipboardLooksLikeRemoteImage(`![logo](doc/${logo})`)).toBe(false);
   expect(clipboardLooksLikeRemoteImage("See the notes")).toBe(false);
 });
