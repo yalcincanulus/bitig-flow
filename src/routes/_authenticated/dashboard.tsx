@@ -1,7 +1,16 @@
-import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
 
+import { Button } from "#/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "#/components/ui/empty";
 import { Skeleton } from "#/components/ui/skeleton";
 import { getCollections } from "#/db-collections";
+import { dashboardNotFound } from "#/lib/dashboard-not-found";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
@@ -24,9 +33,24 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function DashboardNotFound() {
+  const { pathname } = useLocation();
+  const notFound = dashboardNotFound(pathname);
+
   return (
-    <div className="p-4" aria-label="Not found">
-      <p>Not found</p>
+    <div className="flex flex-1 flex-col p-4">
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>{notFound.title}</EmptyTitle>
+          <EmptyDescription>{notFound.description}</EmptyDescription>
+        </EmptyHeader>
+        {notFound.recovery ? (
+          <EmptyContent>
+            <Button nativeButton={false} render={<Link {...notFound.recovery.link} />}>
+              {notFound.recovery.label}
+            </Button>
+          </EmptyContent>
+        ) : null}
+      </Empty>
     </div>
   );
 }

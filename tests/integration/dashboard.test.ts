@@ -317,6 +317,74 @@ test("Documents, Links, Analytics, and Settings name themselves without an Overv
   }
 });
 
+test("a missing Document, Vault, or Link cold load keeps Chrome around the content skeleton", async () => {
+  const fixture = await createOrganizationFixture();
+  const missingId = "01900000-0000-7000-8000-000000000001";
+
+  for (const path of [
+    `/dashboard/documents/${missingId}`,
+    `/dashboard/documents/${missingId}/edit`,
+    `/dashboard/vaults/${missingId}`,
+    `/dashboard/links/${missingId}`,
+  ]) {
+    const response = await fixture.member.http(new URL(path, process.env.BETTER_AUTH_URL), {
+      redirect: "manual",
+    });
+    const html = await response.text();
+    const serverRenderedMarkup = serverRenderedMarkupOf(html);
+
+    expect(response.status, path).toBe(200);
+    expect(serverRenderedMarkup, path).toContain('data-slot="sidebar"');
+    expect(serverRenderedMarkup, path).toContain('data-slot="sidebar-trigger"');
+    expect(breadcrumbTrail(serverRenderedMarkup), path).toContain('aria-label="breadcrumb"');
+    expect(serverRenderedMarkup, path).toContain(fixture.member.user.name);
+    expect(serverRenderedMarkup, path).toContain(fixture.organization.name);
+    expect(serverRenderedMarkup, path).toContain('data-slot="skeleton"');
+    expect(serverRenderedMarkup, path).toContain('aria-label="Loading Dashboard"');
+    // Recovery copy belongs to the client-only pane after the collection lookup, not the cold load.
+    expect(serverRenderedMarkup, path).not.toContain("This Document isn't here");
+  }
+});
+
+test("a Document, Vault, or Link from another Organization is not-found without leaking that it exists", async () => {
+  const [viewer, owner] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const foreignDocument = await createFixtureDocument({
+    organizationId: owner.organization.id,
+    createdBy: owner.member.user.id,
+    title: "Secret notes from another Organization",
+  });
+  const foreignVault = await createFixtureVault({
+    organizationId: owner.organization.id,
+    name: "Secret Vault from another Organization",
+  });
+  const foreignLink = await createFixtureLink({
+    organizationId: owner.organization.id,
+    createdBy: owner.member.user.id,
+    documentId: foreignDocument.id,
+    slug: "secretxorg1",
+  });
+
+  for (const [path, leaked] of [
+    [`/dashboard/documents/${foreignDocument.id}`, foreignDocument.title],
+    [`/dashboard/vaults/${foreignVault.id}`, foreignVault.name],
+    [`/dashboard/links/${foreignLink.id}`, foreignLink.slug],
+  ] as const) {
+    const response = await viewer.member.http(new URL(path, process.env.BETTER_AUTH_URL), {
+      redirect: "manual",
+    });
+    const html = await response.text();
+    const serverRenderedMarkup = serverRenderedMarkupOf(html);
+
+    expect(response.status, path).toBe(200);
+    expect(serverRenderedMarkup, path).toContain('data-slot="sidebar"');
+    expect(serverRenderedMarkup, path).toContain('aria-label="Loading Dashboard"');
+    expect(html, path).not.toContain(leaked);
+  }
+});
+
 test("a Link detail breadcrumb hangs the Link under a navigable Links", async () => {
   const fixture = await createOrganizationFixture();
   const fixtureDocument = await createFixtureDocument({
