@@ -5,11 +5,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { setResponseStatus } from "@tanstack/react-start/server";
 import { z } from "zod";
 
+import { dashboardResolveImage } from "#/lib/document-bytes";
 import {
   documentTitleMaxLength,
   markdownContentMaxBytes,
   utf8ByteLength,
 } from "#/lib/markdown-limits";
+import { renderHtml } from "#/lib/render-html";
 import {
   allowedUploadMimeTypes,
   documentKindFromMimeType,
@@ -169,6 +171,15 @@ export const getDocument = createServerFn({ method: "GET" })
     const found = await findDocument(context.orgId, data.documentId);
     if (!found) throw notFound();
     return found;
+  });
+
+export const renderMarkdown = createServerFn({ method: "GET" })
+  .middleware([orgMiddleware])
+  .validator(z.object({ documentId: documentIdSchema }))
+  .handler(async ({ context, data }) => {
+    const found = await findDocument(context.orgId, data.documentId);
+    if (!found || found.kind !== "markdown") throw notFound();
+    return renderHtml(found.content ?? "", dashboardResolveImage);
   });
 
 export const createDocument = createServerFn({ method: "POST" })
