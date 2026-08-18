@@ -9,6 +9,7 @@ const storagePrefix = "org/";
 
 export type UnconfirmedSweepReport = Readonly<{
   removedDocumentIds: ReadonlyArray<string>;
+  removedStorageKeys: ReadonlyArray<string>;
 }>;
 
 export type OrphanSweepReport = Readonly<{
@@ -23,14 +24,18 @@ export async function sweepUnconfirmedUploads(): Promise<UnconfirmedSweepReport>
     .where(and(eq(document.status, "pending"), lt(document.createdAt, cutoff)));
 
   const removedDocumentIds: string[] = [];
+  const removedStorageKeys: string[] = [];
 
   for (const row of stale) {
-    if (row.storageKey) await deleteStoredObject(row.storageKey);
+    if (row.storageKey) {
+      await deleteStoredObject(row.storageKey);
+      removedStorageKeys.push(row.storageKey);
+    }
     await db.delete(document).where(eq(document.id, row.id));
     removedDocumentIds.push(row.id);
   }
 
-  return { removedDocumentIds };
+  return { removedDocumentIds, removedStorageKeys };
 }
 
 export async function sweepOrphanedObjects(): Promise<OrphanSweepReport> {
