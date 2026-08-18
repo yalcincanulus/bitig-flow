@@ -1,16 +1,9 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarProvider,
-} from "#/components/ui/sidebar";
-import { OrganizationSwitcher } from "#/components/organization-switcher";
-import { SignOutButton } from "#/components/sign-out-button";
+import { DashboardSidebar } from "#/components/dashboard-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui/sidebar";
 import { TooltipProvider } from "#/components/ui/tooltip";
+import { sidebarStartsOpen } from "#/lib/sidebar-preference";
 import { listOrganizations } from "#/server/functions/auth";
 import { getDashboardContext } from "#/server/functions/dashboard";
 
@@ -34,18 +27,18 @@ function DashboardChrome() {
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <Sidebar collapsible="none">
-          <SidebarHeader>
-            <OrganizationSwitcher activeOrganization={organization} organizations={organizations} />
-          </SidebarHeader>
-          <SidebarContent />
-          <SidebarFooter className="flex flex-row items-center justify-between gap-2">
-            <span>{session.user.name}</span>
-            <SignOutButton />
-          </SidebarFooter>
-        </Sidebar>
+      <SidebarProvider defaultOpen={sidebarStartsOpen()}>
+        <DashboardSidebar
+          organization={organization}
+          organizations={organizations}
+          user={session.user}
+        />
         <SidebarInset>
+          {/* The trigger is the only way into the mobile Sheet, so it lands here now. The
+              Dashboard toolbar that will own this row is a later slice of #50. */}
+          <div className="flex h-12 shrink-0 items-center gap-2 px-4">
+            <SidebarTrigger />
+          </div>
           <Outlet />
         </SidebarInset>
       </SidebarProvider>

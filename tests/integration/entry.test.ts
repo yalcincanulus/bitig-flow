@@ -159,5 +159,5 @@ test("sign-up, OTP, sign-in, and a named Organization open the Dashboard", async
   const html = await dashboardResponse.text();
   expect(dashboardResponse.status).toBe(200);
   expect(html).toContain(organizationName);
-  expect(html).toContain(">Sign out</");
+  expect(html).toContain(email);
 });

@@ -15,7 +15,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "#/components/ui
 import { authClient } from "#/lib/auth-client";
 import { flushDocumentEditor } from "#/lib/document-editor-lifecycle";
 
-type OrganizationSummary = Readonly<{
+export type OrganizationSummary = Readonly<{
   id: string;
   name: string;
 }>;

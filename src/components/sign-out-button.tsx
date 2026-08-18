@@ -1,24 +1,8 @@
-import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-
 import { Button } from "#/components/ui/button";
-import { authClient } from "#/lib/auth-client";
+import { useSignOut } from "#/hooks/use-sign-out";
 
 export function SignOutButton() {
-  const navigate = useNavigate();
-  const [pending, setPending] = useState(false);
-
-  async function signOut() {
-    if (pending) return;
-    setPending(true);
-
-    try {
-      await authClient.signOut();
-      await navigate({ href: "/" });
-    } finally {
-      setPending(false);
-    }
-  }
+  const { pending, signOut } = useSignOut();
 
   return (
     <Button
