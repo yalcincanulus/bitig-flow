@@ -9,8 +9,12 @@ export function rememberDocumentInsert(documentId: string, persisted: Promise<un
   );
 }
 
-export function waitForDocumentInsert(documentId: string) {
-  return pendingInserts.get(documentId) ?? Promise.resolve();
+export async function waitForDocumentInsert(documentId: string) {
+  try {
+    await (pendingInserts.get(documentId) ?? Promise.resolve());
+  } catch {
+    // Autosave is an upsert. A failed create must not block the editor forever.
+  }
 }
 
 let editorFlush: (() => Promise<void>) | undefined;
