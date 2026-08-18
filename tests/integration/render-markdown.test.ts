@@ -11,14 +11,20 @@ import {
 } from "../fixtures";
 
 const documentsModulePath = "/src/server/functions/documents.ts";
-const imageId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af20501";
 
-test("the Document detail render returns HTML for the owner's markdown", async () => {
+test("the Document detail render returns HTML for a User's markdown", async () => {
   const fixture = await createOrganizationFixture();
+  const image = await createFixtureUploadedDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    contentType: "image/png",
+    fileName: "logo.png",
+    bytes: readUploadSample("pixel.png"),
+  });
   const document = await createFixtureDocument({
     organizationId: fixture.organization.id,
     createdBy: fixture.member.user.id,
-    content: `# Launch notes\n\nSee [the site](https://example.com) and ![logo](doc/${imageId}).`,
+    content: `# Launch notes\n\nSee [the site](https://example.com) and ![logo](doc/${image.id}).`,
   });
 
   const response = await callServerFunction(fixture.member.http, {
@@ -30,8 +36,28 @@ test("the Document detail render returns HTML for the owner's markdown", async (
 
   expect(response.status).toBe(200);
   expect(await response.json()).toBe(
-    `<h1 id="launch-notes">Launch notes</h1>\n<p>See <a href="https://example.com" rel="noopener noreferrer" target="_blank">the site</a> and <img src="${documentBytesUrl(imageId)}" alt="logo">.</p>`,
+    `<h1 id="launch-notes">Launch notes</h1>\n<p>See <a href="https://example.com" rel="noopener noreferrer" target="_blank">the site</a> and <img src="${documentBytesUrl(image.id)}" alt="logo">.</p>`,
   );
+});
+
+test("a missing image Reference renders as its alt text", async () => {
+  const fixture = await createOrganizationFixture();
+  const missingImageId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af20501";
+  const document = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    content: `![logo](doc/${missingImageId})`,
+  });
+
+  const response = await callServerFunction(fixture.member.http, {
+    modulePath: documentsModulePath,
+    exportName: "renderMarkdown",
+    method: "GET",
+    data: { documentId: document.id },
+  });
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toBe("<p>logo</p>");
 });
 
 test("a Document from another Organization is not found when rendering", async () => {

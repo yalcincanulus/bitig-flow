@@ -179,7 +179,12 @@ export const renderMarkdown = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const found = await findDocument(context.orgId, data.documentId);
     if (!found || found.kind !== "markdown") throw notFound();
-    return renderHtml(found.content ?? "", dashboardResolveImage);
+    const readyImageIds = new Set(
+      (await listDocumentsFromRepository(context.orgId))
+        .filter((row) => row.kind === "image" && row.status === "ready")
+        .map((row) => row.id),
+    );
+    return renderHtml(found.content ?? "", dashboardResolveImage(readyImageIds));
   });
 
 export const createDocument = createServerFn({ method: "POST" })
