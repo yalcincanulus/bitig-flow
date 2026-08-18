@@ -46,6 +46,7 @@ import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { getCollections } from "#/db-collections";
 import { documentsSearchSchema } from "#/lib/dashboard-search";
+import { documentBytesUrl } from "#/lib/document-bytes";
 import { rememberDocumentInsert } from "#/lib/document-editor-lifecycle";
 import {
   documentKindFromMimeType,
@@ -205,6 +206,13 @@ function DocumentsPage() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {data.map((document) => (
             <Card key={document.id}>
+              {document.kind === "image" && document.status === "ready" ? (
+                <img
+                  src={documentBytesUrl(document.id)}
+                  alt=""
+                  className="aspect-video w-full object-cover"
+                />
+              ) : null}
               <CardHeader>
                 <CardTitle>
                   <Link

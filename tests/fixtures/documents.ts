@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { v7 as uuidv7 } from "uuid";
 
-import { storageKeyForDocument } from "#/lib/upload";
+import {
+  documentKindFromMimeType,
+  storageKeyForDocument,
+  type AllowedUploadMimeType,
+} from "#/lib/upload";
 import { document } from "#/server/db/schema";
 
 import { database } from "./services";
@@ -77,6 +81,54 @@ export async function createFixturePendingDocument(options: PendingDocumentFixtu
       storageKey,
       options.bytes,
       options.contentType ?? (kind === "pdf" ? "application/pdf" : "image/png"),
+    );
+  }
+
+  return created;
+}
+
+type UploadedDocumentFixtureOptions = Pick<
+  typeof document.$inferInsert,
+  "organizationId" | "createdBy"
+> & {
+  contentType: AllowedUploadMimeType;
+  fileName?: string;
+  bytes?: Uint8Array;
+  storedContentType?: string;
+};
+
+export async function createFixtureUploadedDocument(options: UploadedDocumentFixtureOptions) {
+  const now = new Date();
+  const id = uuidv7();
+  const storageKey = storageKeyForDocument(options.organizationId, id);
+  const fileName = options.fileName ?? "fixture.bin";
+  const kind = documentKindFromMimeType(options.contentType);
+
+  const [created] = await database
+    .insert(document)
+    .values({
+      id,
+      organizationId: options.organizationId,
+      createdBy: options.createdBy,
+      title: fileName,
+      kind,
+      status: "ready",
+      fileName,
+      storageKey,
+      mimeType: options.contentType,
+      byteSize: options.bytes?.byteLength ?? 1,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  if (!created) throw new Error("Uploaded Document fixture insert returned no row");
+
+  if (options.bytes) {
+    await putFixtureObject(
+      storageKey,
+      options.bytes,
+      options.storedContentType ?? options.contentType,
     );
   }
 

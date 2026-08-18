@@ -28,6 +28,39 @@ function isMissingObject(error: unknown) {
   return name === "NoSuchKey" || name === "NotFound" || code === "NoSuchKey" || code === 404;
 }
 
+export type StoredObjectStream = Readonly<{
+  body: ReadableStream<Uint8Array>;
+  status: number;
+  contentRange?: string;
+  contentLength?: number;
+}>;
+
+export async function streamStoredObject(
+  key: string,
+  range: string | null,
+): Promise<StoredObjectStream | undefined> {
+  try {
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: range ?? undefined,
+      }),
+    );
+    if (!response.Body) return undefined;
+
+    return {
+      body: response.Body.transformToWebStream(),
+      status: response.$metadata.httpStatusCode ?? (range ? 206 : 200),
+      contentRange: response.ContentRange,
+      contentLength: response.ContentLength,
+    };
+  } catch (error) {
+    if (isMissingObject(error)) return undefined;
+    throw error;
+  }
+}
+
 export async function getStoredObject(key: string): Promise<StoredObject | undefined> {
   try {
     const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));

@@ -28,6 +28,7 @@ import { Route as AuthenticatedDashboardLinksIndexRouteImport } from './routes/_
 import { Route as AuthenticatedDashboardLinksLinkIdRouteImport } from './routes/_authenticated/dashboard/links/$linkId'
 import { Route as AuthenticatedDashboardVaultsIndexRouteImport } from './routes/_authenticated/dashboard/vaults/index'
 import { Route as AuthenticatedDashboardVaultsVaultIdRouteImport } from './routes/_authenticated/dashboard/vaults/$vaultId'
+import { Route as ApiDocumentsDocumentIdBytesRouteImport } from './routes/api/documents/$documentId/bytes'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/index'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdEditRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/edit'
 
@@ -132,6 +133,12 @@ const AuthenticatedDashboardVaultsVaultIdRoute =
     path: '/vaults/$vaultId',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const ApiDocumentsDocumentIdBytesRoute =
+  ApiDocumentsDocumentIdBytesRouteImport.update({
+    id: '/api/documents/$documentId/bytes',
+    path: '/api/documents/$documentId/bytes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedDashboardDocumentsDocumentIdIndexRoute =
   AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport.update({
     id: '/documents/$documentId/',
@@ -160,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
   '/dashboard/documents/': typeof AuthenticatedDashboardDocumentsIndexRoute
   '/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
   '/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
@@ -181,6 +189,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
   '/dashboard/documents': typeof AuthenticatedDashboardDocumentsIndexRoute
   '/dashboard/links': typeof AuthenticatedDashboardLinksIndexRoute
   '/dashboard/vaults': typeof AuthenticatedDashboardVaultsIndexRoute
@@ -205,6 +214,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authenticated/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/_authenticated/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
   '/_authenticated/dashboard/documents/': typeof AuthenticatedDashboardDocumentsIndexRoute
   '/_authenticated/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
   '/_authenticated/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
+    | '/api/documents/$documentId/bytes'
     | '/dashboard/documents/'
     | '/dashboard/links/'
     | '/dashboard/vaults/'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
+    | '/api/documents/$documentId/bytes'
     | '/dashboard/documents'
     | '/dashboard/links'
     | '/dashboard/vaults'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/_authenticated/dashboard/links/$linkId'
     | '/_authenticated/dashboard/vaults/$vaultId'
+    | '/api/documents/$documentId/bytes'
     | '/_authenticated/dashboard/documents/'
     | '/_authenticated/dashboard/links/'
     | '/_authenticated/dashboard/vaults/'
@@ -286,6 +299,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDocumentsDocumentIdBytesRoute: typeof ApiDocumentsDocumentIdBytesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -423,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardVaultsVaultIdRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/api/documents/$documentId/bytes': {
+      id: '/api/documents/$documentId/bytes'
+      path: '/api/documents/$documentId/bytes'
+      fullPath: '/api/documents/$documentId/bytes'
+      preLoaderRoute: typeof ApiDocumentsDocumentIdBytesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/dashboard/documents/$documentId/': {
       id: '/_authenticated/dashboard/documents/$documentId/'
       path: '/documents/$documentId'
@@ -514,6 +535,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDocumentsDocumentIdBytesRoute: ApiDocumentsDocumentIdBytesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

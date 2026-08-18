@@ -1,6 +1,5 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { roles, type PermissionRequest } from "#/lib/access-control";
@@ -32,17 +31,17 @@ export function isForbiddenError(error: unknown): error is ForbiddenError {
   );
 }
 
-export const authedMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
-  const authSession = await auth.api.getSession({ headers: getRequest().headers });
+export const authedMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const authSession = await auth.api.getSession({ headers: request.headers });
   if (!authSession) return signInRedirect();
 
   return next({ context: { authSession, userId: authSession.user.id } });
 });
 
-export const orgMiddleware = createMiddleware({ type: "function" })
+export const orgMiddleware = createMiddleware()
   .middleware([authedMiddleware])
-  .server(async ({ next, context }) => {
-    const headers = getRequest().headers;
+  .server(async ({ next, context, request }) => {
+    const headers = request.headers;
     const organizations = (await auth.api.listOrganizations({ headers })) ?? [];
     if (organizations.length === 0) return onboardingRedirect();
 

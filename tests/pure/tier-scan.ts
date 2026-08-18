@@ -12,9 +12,8 @@ const functionTierNames: ReadonlySet<string> = new Set(["authedMiddleware", "org
 
 // A server route is stricter than a server function: the routes we own serve organization-owned
 // bytes, so being signed in is not a tier — the request must be scoped to an organization.
-// Note for whoever writes the first one: `server.middleware` takes request middleware, and every
-// tier in src/server/auth-middleware.ts is `createMiddleware({ type: "function" })`, so a
-// request-type org tier has to exist before a route can satisfy this check.
+// `server.middleware` takes request middleware. `orgMiddleware` is request-type so a byte route
+// can declare the same tier the scan looks for.
 const routeTierNames: ReadonlySet<string> = new Set(["orgMiddleware"]);
 
 export type TierDeclaration = Readonly<{
