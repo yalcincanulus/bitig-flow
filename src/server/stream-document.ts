@@ -55,5 +55,8 @@ export async function streamDocument(options: {
     headers.set("Content-Length", String(stored.contentLength));
   }
 
-  return new Response(stored.body, { status: stored.status, headers });
+  return new Response(stored.body, {
+    status: stored.contentRange ? 206 : 200,
+    headers,
+  });
 }

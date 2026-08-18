@@ -47,6 +47,26 @@ test("a request with no session is refused the Dashboard byte route", async () =
   expect(await response.arrayBuffer()).toHaveProperty("byteLength", 0);
 });
 
+test("a Visit cookie without a session cannot fetch Dashboard bytes", async () => {
+  const fixture = await createOrganizationFixture();
+  const uploaded = await createFixtureUploadedDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    bytes: pixelPng,
+    contentType: "image/png",
+  });
+  const client = createCookieClient();
+
+  const response = await client.http(bytesUrl(uploaded.id), {
+    redirect: "manual",
+    headers: { cookie: "visit=not-a-dashboard-credential" },
+  });
+
+  expect(response.status).toBe(307);
+  expect(response.headers.get("location")).toBe("/sign-in");
+  expect(await response.arrayBuffer()).toHaveProperty("byteLength", 0);
+});
+
 test("a Document id from another Organization is not found on the byte route", async () => {
   const [firstOrganization, secondOrganization] = await Promise.all([
     createOrganizationFixture(),
@@ -110,6 +130,23 @@ test("downloading an uploaded Document uses the filename it was uploaded with", 
   );
   expectSecurityHeaders(response);
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(twoPagePdf);
+});
+
+test("a download parameter that is not 1 stays inline", async () => {
+  const fixture = await createOrganizationFixture();
+  const uploaded = await createFixtureUploadedDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    bytes: pixelPng,
+    contentType: "image/png",
+  });
+  const url = bytesUrl(uploaded.id);
+  url.searchParams.set("download", "0");
+
+  const response = await fixture.member.http(url, { redirect: "manual" });
+
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-disposition")).toBe("inline");
 });
 
 test("a range request answers 206 with a Content-Range", async () => {

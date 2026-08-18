@@ -30,7 +30,6 @@ function isMissingObject(error: unknown) {
 
 export type StoredObjectStream = Readonly<{
   body: ReadableStream<Uint8Array>;
-  status: number;
   contentRange?: string;
   contentLength?: number;
 }>;
@@ -51,7 +50,6 @@ export async function streamStoredObject(
 
     return {
       body: response.Body.transformToWebStream(),
-      status: response.$metadata.httpStatusCode ?? (range ? 206 : 200),
       contentRange: response.ContentRange,
       contentLength: response.ContentLength,
     };

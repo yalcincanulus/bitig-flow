@@ -17,9 +17,8 @@ export const Route = createFileRoute("/api/documents/$documentId/bytes")({
         const found = await findDocument(context.orgId, parsed.data);
         if (!found) return byteErrorResponse(404);
 
-        const disposition = new URL(request.url).searchParams.has("download")
-          ? "attachment"
-          : "inline";
+        const disposition =
+          new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
 
         return streamDocument({
           document: found,
