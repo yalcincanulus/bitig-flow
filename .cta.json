@@ -13,10 +13,5 @@
   "routerOnly": false,
   "version": 1,
   "framework": "react",
-  "chosenAddOns": [
-    "compiler",
-    "db",
-    "form",
-    "tanstack-query"
-  ]
+  "chosenAddOns": ["compiler", "db", "form", "tanstack-query"]
 }
