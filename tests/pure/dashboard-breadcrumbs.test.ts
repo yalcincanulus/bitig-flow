@@ -70,7 +70,7 @@ describe("dashboardBreadcrumbs", () => {
     expect(trail[0]?.link).toEqual({ to: "/dashboard/links" });
   });
 
-  test("an unresolved resource names its kind rather than its identifier", () => {
+  test("an unresolved Document, Vault, or Link names its kind rather than its identifier", () => {
     expect(labelsOf({ destination: "documents", document: { id: "document-1" } })).toEqual([
       "Documents",
       "Document",
@@ -85,7 +85,7 @@ describe("dashboardBreadcrumbs", () => {
     expect(labelsOf({ destination: "links", link: { id: "link-1" } })).toEqual(["Links", "Link"]);
   });
 
-  test("only the crumbs carrying a resource's own words are the ones the toolbar truncates", () => {
+  test("only the crumbs carrying a Document, Vault, or Link's own words are the ones the toolbar truncates", () => {
     const trail = dashboardBreadcrumbs({
       destination: "documents",
       document: {

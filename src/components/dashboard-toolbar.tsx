@@ -12,15 +12,7 @@ import {
 import { Separator } from "#/components/ui/separator";
 import { SidebarTrigger } from "#/components/ui/sidebar";
 import { dashboardBreadcrumbs, type DashboardPlace } from "#/lib/dashboard-breadcrumbs";
-import { dashboardDestinations, type DashboardDestination } from "#/lib/dashboard-destinations";
-
-const topLevelDestinations = [
-  "documents",
-  "vaults",
-  "links",
-  "analytics",
-  "settings",
-] as const satisfies ReadonlyArray<DashboardDestination>;
+import { dashboardDestinationIds, dashboardDestinations } from "#/lib/dashboard-destinations";
 
 /**
  * The router's answer to "where am I", narrowed to what the breadcrumbs need.
@@ -80,7 +72,7 @@ function useDashboardPlace(): DashboardPlace | undefined {
     return { destination: "links", link: { id: link.params.linkId, slug: link.loaderData?.slug } };
   }
 
-  return topLevelDestinations
+  return dashboardDestinationIds
     .filter((destination) => matchRoute({ to: dashboardDestinations[destination].link.to }))
     .map((destination) => ({ destination }) as const)
     .at(0);

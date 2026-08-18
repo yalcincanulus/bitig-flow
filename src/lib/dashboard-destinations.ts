@@ -16,3 +16,5 @@ export const dashboardDestinations = {
 } as const;
 
 export type DashboardDestination = keyof typeof dashboardDestinations;
+
+export const dashboardDestinationIds = Object.keys(dashboardDestinations) as DashboardDestination[];

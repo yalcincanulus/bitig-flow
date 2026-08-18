@@ -5,6 +5,7 @@ import { member as membershipTable } from "#/server/db/schema";
 
 import {
   createFixtureDocument,
+  createFixtureLink,
   createFixtureVault,
   createFixtureUser,
   createOrganizationForFixtureUser,
@@ -292,4 +293,50 @@ test("a Vault detail breadcrumb hangs the Vault under a navigable Vaults", async
   expect(trail).toContain('href="/dashboard/vaults"');
   expect(trail).toContain(">Vault</span>");
   expect(trail).not.toContain(fixtureVault.id);
+});
+
+test("Documents, Links, Analytics, and Settings name themselves without an Overview above them", async () => {
+  const fixture = await createOrganizationFixture();
+
+  for (const [path, label] of [
+    ["/dashboard/documents", "Documents"],
+    ["/dashboard/links", "Links"],
+    ["/dashboard/analytics", "Analytics"],
+    ["/dashboard/settings", "Settings"],
+  ] as const) {
+    const response = await fixture.member.http(new URL(path, process.env.BETTER_AUTH_URL), {
+      redirect: "manual",
+    });
+    const trail = breadcrumbTrail(serverRenderedMarkupOf(await response.text()));
+
+    expect(response.status, path).toBe(200);
+    expect(trail, path).toContain(`>${label}</span>`);
+    expect(trail, path).toContain('data-slot="breadcrumb-page"');
+    expect(trail, path).not.toContain("Overview");
+    expect(trail, path).not.toContain(`href="${path}"`);
+  }
+});
+
+test("a Link detail breadcrumb hangs the Link under a navigable Links", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+  });
+  const fixtureLink = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: fixtureDocument.id,
+  });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/links/${fixtureLink.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const trail = breadcrumbTrail(serverRenderedMarkupOf(await response.text()));
+
+  expect(response.status).toBe(200);
+  expect(trail).toContain('href="/dashboard/links"');
+  expect(trail).toContain(">Link</span>");
+  expect(trail).not.toContain(fixtureLink.id);
 });

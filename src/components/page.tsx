@@ -3,8 +3,8 @@ import type { ComponentProps } from "react";
 import { cn } from "#/lib/utils";
 
 /**
- * The shallow frame a Dashboard page sits in: padding, vertical rhythm, and a header that keeps a
- * title, a description, and the page's actions in the same relationship on every route.
+ * The shallow container a Dashboard page sits in: padding, vertical rhythm, and a header that keeps
+ * a title, a description, and the page's actions in the same relationship on every route.
  *
  * It deliberately stops there. A page owns its own content — its cards, dialogs, empty states and
  * forms are its business, and this is not the beginning of a page-building framework.
