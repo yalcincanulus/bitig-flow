@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { debounceStrategy, usePacedMutations } from "@tanstack/react-db";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { and, debounceStrategy, eq, useLiveQuery, usePacedMutations } from "@tanstack/react-db";
+import { ImageIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import {
@@ -12,11 +13,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "#/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "#/components/ui/dialog";
 import { Button } from "#/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "#/components/ui/empty";
 import { Input } from "#/components/ui/input";
 import { Textarea } from "#/components/ui/textarea";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
+import { documentBytesUrl } from "#/lib/document-bytes";
+import { clipboardLooksLikeRemoteImage, imageReferenceMarkdown } from "#/lib/document-references";
 import {
   continueListItem,
   flushRetryDelaysMs,
@@ -54,11 +65,22 @@ function DocumentEditorPage() {
   const loaded = Route.useLoaderData();
   const { organization, queryClient } = Route.useRouteContext();
   const { documents } = getCollections(queryClient, organization.id);
+  const { data: readyImages } = useLiveQuery(
+    (query) =>
+      query
+        .from({ document: documents })
+        .where(({ document }) => and(eq(document.kind, "image"), eq(document.status, "ready")))
+        .orderBy(({ document }) => document.title)
+        .select(({ document }) => document),
+    [documents],
+  );
   const [title, setTitle] = useState(loaded.title);
   const [content, setContent] = useState(loaded.content ?? "");
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [conflict, setConflict] = useState<DocumentConflictError>();
   const [atCap, setAtCap] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [remoteImageNotice, setRemoteImageNotice] = useState(false);
   const lastKeyWasEscape = useRef(false);
   const insertReady = useRef(false);
   const titleRef = useRef(title);
@@ -313,6 +335,18 @@ function DocumentEditorPage() {
     });
   }
 
+  function insertPickedImage(image: { id: string; title: string }) {
+    insertText(imageReferenceMarkdown(image.title, image.id));
+    setPickerOpen(false);
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = event.clipboardData.getData("text/plain");
+    if (!clipboardLooksLikeRemoteImage(pasted)) return;
+    event.preventDefault();
+    setRemoteImageNotice(true);
+  }
+
   function handleContentChange(next: string) {
     if (utf8ByteLength(next) > markdownContentMaxBytes) {
       setAtCap(true);
@@ -348,6 +382,16 @@ function DocumentEditorPage() {
             </>
           ) : null}
         </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={frozen}
+          onClick={() => setPickerOpen(true)}
+        >
+          <ImageIcon data-icon="inline-start" />
+          Insert image
+        </Button>
       </header>
 
       {atCap ? (
@@ -358,6 +402,12 @@ function DocumentEditorPage() {
         </Alert>
       ) : null}
 
+      {remoteImageNotice ? (
+        <Alert>
+          <AlertDescription>Images must come from this Organization.</AlertDescription>
+        </Alert>
+      ) : null}
+
       <Textarea
         ref={textareaRef}
         aria-label="Markdown"
@@ -365,6 +415,7 @@ function DocumentEditorPage() {
         readOnly={frozen}
         onChange={(event) => handleContentChange(event.target.value)}
         onKeyDown={handleContentKeyDown}
+        onPaste={handlePaste}
         className="min-h-0 flex-1 resize-none font-mono text-sm md:text-sm"
       />
 
@@ -373,6 +424,47 @@ function DocumentEditorPage() {
           {contentBytes.toLocaleString()} / {markdownContentMaxBytes.toLocaleString()} bytes
         </p>
       ) : null}
+
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Insert image</DialogTitle>
+            <DialogDescription>
+              Choose a ready image Document from this Organization.
+            </DialogDescription>
+          </DialogHeader>
+          {(readyImages ?? []).length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>No ready images</EmptyTitle>
+                <EmptyDescription>
+                  Upload an image Document and wait until it is ready.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <ul className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+              {(readyImages ?? []).map((image) => (
+                <li key={image.id}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-auto w-full justify-start gap-3 py-2"
+                    onClick={() => insertPickedImage(image)}
+                  >
+                    <img
+                      src={documentBytesUrl(image.id)}
+                      alt=""
+                      className="size-10 rounded-md object-cover"
+                    />
+                    <span className="truncate">{image.title}</span>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={conflict !== undefined}>
         <AlertDialogContent>

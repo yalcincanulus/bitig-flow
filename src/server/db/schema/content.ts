@@ -97,6 +97,26 @@ export const vaultItem = snakeCase.table(
   ],
 );
 
+export const documentReference = snakeCase.table(
+  "document_reference",
+  {
+    sourceDocumentId: uuid()
+      .notNull()
+      .references(() => document.id, { onDelete: "cascade" }),
+    targetDocumentId: uuid()
+      .notNull()
+      .references(() => document.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sourceDocumentId, table.targetDocumentId] }),
+    check(
+      "document_reference_not_self_check",
+      sql`${table.sourceDocumentId} <> ${table.targetDocumentId}`,
+    ),
+    index("document_reference_target_document_id_idx").on(table.targetDocumentId),
+  ],
+);
+
 export const documentSelectSchema = createSelectSchema(document);
 export const vaultSelectSchema = createSelectSchema(vault);
 export const vaultItemSelectSchema = createSelectSchema(vaultItem);

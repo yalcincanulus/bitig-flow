@@ -1,8 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
+import { extractDocumentReferences } from "#/lib/document-references";
 import { db } from "#/server/db/client";
-import { document, user } from "#/server/db/schema";
-import type { DocumentId, OrganizationId, UserId } from "#/server/ids";
+import { document, documentReference, user } from "#/server/db/schema";
+import { documentIdSchema, type DocumentId, type OrganizationId, type UserId } from "#/server/ids";
 
 type NewMarkdownDocument = Readonly<{
   id: DocumentId;
@@ -43,6 +44,7 @@ export type DocumentWriteConflict = Readonly<{
 }>;
 
 type DocumentRow = typeof document.$inferSelect;
+type DatabaseExecutor = Pick<typeof db, "select" | "insert" | "update" | "delete">;
 
 export function isDocumentWriteConflict(
   result: DocumentRow | DocumentWriteConflict,
@@ -135,18 +137,60 @@ export async function createDocument(orgId: OrganizationId, newDocument: NewMark
   throw new Error("Document insert returned no row");
 }
 
-async function insertMarkdownDocument(orgId: OrganizationId, write: MarkdownDocumentWrite) {
-  const [created] = await db
+async function replaceDocumentReferences(
+  executor: DatabaseExecutor,
+  orgId: OrganizationId,
+  sourceDocumentId: DocumentId,
+  content: string,
+) {
+  const referencedIds = extractDocumentReferences(content).flatMap((id) => {
+    const parsed = documentIdSchema.safeParse(id);
+    if (!parsed.success || parsed.data === sourceDocumentId) return [];
+    return [parsed.data];
+  });
+
+  await executor
+    .delete(documentReference)
+    .where(eq(documentReference.sourceDocumentId, sourceDocumentId));
+
+  if (referencedIds.length === 0) return;
+
+  const owned = await executor
+    .select({ id: document.id })
+    .from(document)
+    .where(and(eq(document.organizationId, orgId), inArray(document.id, referencedIds)));
+
+  if (owned.length === 0) return;
+
+  await executor.insert(documentReference).values(
+    owned.map((row) => ({
+      sourceDocumentId,
+      targetDocumentId: row.id,
+    })),
+  );
+}
+
+async function insertMarkdownDocument(
+  executor: DatabaseExecutor,
+  orgId: OrganizationId,
+  write: MarkdownDocumentWrite,
+) {
+  const [created] = await executor
     .insert(document)
     .values(markdownInsertValues(orgId, write, write.writtenBy))
     .returning();
 
   if (!created) throw new Error("Document insert returned no row");
+  await replaceDocumentReferences(executor, orgId, write.id, write.content);
   return created;
 }
 
-async function updateMarkdownDocument(orgId: OrganizationId, write: MarkdownDocumentWrite) {
-  const [updated] = await db
+async function updateMarkdownDocument(
+  executor: DatabaseExecutor,
+  orgId: OrganizationId,
+  write: MarkdownDocumentWrite,
+) {
+  const [updated] = await executor
     .update(document)
     .set({
       title: write.title,
@@ -156,6 +200,10 @@ async function updateMarkdownDocument(orgId: OrganizationId, write: MarkdownDocu
     })
     .where(and(eq(document.organizationId, orgId), eq(document.id, write.id)))
     .returning();
+
+  if (updated) {
+    await replaceDocumentReferences(executor, orgId, write.id, write.content);
+  }
 
   return updated;
 }
@@ -171,6 +219,7 @@ async function conflictFor(existing: DocumentRow): Promise<DocumentWriteConflict
 }
 
 async function applyMarkdownWrite(
+  executor: DatabaseExecutor,
   orgId: OrganizationId,
   existing: DocumentRow,
   write: MarkdownDocumentWrite,
@@ -185,23 +234,30 @@ async function applyMarkdownWrite(
     return conflictFor(existing);
   }
 
-  const updated = await updateMarkdownDocument(orgId, write);
+  const updated = await updateMarkdownDocument(executor, orgId, write);
   if (!updated) throw new Error("Document update returned no row");
   return updated;
 }
 
 export async function upsertDocument(orgId: OrganizationId, write: MarkdownDocumentWrite) {
-  const existing = await findDocument(orgId, write.id);
-  if (existing) return applyMarkdownWrite(orgId, existing, write);
-
   try {
-    return await insertMarkdownDocument(orgId, write);
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(document)
+        .where(and(eq(document.organizationId, orgId), eq(document.id, write.id)))
+        .limit(1);
+
+      if (existing) return applyMarkdownWrite(tx, orgId, existing, write);
+      return await insertMarkdownDocument(tx, orgId, write);
+    });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
 
     const raced = await findDocument(orgId, write.id);
     if (!raced) return undefined;
-    return applyMarkdownWrite(orgId, raced, write);
+
+    return db.transaction(async (tx) => applyMarkdownWrite(tx, orgId, raced, write));
   }
 }
 
