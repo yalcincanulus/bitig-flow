@@ -1,40 +1,12 @@
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { isUploadOverSizeCap, uploadMaxBytes } from "#/lib/upload";
+import { createStorageClients } from "#/server/storage-clients";
 
-function requiredEnvironmentVariable(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-}
+export { createStorageClients } from "#/server/storage-clients";
 
-function storageConfig() {
-  return {
-    endpoint: requiredEnvironmentVariable("S3_ENDPOINT"),
-    region: requiredEnvironmentVariable("S3_REGION"),
-    forcePathStyle: true,
-    credentials: {
-      accessKeyId: requiredEnvironmentVariable("S3_ACCESS_KEY_ID"),
-      secretAccessKey: requiredEnvironmentVariable("S3_SECRET_ACCESS_KEY"),
-    },
-  } as const;
-}
-
-const s3 = new S3Client(storageConfig());
-const presigner = new S3Client({
-  ...storageConfig(),
-  requestChecksumCalculation: "WHEN_REQUIRED",
-});
-
-function bucket() {
-  return requiredEnvironmentVariable("S3_BUCKET");
-}
+const { s3, presigner, bucket } = createStorageClients();
 
 export type StoredObject = Readonly<{
   bytes: Uint8Array;
@@ -58,7 +30,7 @@ function isMissingObject(error: unknown) {
 
 export async function getStoredObject(key: string): Promise<StoredObject | undefined> {
   try {
-    const response = await s3.send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
+    const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     if (response.ContentLength !== undefined && response.ContentLength > uploadMaxBytes) {
       return { bytes: new Uint8Array(), oversized: true };
     }
@@ -71,11 +43,11 @@ export async function getStoredObject(key: string): Promise<StoredObject | undef
 }
 
 export async function deleteStoredObject(key: string) {
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
 export function presignPutObject(key: string) {
-  return getSignedUrl(presigner, new PutObjectCommand({ Bucket: bucket(), Key: key }), {
+  return getSignedUrl(presigner, new PutObjectCommand({ Bucket: bucket, Key: key }), {
     expiresIn: 15 * 60,
   });
 }
@@ -83,7 +55,7 @@ export function presignPutObject(key: string) {
 export async function putStoredObject(key: string, body: Uint8Array, contentType: string) {
   await s3.send(
     new PutObjectCommand({
-      Bucket: bucket(),
+      Bucket: bucket,
       Key: key,
       Body: body,
       ContentType: contentType,

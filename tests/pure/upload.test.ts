@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 
 import {
@@ -12,22 +9,18 @@ import {
   uploadMaxBytes,
 } from "#/lib/upload";
 
-const samplesDirectory = fileURLToPath(new URL("../fixtures/samples", import.meta.url));
-
-function sample(name: string) {
-  return new Uint8Array(readFileSync(join(samplesDirectory, name)));
-}
+import { readUploadSample } from "../fixtures/upload-samples";
 
 test("sniffs PDF, PNG, JPEG, WebP, and GIF from their magic signatures", () => {
-  expect(sniffUploadMimeType(sample("one-page.pdf"))).toBe("application/pdf");
-  expect(sniffUploadMimeType(sample("pixel.png"))).toBe("image/png");
-  expect(sniffUploadMimeType(sample("pixel.jpg"))).toBe("image/jpeg");
-  expect(sniffUploadMimeType(sample("pixel.webp"))).toBe("image/webp");
-  expect(sniffUploadMimeType(sample("pixel.gif"))).toBe("image/gif");
+  expect(sniffUploadMimeType(readUploadSample("one-page.pdf"))).toBe("application/pdf");
+  expect(sniffUploadMimeType(readUploadSample("pixel.png"))).toBe("image/png");
+  expect(sniffUploadMimeType(readUploadSample("pixel.jpg"))).toBe("image/jpeg");
+  expect(sniffUploadMimeType(readUploadSample("pixel.webp"))).toBe("image/webp");
+  expect(sniffUploadMimeType(readUploadSample("pixel.gif"))).toBe("image/gif");
 });
 
 test("an SVG is absent from the signature table", () => {
-  expect(sniffUploadMimeType(sample("script.svg"))).toBeUndefined();
+  expect(sniffUploadMimeType(readUploadSample("script.svg"))).toBeUndefined();
   expect(sniffUploadMimeType(new TextEncoder().encode("not a document"))).toBeUndefined();
 });
 

@@ -1,7 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { v7 as uuidv7 } from "uuid";
 
 import { storageKeyForDocument } from "#/lib/upload";
@@ -9,12 +6,9 @@ import { document } from "#/server/db/schema";
 
 import { database } from "./services";
 import { putFixtureObject } from "./storage";
+import { readUploadSample } from "./upload-samples";
 
-const samplesDirectory = fileURLToPath(new URL("./samples", import.meta.url));
-
-export function readUploadSample(name: string) {
-  return new Uint8Array(readFileSync(join(samplesDirectory, name)));
-}
+export { readUploadSample };
 
 type DocumentFixtureOptions = Pick<typeof document.$inferInsert, "organizationId" | "createdBy"> & {
   title?: string;

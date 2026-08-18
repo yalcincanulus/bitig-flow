@@ -15,10 +15,11 @@ import {
   GetBucketCorsCommand,
   GetObjectCommand,
   PutObjectCommand,
-  S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import nodemailer from "nodemailer";
+
+import { createStorageClients } from "../src/server/storage-clients.ts";
 
 function required(name: string): string {
   const value = process.env[name];
@@ -38,22 +39,7 @@ function pass(name: string, detail: string) {
 async function verifyStorage() {
   console.log("garage (S3)");
 
-  const config = {
-    endpoint: required("S3_ENDPOINT"),
-    region: required("S3_REGION"),
-    forcePathStyle: true,
-    credentials: {
-      accessKeyId: required("S3_ACCESS_KEY_ID"),
-      secretAccessKey: required("S3_SECRET_ACCESS_KEY"),
-    },
-  };
-  const bucket = required("S3_BUCKET");
-
-  const s3 = new S3Client(config);
-  // A separate client for presigning: the SDK adds x-amz-checksum-* to SignedHeaders
-  // by default, and a browser will not compute those, so the signature would never
-  // match. WHEN_REQUIRED keeps them out of the URL.
-  const presigner = new S3Client({ ...config, requestChecksumCalculation: "WHEN_REQUIRED" });
+  const { s3, presigner, bucket } = createStorageClients();
 
   const key = `org/${randomUUID()}/doc/${randomUUID()}/verify.txt`;
   const body = `bitig-flow infra check ${new Date().toISOString()}`;

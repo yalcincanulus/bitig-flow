@@ -97,40 +97,19 @@ export async function callServerFunction(http: typeof fetch, call: ServerFunctio
       return Response.json(decoded.error, { status: 404 });
     }
 
-    if (
-      typeof decoded.error === "object" &&
-      decoded.error !== null &&
-      "code" in decoded.error &&
-      decoded.error.code === "FORBIDDEN"
-    ) {
-      return Response.json(decoded.error, { status: 403 });
-    }
-
-    if (
-      typeof decoded.error === "object" &&
-      decoded.error !== null &&
-      "code" in decoded.error &&
-      decoded.error.code === "DOCUMENT_CONFLICT"
-    ) {
-      return Response.json(decoded.error, { status: 409 });
-    }
-
-    if (
-      typeof decoded.error === "object" &&
-      decoded.error !== null &&
-      "code" in decoded.error &&
-      decoded.error.code === "UPLOAD_INCOMPLETE"
-    ) {
-      return Response.json(decoded.error, { status: 409 });
-    }
-
-    if (
-      typeof decoded.error === "object" &&
-      decoded.error !== null &&
-      "code" in decoded.error &&
-      decoded.error.code === "UPLOAD_CONFIRMATION"
-    ) {
-      return Response.json(decoded.error, { status: 422 });
+    if (typeof decoded.error === "object" && decoded.error !== null && "code" in decoded.error) {
+      const statusByCode = {
+        FORBIDDEN: 403,
+        DOCUMENT_CONFLICT: 409,
+        UPLOAD_INCOMPLETE: 409,
+        UPLOAD_CONFIRMATION: 422,
+      } as const;
+      const code = decoded.error.code;
+      if (typeof code === "string" && code in statusByCode) {
+        return Response.json(decoded.error, {
+          status: statusByCode[code as keyof typeof statusByCode],
+        });
+      }
     }
 
     if (decoded.error !== undefined) {

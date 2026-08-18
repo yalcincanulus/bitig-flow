@@ -53,8 +53,14 @@ import {
   mimeTypeFromFileName,
   sanitizeFileName,
   uploadMaxBytes,
+  type AllowedUploadMimeType,
 } from "#/lib/upload";
-import { createUpload, confirmUpload } from "#/server/functions/documents";
+import {
+  confirmUpload,
+  createUpload,
+  isUploadConfirmationError,
+  isUploadIncompleteError,
+} from "#/server/functions/documents";
 
 export const Route = createFileRoute("/_authenticated/dashboard/documents/")({
   validateSearch: documentsSearchSchema,
@@ -68,6 +74,28 @@ type WatchPersistence = (
   transaction: ReturnType<DocumentCollection["insert"]>,
   message: string,
 ) => void;
+
+async function putThenConfirm(
+  uploadUrl: string,
+  file: File,
+  documentId: string,
+  contentType: AllowedUploadMimeType,
+) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const uploaded = await fetch(uploadUrl, { method: "PUT", body: file });
+    if (!uploaded.ok) {
+      if (attempt === 0) continue;
+      throw new Error("put failed");
+    }
+    try {
+      return await confirmUpload({ data: { documentId, contentType } });
+    } catch (error) {
+      if (isUploadIncompleteError(error) && attempt === 0) continue;
+      throw error;
+    }
+  }
+  throw new Error("put failed");
+}
 
 function DocumentsPage() {
   const search = Route.useSearch();
@@ -275,19 +303,20 @@ function UploadDocumentButton({
     onError(null);
     documents.utils.writeInsert(pending);
 
+    let persisted = false;
     try {
       const created = await createUpload({
         data: { documentId, fileName: file.name, contentType },
       });
+      persisted = true;
       documents.utils.writeUpdate(created.document);
 
-      const uploaded = await fetch(created.uploadUrl, { method: "PUT", body: file });
-      if (!uploaded.ok) throw new Error("put failed");
-
-      const confirmed = await confirmUpload({ data: { documentId, contentType } });
+      const confirmed = await putThenConfirm(created.uploadUrl, file, documentId, contentType);
       documents.utils.writeUpdate(confirmed);
-    } catch {
-      documents.utils.writeDelete(documentId);
+    } catch (error) {
+      if (!persisted || isUploadConfirmationError(error)) {
+        documents.utils.writeDelete(documentId);
+      }
       onError(`Could not upload “${fileName}”.`);
     }
   }
