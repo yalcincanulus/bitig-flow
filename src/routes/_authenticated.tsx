@@ -1,7 +1,8 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 import { DashboardSidebar } from "#/components/dashboard-sidebar";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui/sidebar";
+import { DashboardToolbar } from "#/components/dashboard-toolbar";
+import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { sidebarStartsOpen } from "#/lib/sidebar-preference";
 import { listOrganizations } from "#/server/functions/auth";
@@ -34,11 +35,7 @@ function DashboardChrome() {
           user={session.user}
         />
         <SidebarInset>
-          {/* The trigger is the only way into the mobile Sheet, so it lands here now. The
-              Dashboard toolbar that will own this row is a later slice of #50. */}
-          <div className="flex h-12 shrink-0 items-center gap-2 px-4">
-            <SidebarTrigger />
-          </div>
+          <DashboardToolbar />
           <Outlet />
         </SidebarInset>
       </SidebarProvider>

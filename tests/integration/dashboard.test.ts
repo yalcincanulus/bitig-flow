@@ -5,6 +5,7 @@ import { member as membershipTable } from "#/server/db/schema";
 
 import {
   createFixtureDocument,
+  createFixtureVault,
   createFixtureUser,
   createOrganizationForFixtureUser,
   createOrganizationFixture,
@@ -23,6 +24,12 @@ function navigationLink(markup: string, label: string) {
   const anchors = markup.match(/<a\b[\s\S]*?<\/a>/g) ?? [];
 
   return anchors.find((anchor) => anchor.includes(`>${label}</span>`)) ?? "";
+}
+
+// The toolbar's breadcrumbs and the sidebar both point at the same destinations, so assertions
+// about the trail have to look at the breadcrumb nav alone.
+function breadcrumbTrail(markup: string) {
+  return /<nav[^>]*aria-label="breadcrumb"[\s\S]*?<\/nav>/.exec(markup)?.[0] ?? "";
 }
 
 async function expectSignInRedirect(response: Response) {
@@ -204,4 +211,85 @@ test("a User with memberships and no active Organization still reaches the Dashb
   expect(response.status).toBe(200);
   expect(html).toContain(organization.name);
   expect(html).toContain(fixture.user.name);
+});
+
+test("the server-rendered Chrome carries the toolbar, its sidebar trigger, and breadcrumbs", async () => {
+  const fixture = await createOrganizationFixture();
+
+  const response = await fixture.member.http(
+    new URL("/dashboard/vaults", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const serverRenderedMarkup = serverRenderedMarkupOf(await response.text());
+  const trail = breadcrumbTrail(serverRenderedMarkup);
+
+  expect(response.status).toBe(200);
+  expect(serverRenderedMarkup).toContain('data-slot="sidebar-trigger"');
+  expect(serverRenderedMarkup).toContain("Toggle Sidebar");
+
+  // The destination a User is on is the current page, and it hangs from nothing above it.
+  expect(trail).toContain(">Vaults</span>");
+  expect(trail).toContain('data-slot="breadcrumb-page"');
+  expect(trail).not.toContain("Overview");
+  expect(trail).not.toContain('href="/dashboard/vaults"');
+});
+
+test("a Document Preview breadcrumb hangs the Document under a navigable Documents", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+  });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/documents/${fixtureDocument.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const trail = breadcrumbTrail(serverRenderedMarkupOf(await response.text()));
+
+  expect(response.status).toBe(200);
+  // The Document title belongs to the client-only pane, so the Chrome names the kind until then.
+  expect(trail).toContain('href="/dashboard/documents"');
+  expect(trail).toContain(">Documents</a>");
+  expect(trail).toContain(">Document</span>");
+  // A uuid tells a User nothing, so the Document crumb never falls back to one.
+  expect(trail).not.toContain(fixtureDocument.id);
+  // Only the Document itself is the current page; the Documents ancestor above it is not.
+  expect(trail.match(/aria-current="page"/g)).toHaveLength(1);
+});
+
+test("the editor breadcrumb keeps the Document between Documents and Edit", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+  });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/documents/${fixtureDocument.id}/edit`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const trail = breadcrumbTrail(serverRenderedMarkupOf(await response.text()));
+
+  expect(response.status).toBe(200);
+  expect(trail).toContain('href="/dashboard/documents"');
+  expect(trail).toContain(`href="/dashboard/documents/${fixtureDocument.id}"`);
+  expect(trail).toContain(">Edit</span>");
+  expect(trail.match(/aria-current="page"/g)).toHaveLength(1);
+});
+
+test("a Vault detail breadcrumb hangs the Vault under a navigable Vaults", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureVault = await createFixtureVault({ organizationId: fixture.organization.id });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/vaults/${fixtureVault.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const trail = breadcrumbTrail(serverRenderedMarkupOf(await response.text()));
+
+  expect(response.status).toBe(200);
+  expect(trail).toContain('href="/dashboard/vaults"');
+  expect(trail).toContain(">Vault</span>");
+  expect(trail).not.toContain(fixtureVault.id);
 });

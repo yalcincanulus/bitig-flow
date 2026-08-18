@@ -21,20 +21,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "#/components/ui/sidebar";
+import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
 // Every Role sees the same destinations, so the list is a constant rather than a computed one.
 const primaryDestinations = [
-  { to: "/dashboard/documents", label: "Documents", icon: FileTextIcon },
-  { to: "/dashboard/vaults", label: "Vaults", icon: FolderClosedIcon },
-  { to: "/dashboard/links", label: "Links", icon: LinkIcon },
-  { to: "/dashboard/analytics", label: "Analytics", icon: ChartNoAxesCombinedIcon },
+  { ...dashboardDestinations.documents, icon: FileTextIcon },
+  { ...dashboardDestinations.vaults, icon: FolderClosedIcon },
+  { ...dashboardDestinations.links, icon: LinkIcon },
+  { ...dashboardDestinations.analytics, icon: ChartNoAxesCombinedIcon },
 ] as const;
 
-const settingsDestination = {
-  to: "/dashboard/settings",
-  label: "Settings",
-  icon: SettingsIcon,
-} as const;
+const settingsDestination = { ...dashboardDestinations.settings, icon: SettingsIcon } as const;
 
 type Destination = (typeof primaryDestinations)[number] | typeof settingsDestination;
 
@@ -49,7 +46,7 @@ function DestinationItem({ destination }: Readonly<{ destination: Destination }>
   const { isMobile, setOpenMobile } = useSidebar();
   // Fuzzy matching is what keeps Documents active on a Preview or editor route, Vaults active on a
   // Vault detail, and Links active on a Link detail.
-  const isActive = Boolean(matchRoute({ to: destination.to, fuzzy: true }));
+  const isActive = Boolean(matchRoute({ to: destination.link.to, fuzzy: true }));
   const Icon = destination.icon;
 
   return (
@@ -59,7 +56,7 @@ function DestinationItem({ destination }: Readonly<{ destination: Destination }>
         tooltip={destination.label}
         render={
           <Link
-            to={destination.to}
+            {...destination.link}
             activeOptions={{ includeSearch: false }}
             onClick={() => {
               if (isMobile) setOpenMobile(false);
@@ -86,7 +83,7 @@ export function DashboardSidebar({ organization, organizations, user }: Dashboar
             <SidebarGroupContent>
               <SidebarMenu>
                 {primaryDestinations.map((destination) => (
-                  <DestinationItem key={destination.to} destination={destination} />
+                  <DestinationItem key={destination.link.to} destination={destination} />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
