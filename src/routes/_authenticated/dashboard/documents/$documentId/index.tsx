@@ -37,18 +37,29 @@ function DocumentPage() {
         <PageDescription>What a Visitor gets for this Document.</PageDescription>
         <PageActions>
           {document.kind === "markdown" ? (
-            <Link to="/dashboard/documents/$documentId/edit" params={{ documentId: document.id }}>
-              <Button variant="outline" size="sm">
-                Edit
-              </Button>
-            </Link>
+            <Button
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              render={
+                <Link
+                  to="/dashboard/documents/$documentId/edit"
+                  params={{ documentId: document.id }}
+                />
+              }
+            >
+              Edit
+            </Button>
           ) : null}
           {document.kind !== "markdown" && document.status === "ready" ? (
-            <a href={documentBytesUrl(document.id, { download: true })}>
-              <Button variant="outline" size="sm">
-                Download
-              </Button>
-            </a>
+            <Button
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              render={<a href={documentBytesUrl(document.id, { download: true })} />}
+            >
+              Download
+            </Button>
           ) : null}
         </PageActions>
       </PageHeader>

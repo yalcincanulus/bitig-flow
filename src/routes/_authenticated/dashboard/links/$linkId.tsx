@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { UnimplementedDashboardPage } from "#/components/unimplemented-dashboard-page";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 
@@ -13,7 +14,5 @@ export const Route = createFileRoute("/_authenticated/dashboard/links/$linkId")(
 });
 
 function LinkPage() {
-  const link = Route.useLoaderData();
-
-  return <p>{link.slug}</p>;
+  return <UnimplementedDashboardPage destination="links" />;
 }

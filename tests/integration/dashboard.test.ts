@@ -35,6 +35,14 @@ function breadcrumbTrail(markup: string) {
   return /<nav[^>]*aria-label="breadcrumb"[\s\S]*?<\/nav>/.exec(markup)?.[0] ?? "";
 }
 
+function sidebarTrigger(markup: string) {
+  return (
+    (markup.match(/<button\b[\s\S]*?<\/button>/g) ?? []).find((button) =>
+      button.includes("Toggle Sidebar"),
+    ) ?? ""
+  );
+}
+
 async function expectSignInRedirect(response: Response) {
   expect(response.status).toBe(307);
   expect(response.headers.get("location")).toBe("/sign-in");
@@ -125,6 +133,42 @@ test("a Document detail route keeps Documents the current navigation destination
 
   expect(response.status).toBe(200);
   expect(navigationLink(serverRenderedMarkup, "Documents")).toContain('aria-current="page"');
+});
+
+test("a Vault detail route keeps Vaults the current navigation destination", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureVault = await createFixtureVault({ organizationId: fixture.organization.id });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/vaults/${fixtureVault.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const serverRenderedMarkup = serverRenderedMarkupOf(await response.text());
+
+  expect(response.status).toBe(200);
+  expect(navigationLink(serverRenderedMarkup, "Vaults")).toContain('aria-current="page"');
+});
+
+test("a Link detail route keeps Links the current navigation destination", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+  });
+  const fixtureLink = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: fixtureDocument.id,
+  });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/links/${fixtureLink.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const serverRenderedMarkup = serverRenderedMarkupOf(await response.text());
+
+  expect(response.status).toBe(200);
+  expect(navigationLink(serverRenderedMarkup, "Links")).toContain('aria-current="page"');
 });
 
 test("the User menu names the signed-in User", async () => {
@@ -229,6 +273,8 @@ test("the server-rendered Chrome carries the toolbar, its sidebar trigger, and b
   expect(response.status).toBe(200);
   expect(serverRenderedMarkup).toContain('data-slot="sidebar-trigger"');
   expect(serverRenderedMarkup).toContain("Toggle Sidebar");
+  // The trigger is icon-only, so whether the sidebar is open has to be on the control itself.
+  expect(sidebarTrigger(serverRenderedMarkup)).toContain('aria-expanded="true"');
 
   // The destination a User is on is the current page, and it hangs from nothing above it.
   expect(trail).toContain(">Vaults</span>");

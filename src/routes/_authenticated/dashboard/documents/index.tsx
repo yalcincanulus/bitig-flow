@@ -234,14 +234,19 @@ function DocumentsPage() {
               </CardHeader>
               <CardFooter className="gap-2">
                 {document.kind === "markdown" ? (
-                  <Link
-                    to="/dashboard/documents/$documentId/edit"
-                    params={{ documentId: document.id }}
+                  <Button
+                    nativeButton={false}
+                    variant="outline"
+                    size="sm"
+                    render={
+                      <Link
+                        to="/dashboard/documents/$documentId/edit"
+                        params={{ documentId: document.id }}
+                      />
+                    }
                   >
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </Link>
+                    Edit
+                  </Button>
                 ) : null}
                 <DeleteDocumentDialog
                   document={document}
@@ -336,6 +341,8 @@ function UploadDocumentButton({
         type="file"
         accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf,.png,.jpg,.jpeg,.webp,.gif"
         className="sr-only"
+        tabIndex={-1}
+        aria-label="Upload a Document"
         onChange={(event) => {
           void handleFiles(event.currentTarget.files);
           event.currentTarget.value = "";

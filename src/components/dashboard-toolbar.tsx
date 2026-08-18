@@ -10,7 +10,7 @@ import {
   BreadcrumbSeparator,
 } from "#/components/ui/breadcrumb";
 import { Separator } from "#/components/ui/separator";
-import { SidebarTrigger } from "#/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "#/components/ui/sidebar";
 import { dashboardBreadcrumbs, type DashboardPlace } from "#/lib/dashboard-breadcrumbs";
 import { dashboardDestinationIds, dashboardDestinations } from "#/lib/dashboard-destinations";
 
@@ -118,10 +118,16 @@ function DashboardBreadcrumbs() {
  * and the breadcrumbs. It sticks so that navigation survives a long page; the page's own title
  * does not, because a title that follows a User down the page is noise rather than navigation.
  */
+function DashboardSidebarTrigger() {
+  const { isMobile, open, openMobile } = useSidebar();
+
+  return <SidebarTrigger aria-expanded={isMobile ? openMobile : open} />;
+}
+
 export function DashboardToolbar() {
   return (
     <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4 md:rounded-t-xl">
-      <SidebarTrigger />
+      <DashboardSidebarTrigger />
       <Separator orientation="vertical" className="h-4" />
       <DashboardBreadcrumbs />
     </header>
