@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "#/components/ui/alert";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
-import { linkTrust } from "#/lib/link-trust";
+import { gateSummary } from "#/lib/link-trust";
 
 export const Route = createFileRoute("/_authenticated/dashboard/links/$linkId")({
   loader: ({ context: { organization, queryClient }, params: { linkId } }) => {
@@ -55,7 +55,7 @@ function LinkPage() {
           {link.name || (isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
         </PageTitle>
         <PageDescription>
-          {linkTrust(link).summary}
+          {gateSummary(link)}
           {link.passwordSet ? ". A password is set." : ""}
           {link.isActive ? "" : " This Link is inactive."}
         </PageDescription>

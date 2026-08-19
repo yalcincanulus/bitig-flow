@@ -34,7 +34,7 @@ import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { linksSearchSchema } from "#/lib/dashboard-search";
 import { isLinkSlug } from "#/lib/link-slug";
-import { linkTrust } from "#/lib/link-trust";
+import { gateSummary } from "#/lib/link-trust";
 
 export const Route = createFileRoute("/_authenticated/dashboard/links/")({
   validateSearch: linksSearchSchema,
@@ -156,7 +156,7 @@ function LinksPage() {
                 <CardDescription>
                   <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />
                   {" · "}
-                  {linkTrust(link).summary}
+                  {gateSummary(link)}
                   {link.isActive ? "" : " · Inactive"}
                 </CardDescription>
                 <CardAction>{link.$synced ? null : "Saving…"}</CardAction>
