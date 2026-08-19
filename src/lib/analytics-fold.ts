@@ -29,6 +29,15 @@ export type AnalyticsEventRow = {
   occurredAt: Date;
 };
 
+export type AnalyticsOverviewLink<LinkKey extends string = string> = Readonly<{
+  linkId: LinkKey;
+  visits: number;
+  viewerIdentities: number;
+  emails: number;
+  totalMs: number;
+  downloads: number;
+}>;
+
 function utcDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
@@ -51,6 +60,17 @@ function pageRows(pages: ReadonlyMap<number, number>) {
 
 function addDwell(pages: Map<number, number>, dwell: { page: number; ms: number }) {
   pages.set(dwell.page, (pages.get(dwell.page) ?? 0) + dwell.ms);
+}
+
+function groupRows<Row, Key>(rows: ReadonlyArray<Row>, keyOf: (row: Row) => Key) {
+  const grouped = new Map<Key, Row[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const group = grouped.get(key);
+    if (group) group.push(row);
+    else grouped.set(key, [row]);
+  }
+  return grouped;
 }
 
 export function resolveAnalyticsRange(
@@ -169,5 +189,28 @@ export function foldAnalytics(
     lastSeenAt,
     pages: pageRows(pages),
     visits: visitRows,
+  };
+}
+
+export function foldAnalyticsOverview<LinkKey extends string>(
+  linkIds: ReadonlyArray<LinkKey>,
+  visits: ReadonlyArray<AnalyticsVisitRow>,
+  events: ReadonlyArray<AnalyticsEventRow>,
+  range: ResolvedAnalyticsRange,
+) {
+  const visitsByLink = groupRows(visits, (row) => row.linkId);
+  const eventsByVisit = groupRows(events, (row) => row.visitId);
+  const links: Array<AnalyticsOverviewLink<LinkKey>> = linkIds.map((linkId) => {
+    const linkVisits = visitsByLink.get(linkId) ?? [];
+    const linkEvents = linkVisits.flatMap(({ id }) => eventsByVisit.get(id) ?? []);
+    const { totals } = foldAnalytics(linkVisits, linkEvents, range);
+
+    return { linkId, ...totals };
+  });
+
+  return {
+    range: { from: range.from, to: range.to },
+    allTimeVisits: visits.length,
+    links,
   };
 }

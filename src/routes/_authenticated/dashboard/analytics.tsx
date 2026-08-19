@@ -135,6 +135,7 @@ function AnalyticsPage() {
     if (activityDifference !== 0) return activityDifference;
     return first.linkId.localeCompare(second.linkId);
   });
+  const hasLinks = analytics.links.length > 0;
   const hasVisitsInRange = totalVisits > 0;
 
   return (
@@ -144,7 +145,7 @@ function AnalyticsPage() {
         <PageDescription>
           Compare every Link by Visits, unique visitors, captured emails, Total time, and downloads.
         </PageDescription>
-        {hasVisitsInRange ? (
+        {hasLinks ? (
           <PageActions>
             <Field orientation="horizontal">
               <FieldLabel htmlFor="analytics-sort">Sort by activity</FieldLabel>
@@ -204,7 +205,9 @@ function AnalyticsPage() {
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
-      ) : (
+      ) : null}
+
+      {hasLinks ? (
         <div className="flex flex-col gap-3">
           {sortedLinks.map((totals) => {
             const link = linkById.get(totals.linkId);
@@ -256,7 +259,7 @@ function AnalyticsPage() {
             );
           })}
         </div>
-      )}
+      ) : null}
     </Page>
   );
 }

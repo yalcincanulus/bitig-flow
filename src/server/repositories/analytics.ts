@@ -1,31 +1,13 @@
 import { eq, inArray } from "drizzle-orm";
 
 import {
-  foldAnalytics,
+  foldAnalyticsOverview,
   resolveAnalyticsRange,
   type AnalyticsRangeInput,
-  type ResolvedAnalyticsRange,
 } from "#/lib/analytics-fold";
 import { db } from "#/server/db/client";
 import { link, visit, visitEvent, visitEventTypeSchema } from "#/server/db/schema";
-import type { OrganizationId } from "#/server/ids";
-
-type LinkAnalytics = Readonly<{
-  linkId: string;
-  visits: number;
-  viewerIdentities: number;
-  emails: number;
-  totalMs: number;
-  downloads: number;
-}>;
-
-function emptyOverview(range: ResolvedAnalyticsRange) {
-  return {
-    range: { from: range.from, to: range.to },
-    allTimeVisits: 0,
-    links: [] as LinkAnalytics[],
-  };
-}
+import { linkIdSchema, type OrganizationId } from "#/server/ids";
 
 export async function readAnalyticsOverview(orgId: OrganizationId, input: AnalyticsRangeInput) {
   const range = resolveAnalyticsRange(input);
@@ -34,9 +16,8 @@ export async function readAnalyticsOverview(orgId: OrganizationId, input: Analyt
     .from(link)
     .where(eq(link.organizationId, orgId));
 
-  if (linkRows.length === 0) return emptyOverview(range);
-
-  const linkIds = linkRows.map(({ id }) => id);
+  const linkIds = linkRows.map(({ id }) => linkIdSchema.parse(id));
+  if (linkIds.length === 0) return foldAnalyticsOverview(linkIds, [], [], range);
   const visitRows = await db
     .select({
       id: visit.id,
@@ -68,31 +49,5 @@ export async function readAnalyticsOverview(orgId: OrganizationId, input: Analyt
     type: visitEventTypeSchema.parse(row.type),
   }));
 
-  const visitsByLink = new Map<string, typeof visitRows>();
-  for (const row of visitRows) {
-    const rows = visitsByLink.get(row.linkId);
-    if (rows) rows.push(row);
-    else visitsByLink.set(row.linkId, [row]);
-  }
-
-  const eventsByVisit = new Map<string, typeof eventRows>();
-  for (const row of eventRows) {
-    const rows = eventsByVisit.get(row.visitId);
-    if (rows) rows.push(row);
-    else eventsByVisit.set(row.visitId, [row]);
-  }
-
-  const links = linkIds.map((linkId) => {
-    const linkVisits = visitsByLink.get(linkId) ?? [];
-    const linkEvents = linkVisits.flatMap(({ id }) => eventsByVisit.get(id) ?? []);
-    const { totals } = foldAnalytics(linkVisits, linkEvents, range);
-
-    return { linkId, ...totals };
-  });
-
-  return {
-    range: { from: range.from, to: range.to },
-    allTimeVisits: visitRows.length,
-    links,
-  };
+  return foldAnalyticsOverview(linkIds, visitRows, eventRows, range);
 }
