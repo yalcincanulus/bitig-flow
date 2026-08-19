@@ -1,16 +1,26 @@
 import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vitest";
 
 import { dwellPagesWithZeros } from "#/lib/analytics-fold";
 
+import { sourceFilePaths } from "./tier-scan";
+
+const projectDirectory = fileURLToPath(new URL("../../", import.meta.url));
 const screenSource = readFileSync(
   fileURLToPath(
     new URL("../../src/routes/_authenticated/dashboard/analytics.$linkId.tsx", import.meta.url),
   ),
   "utf8",
 );
+const packageJson = JSON.parse(
+  readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8"),
+) as {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+};
 
 test("a PDF with no Dwell still lists every page at zero", () => {
   expect(dwellPagesWithZeros(4, [])).toEqual([
@@ -54,4 +64,45 @@ test("the PDF analytics arm shows pages at zero alongside the open count", () =>
 test("a truncated range is never headed Totals", () => {
   expect(screenSource).not.toMatch(/<CardTitle>Totals<\/CardTitle>/);
   expect(screenSource).toMatch(/not a total/);
+});
+
+test("the Dwell chart is pinned at exact Charts 0.14.0 and adds no d3 package", () => {
+  expect(packageJson.dependencies?.["@tanstack/charts"]).toBe("0.14.0");
+  const declared = [
+    ...Object.keys(packageJson.dependencies ?? {}),
+    ...Object.keys(packageJson.devDependencies ?? {}),
+  ];
+  expect(declared.filter((name) => name === "d3" || name.startsWith("d3-"))).toEqual([]);
+});
+
+test("exactly one component imports Charts, and its props are page and millisecond pairs", () => {
+  const importers = sourceFilePaths(`${projectDirectory}src`).filter((path) =>
+    /from\s+["']@tanstack\/charts(?:\/[^"']*)?["']/.test(readFileSync(path, "utf8")),
+  );
+
+  expect(importers.map((path) => relative(projectDirectory, path))).toEqual([
+    "src/components/analytics-dwell-chart.tsx",
+  ]);
+
+  const chartSource = readFileSync(importers[0]!, "utf8");
+  expect(chartSource).toMatch(/pages:\s*ReadonlyArray<\{\s*page:\s*number;\s*ms:\s*number\s*\}>/);
+  expect(chartSource).toMatch(/useMemo\(\(\)\s*=>\s*\{[\s\S]*defineChart\(/);
+  expect(chartSource).toMatch(/,\s*\[pages\]\)/);
+  expect(chartSource).toMatch(/ariaLabel=/);
+  expect(chartSource).toMatch(/from ["']@tanstack\/charts["']/);
+  expect(chartSource).toMatch(/from ["']@tanstack\/charts\/react["']/);
+  expect(chartSource).toMatch(/from ["']@tanstack\/charts\/scales\/band["']/);
+  expect(chartSource).toMatch(/from ["']@tanstack\/charts\/scales\/linear["']/);
+  expect(chartSource).not.toMatch(/from ["']d3(?:-[^"']*)?["']/);
+});
+
+test("the numbers table still renders, with the Dwell chart above it on the PDF arm", () => {
+  expect(screenSource).toMatch(/<DwellTable/);
+  expect(screenSource).toMatch(/<AnalyticsDwellChart pages=\{pages\}/);
+  expect(screenSource.indexOf("<AnalyticsDwellChart")).toBeGreaterThan(-1);
+  expect(screenSource.indexOf("<AnalyticsDwellChart")).toBeLessThan(
+    screenSource.indexOf("<DwellTable"),
+  );
+  expect(screenSource).toMatch(/showPages \?[\s\S]*<AnalyticsDwellChart[\s\S]*<DwellTable/);
+  expect(screenSource).toMatch(/const showPages = kind === "pdf"/);
 });

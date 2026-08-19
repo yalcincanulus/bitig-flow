@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import { ShieldAlertIcon } from "lucide-react";
 
+import { AnalyticsDwellChart } from "#/components/analytics-dwell-chart";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
@@ -160,7 +161,12 @@ function AnalyticsLinkPage() {
                   Document.
                 </p>
               ) : null}
-              {showPages ? <DwellTable pages={pages} views={row.views} /> : null}
+              {showPages ? (
+                <>
+                  <AnalyticsDwellChart pages={pages} />
+                  <DwellTable pages={pages} views={row.views} />
+                </>
+              ) : null}
             </CardContent>
           </Card>
         );
