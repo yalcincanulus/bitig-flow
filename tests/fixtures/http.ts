@@ -103,6 +103,9 @@ export async function callServerFunction(http: typeof fetch, call: ServerFunctio
         DOCUMENT_CONFLICT: 409,
         UPLOAD_INCOMPLETE: 409,
         UPLOAD_CONFIRMATION: 422,
+        SHARE_PASSWORD: 422,
+        PENDING_TARGET: 422,
+        INVALID_GATE: 422,
       } as const;
       const code = decoded.error.code;
       if (typeof code === "string" && code in statusByCode) {

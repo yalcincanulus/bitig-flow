@@ -6,7 +6,7 @@ import {
   upsertDocument,
 } from "#/server/repositories/documents";
 import { isDocumentReachableFromLink } from "#/server/viewer/reachability";
-import { listLinks } from "#/server/repositories/links";
+import { createLink, deleteLink, rotateLinkSlug, updateLink } from "#/server/repositories/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/repositories/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/repositories/vaults";
 
@@ -71,6 +71,35 @@ void removeVaultItem("untrusted-organization-id", { vaultId, documentId });
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void listLinks("untrusted-organization-id");
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void createLink("untrusted-organization-id", {
+  id: linkId,
+  documentId,
+  name: null,
+  passwordHash: null,
+  requiresEmail: false,
+  requiresVerification: false,
+  allowDownload: false,
+  expiresAt: null,
+  createdBy: userId,
+});
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void updateLink("untrusted-organization-id", linkId, {
+  name: null,
+  requiresEmail: false,
+  requiresVerification: false,
+  allowDownload: false,
+  expiresAt: null,
+  isActive: true,
+});
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void rotateLinkSlug("untrusted-organization-id", linkId);
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void deleteLink("untrusted-organization-id", linkId);
 
 // @ts-expect-error A bare request string is not a LinkId.
 void isDocumentReachableFromLink("untrusted-link-id", documentId);
