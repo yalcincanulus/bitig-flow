@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { getCookie, getRequest, getRequestIP, setCookie } from "@tanstack/react-start/server";
+import { eq } from "drizzle-orm";
 
 import { hashAnalyticsValue } from "#/server/analytics-hash";
 import { getClientIp } from "#/server/client-ip";
@@ -36,6 +37,14 @@ export async function liveVisitForLink(link: Pick<VisitorLink, "id" | "gateVersi
   const redis = await getRedis();
   const live = await readLiveVisitRecord(redis, opaqueId);
   if (!live || live.linkId !== link.id || live.gateVersion !== link.gateVersion) return null;
+
+  const [row] = await db
+    .select({ expiresAt: visitTable.expiresAt })
+    .from(visitTable)
+    .where(eq(visitTable.id, live.visitId))
+    .limit(1);
+
+  if (!row || row.expiresAt <= new Date()) return null;
   return live;
 }
 

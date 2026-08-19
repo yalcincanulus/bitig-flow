@@ -11,6 +11,7 @@ import { gateProgressRecordKey } from "#/server/viewer/gate-progress";
 import { liveVisitRecordKey } from "#/server/viewer/live-visit-record";
 
 import {
+  callServerFunction,
   createCookieClient,
   createFixtureDocument,
   createFixtureLink,
@@ -1248,3 +1249,213 @@ test("password then email then code mints a verified Visit and the next GET is t
   expect(visits[0]?.email).toBe("journey@example.com");
   expect(visits[0]?.emailVerified).toBe(true);
 }, 15_000);
+
+const linksModulePath = "/src/server/functions/links.ts";
+
+async function updateOwnedLink(
+  http: typeof fetch,
+  linkRow: { id: string; name: string | null },
+  patch: {
+    password?: string | null;
+    requiresEmail?: boolean;
+    requiresVerification?: boolean;
+    allowDownload?: boolean;
+    expiresAt?: string | null;
+    isActive?: boolean;
+  },
+) {
+  return callServerFunction(http, {
+    modulePath: linksModulePath,
+    exportName: "updateLink",
+    method: "POST",
+    data: {
+      linkId: linkRow.id,
+      name: linkRow.name,
+      requiresEmail: patch.requiresEmail ?? false,
+      requiresVerification: patch.requiresVerification ?? false,
+      allowDownload: patch.allowDownload ?? false,
+      expiresAt: patch.expiresAt ?? null,
+      isActive: patch.isActive ?? true,
+      ...(patch.password !== undefined ? { password: patch.password } : {}),
+    },
+  });
+}
+
+async function grantPasswordVisit(slug: string) {
+  const client = createCookieClient();
+  expect((await postPassword(client.http, slug, "launch-gate")).status).toBe(303);
+  const revealed = await client.http(viewerUrl(slug), { redirect: "manual" });
+  expect(revealed.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(await revealed.text()))).toContain(distinctiveTitle);
+  expect(await client.jar.getCookieString(process.env.BETTER_AUTH_URL!)).toMatch(/visitor_id=/);
+  return client;
+}
+
+test("replacing a password or flipping a Requirement after a Visit makes the next GET the Gate", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+  });
+  const client = await grantPasswordVisit(gated.slug);
+
+  expect(
+    (await updateOwnedLink(fixture.member.http, gated, { password: "launch-gate-2" })).ok,
+  ).toBe(true);
+
+  const reGated = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const reGatedHtml = await reGated.text();
+  expect(reGated.status).toBe(200);
+  expect(serverRenderedMarkupOf(reGatedHtml)).toMatch(/password/i);
+  expect(reGatedHtml).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toHaveLength(1);
+
+  expect((await postPassword(client.http, gated.slug, "launch-gate-2")).status).toBe(303);
+  expect((await client.http(viewerUrl(gated.slug), { redirect: "manual" })).status).toBe(200);
+
+  expect(
+    (
+      await updateOwnedLink(fixture.member.http, gated, {
+        password: "launch-gate-2",
+        requiresEmail: true,
+      })
+    ).ok,
+  ).toBe(true);
+
+  const flipped = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const flippedHtml = await flipped.text();
+  expect(flipped.status).toBe(200);
+  expect(serverRenderedMarkupOf(flippedHtml)).toMatch(/password/i);
+  expect(flippedHtml).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toHaveLength(2);
+});
+
+test("toggling allow_download after a Visit keeps the Visitor on the reveal", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+  });
+  const client = await grantPasswordVisit(gated.slug);
+
+  expect((await updateOwnedLink(fixture.member.http, gated, { allowDownload: true })).ok).toBe(
+    true,
+  );
+
+  const stillRevealed = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await stillRevealed.text();
+  expect(stillRevealed.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(html))).toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toHaveLength(1);
+});
+
+test("an aged Visit re-gates on the next GET", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+  });
+  const client = await grantPasswordVisit(gated.slug);
+  const [row] = await database
+    .select({ id: visit.id })
+    .from(visit)
+    .where(eq(visit.linkId, gated.id));
+  expect(row).toBeDefined();
+  await database
+    .update(visit)
+    .set({ expiresAt: new Date(0) })
+    .where(eq(visit.id, row.id));
+
+  const reGated = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await reGated.text();
+  expect(reGated.status).toBe(200);
+  expect(serverRenderedMarkupOf(html)).toMatch(/password/i);
+  expect(html).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toHaveLength(1);
+});
+
+test("a deactivated or expired Link with a live Visit cookie is the terminal 404", async () => {
+  const fixture = await createOrganizationFixture();
+  const [deactivatedDocument, expiredDocument] = await Promise.all(
+    Array.from({ length: 2 }, () =>
+      createFixtureDocument({
+        organizationId: fixture.organization.id,
+        createdBy: fixture.member.user.id,
+        title: distinctiveTitle,
+      }),
+    ),
+  );
+  const toDeactivate = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: deactivatedDocument.id,
+  });
+  const toExpire = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: expiredDocument.id,
+  });
+  const deactivatedClient = createCookieClient();
+  const expiredClient = createCookieClient();
+  expect(
+    (await deactivatedClient.http(viewerUrl(toDeactivate.slug), { redirect: "manual" })).status,
+  ).toBe(200);
+  expect((await expiredClient.http(viewerUrl(toExpire.slug), { redirect: "manual" })).status).toBe(
+    200,
+  );
+
+  expect((await updateOwnedLink(fixture.member.http, toDeactivate, { isActive: false })).ok).toBe(
+    true,
+  );
+  expect(
+    (await updateOwnedLink(fixture.member.http, toExpire, { expiresAt: new Date(0).toISOString() }))
+      .ok,
+  ).toBe(true);
+
+  const unknown = await getViewer(createCookieClient().http, "unknownslug2");
+  const deactivated = await deactivatedClient.http(viewerUrl(toDeactivate.slug), {
+    redirect: "manual",
+  });
+  const expired = await expiredClient.http(viewerUrl(toExpire.slug), { redirect: "manual" });
+  const bodies = await Promise.all(
+    [unknown, deactivated, expired].map((response) => response.text()),
+  );
+  const markup = bodies.map(serverRenderedMarkupOf);
+
+  for (const response of [unknown, deactivated, expired]) {
+    expect(response.status).toBe(404);
+  }
+  expect(new Set(markup).size).toBe(1);
+  expect(textOf(markup[0] ?? "")).toContain(
+    "This link isn't available. Ask whoever sent it to you for a new one.",
+  );
+});
