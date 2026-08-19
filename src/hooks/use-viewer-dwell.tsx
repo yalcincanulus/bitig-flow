@@ -55,7 +55,7 @@ export function ViewerDwell({ children }: { children: ReactNode }) {
 
     const stop = startDwellCapture({
       accumulator,
-      currentDocument: () => documentIdRef.current,
+      currentDocument: () => (pageSourceRef.current() < 1 ? null : documentIdRef.current),
       currentPage: () => pageSourceRef.current(),
       setInterval: (handler, ms) => window.setInterval(handler, ms),
       clearInterval: (id) => window.clearInterval(id),

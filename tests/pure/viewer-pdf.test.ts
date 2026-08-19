@@ -1,0 +1,60 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { expect, test } from "vitest";
+
+function sourceOf(relativePath: string) {
+  return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
+}
+
+const viewerPdf =
+  sourceOf("../../src/components/viewer-pdf.tsx") +
+  sourceOf("../../src/components/viewer-pdf-engine.ts");
+const viewerPdfDocument = sourceOf("../../src/components/viewer-pdf-document.tsx");
+const viewerContentPage = sourceOf("../../src/components/viewer-content-page.tsx");
+const dwellAccumulator = sourceOf("../../src/lib/dwell-accumulator.ts");
+
+test("the PDF island takes a byte URL and a page count and nothing else", () => {
+  expect(viewerPdf).toMatch(/bytesUrl:\s*string/);
+  expect(viewerPdf).toMatch(/pageCount:\s*number\s*\|\s*null/);
+  expect(viewerPdf).not.toMatch(/allowDownload/);
+  expect(viewerPdf).not.toMatch(/documentId/);
+  expect(viewerPdf).not.toMatch(/useDwellPage/);
+  expect(viewerPdf).not.toMatch(/dwell-accumulator/);
+});
+
+test("the PDF island is loaded only from the PDF document branch", () => {
+  expect(viewerPdfDocument).toMatch(/lazy\(\(\)\s*=>\s*import\("#\/components\/viewer-pdf"\)\)/);
+  expect(viewerContentPage).not.toMatch(/viewer-pdf["']/);
+  expect(viewerContentPage).toMatch(/ViewerPdfDocument/);
+});
+
+test("markdown and image panes never import pdfjs-dist", () => {
+  expect(viewerContentPage).not.toMatch(/pdfjs-dist/);
+  expect(sourceOf("../../src/components/viewer-image.tsx")).not.toMatch(/pdfjs-dist/);
+  expect(sourceOf("../../src/components/viewer-page.tsx")).not.toMatch(/pdfjs-dist/);
+  expect(sourceOf("../../src/components/viewer-pdf.tsx")).not.toMatch(
+    /^import (?!type)[^\n]*from ["']pdfjs-dist["']/m,
+  );
+});
+
+test("workerSrc is a URL string from a ?url import", () => {
+  expect(viewerPdf).toMatch(/pdf\.worker(?:\.min)?\.mjs\?url/);
+  expect(viewerPdf).not.toMatch(/\?worker(?!&url)/);
+  expect(viewerPdf).not.toMatch(/node_modules\/pdfjs-dist/);
+  expect(viewerPdf).not.toMatch(/new URL\([^)]*import\.meta\.url/);
+});
+
+test("bytes reach pdf.js as getDocument data, never a url", () => {
+  expect(viewerPdf).toMatch(/getDocument\(\{[\s\S]*data/);
+  expect(viewerPdf).not.toMatch(/getDocument\(\{[\s\S]*url:/);
+});
+
+test("cmaps are loaded from a same-origin static path", () => {
+  expect(viewerPdf).toMatch(/cMapUrl:\s*["']\/pdfjs\/cmaps\/["']/);
+  expect(viewerPdf).not.toMatch(/cdnjs|unpkg|jsdelivr|cdn\.mozilla/);
+});
+
+test("the dwell accumulator module is unchanged by the PDF island", () => {
+  expect(dwellAccumulator).not.toMatch(/pdfjs|IntersectionObserver|viewer-pdf/);
+});

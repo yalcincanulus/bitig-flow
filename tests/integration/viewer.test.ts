@@ -335,6 +335,7 @@ test("GET of a public markdown Link renders the Document and resolves images thr
   expect(textOf(markup)).toContain("broken");
   expect(markup).not.toContain(gone.id);
   expect(textOf(markup)).toContain("gone");
+  expect(html).not.toMatch(/pdf\.worker/);
 });
 
 test("opening a markdown Document appends document_opened once per open, including a revisit", async () => {
@@ -366,7 +367,7 @@ test("opening a markdown Document appends document_opened once per open, includi
   ]);
 });
 
-test("GET of a public pdf Link renders the title and page count, and an image Link renders the image at the byte route", async () => {
+test("GET of a public pdf Link renders the title, and an image Link renders the image at the byte route", async () => {
   const fixture = await createOrganizationFixture();
   const [pdf, image] = await Promise.all([
     createFixtureUploadedDocument({
@@ -404,7 +405,6 @@ test("GET of a public pdf Link renders the title and page count, and an image Li
   const pdfMarkup = serverRenderedMarkupOf(await pdfResponse.text());
   expect(pdfResponse.status).toBe(200);
   expect(textOf(pdfMarkup)).toContain("term-sheet.pdf");
-  expect(textOf(pdfMarkup)).toContain("2 pages");
 
   const imageResponse = await createCookieClient().http(viewerUrl(imageLink.slug), {
     redirect: "manual",

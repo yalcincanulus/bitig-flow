@@ -10,6 +10,8 @@ const viewerComponentSources = [
   "../../src/components/viewer-page.tsx",
   "../../src/components/viewer-pdf.tsx",
   "../../src/components/viewer-pdf-document.tsx",
+  "../../src/components/viewer-pdf-engine.ts",
+  "../../src/components/viewer-pdf-visible-page.tsx",
   "../../src/components/viewer-image.tsx",
   "../../src/components/viewer-byte-document.tsx",
   "../../src/components/viewer-bytes-status.tsx",
