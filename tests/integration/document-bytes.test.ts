@@ -1,7 +1,11 @@
 import { expect, test } from "vitest";
 
+import { documentBytesUrl } from "#/lib/document-bytes";
+import { visit, visitEvent } from "#/server/db/schema";
+
 import {
   createCookieClient,
+  database,
   createFixturePendingDocument,
   createFixtureUploadedDocument,
   createOrganizationFixture,
@@ -234,4 +238,29 @@ test("the Dashboard document pane allows connect-src to Storage so a presigned P
 
   expect(response.status).toBe(200);
   expect(csp).toContain(`connect-src 'self' ${storageOrigin}`);
+});
+
+test("the bytes a PDF Preview fetches leave no Visit and no visit_event behind", async () => {
+  const fixture = await createOrganizationFixture();
+  const uploaded = await createFixtureUploadedDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    contentType: "application/pdf",
+    fileName: "term-sheet.pdf",
+    bytes: twoPagePdf,
+  });
+
+  // `ssr: false` on /dashboard (ADR-0030) means the page request never mounts the island, so the
+  // byte request is the whole of what a Preview does over HTTP. It goes to the URL the Preview
+  // itself builds, under the Organization session and no Visit cookie, and an owner checking their
+  // own Document is not a Visitor — nothing may reach the analytics stream.
+  const response = await fixture.member.http(
+    new URL(documentBytesUrl(uploaded.id), process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+
+  expect(response.status).toBe(200);
+  expect(new Uint8Array(await response.arrayBuffer())).toEqual(twoPagePdf);
+  expect(await database.select({ id: visitEvent.id }).from(visitEvent)).toEqual([]);
+  expect(await database.select({ id: visit.id }).from(visit)).toEqual([]);
 });

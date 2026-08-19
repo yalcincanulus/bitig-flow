@@ -4,9 +4,9 @@ import { lazy, Suspense } from "react";
 
 import { documentBytesUrl } from "#/lib/document-bytes";
 
-// The Preview mounts the Viewer's island against the Dashboard byte route. The credential is
-// expressed entirely by which URL is passed in, so the two surfaces share a renderer without
-// sharing a credential path (ADR-0018).
+// One renderer for both surfaces, as ADR-0059 asks of the Preview and ADR-0060 of the island.
+// The credential is expressed entirely by which URL is passed in — this one is the Dashboard byte
+// route, so the two credential paths ADR-0018 separates stay separate.
 const ViewerPdf = lazy(() => import("#/components/viewer-pdf"));
 
 export function PreviewPdfDocument({

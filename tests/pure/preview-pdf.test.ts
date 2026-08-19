@@ -3,38 +3,62 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vitest";
 
+import { sourceFilePaths } from "./tier-scan";
+
+const projectDirectory = fileURLToPath(new URL("../../", import.meta.url));
+
 function sourceOf(relativePath: string) {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
 }
 
 const previewPdf = sourceOf("../../src/components/preview-pdf-document.tsx");
+const visiblePage = sourceOf("../../src/components/viewer-pdf-visible-page.tsx");
 const detailRoute = sourceOf(
   "../../src/routes/_authenticated/dashboard/documents/$documentId/index.tsx",
 );
 
 test("the Preview mounts the same PDF island the Viewer uses", () => {
   expect(previewPdf).toMatch(/lazy\(\(\)\s*=>\s*import\("#\/components\/viewer-pdf"\)\)/);
-  expect(detailRoute).toMatch(/PreviewPdfDocument/);
-  expect(detailRoute).not.toMatch(/viewer-pdf["']/);
-  expect(detailRoute).not.toMatch(/pdfjs-dist/);
+  expect(detailRoute).toMatch(/<PreviewPdfDocument/);
 });
 
-test("the Preview passes the Dashboard byte route's URL and nothing of the Viewer", () => {
+test("the Preview passes the Dashboard byte route's URL and no Viewer credential", () => {
   expect(previewPdf).toMatch(/documentBytesUrl\(/);
-  expect(previewPdf).not.toMatch(/viewerBytesUrl|slug|visit/);
+  expect(previewPdf).not.toMatch(/viewerBytesUrl|viewerBeaconUrl|["'`]\/v\//);
 });
 
 test("the Preview mounts no Dwell accumulator", () => {
   for (const source of [previewPdf, detailRoute]) {
-    expect(source).not.toMatch(/dwell/i);
-    expect(source).not.toMatch(/viewerBeaconUrl|sendBeacon/);
+    expect(source).not.toMatch(
+      /from "#\/hooks\/use-viewer-dwell"|from "#\/lib\/dwell-accumulator"/,
+    );
+    expect(source).not.toMatch(/ViewerDwell|useDwellPage|sendBeacon/);
   }
 });
 
-test("a pending PDF shows the uploading state rather than the island", () => {
-  const pendingBranch = previewPdf.indexOf("pending");
-  expect(pendingBranch).toBe(-1);
+// The island calls useReportPdfVisiblePage() unconditionally. Off the /v layout there is no
+// provider, so ADR-0060's "the Preview passes nothing" rests entirely on the context's no-op
+// default — which is why the default, and the Preview's lack of a provider, are asserted here.
+test("the Preview names no visible page, and the reporter defaults to a no-op", () => {
+  expect(visiblePage).toMatch(/createContext<\(page: number\) => void>\(\(\) => \{\}\)/);
+  expect(previewPdf).not.toMatch(/PdfVisiblePageProvider/);
+  expect(detailRoute).not.toMatch(/PdfVisiblePageProvider/);
+});
+
+test("a Document that is not a PDF renders the uploading state or its own pane, never the island", () => {
   expect(detailRoute.indexOf('status === "pending"')).toBeLessThan(
     detailRoute.indexOf("<PreviewPdfDocument"),
   );
+  expect(detailRoute).toMatch(/status === "pending" \? \(\s*<p>Uploading…<\/p>/);
+  expect(detailRoute).toMatch(/document\.kind === "pdf" \? \(\s*<PreviewPdfDocument/);
+});
+
+// Every route that is not a PDF pane must be able to render without the engine reaching the
+// bundle, so the one module that pulls pdfjs-dist may only ever be reached through a lazy import.
+test("nothing imports the PDF island statically", () => {
+  const staticImporters = sourceFilePaths(`${projectDirectory}src`).filter((path) =>
+    /^import[^\n]*from ["']#\/components\/viewer-pdf["']/m.test(readFileSync(path, "utf8")),
+  );
+
+  expect(staticImporters).toEqual([]);
 });
