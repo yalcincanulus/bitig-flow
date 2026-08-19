@@ -52,6 +52,9 @@ function deriveTestEnvironment(): NodeJS.ProcessEnv {
     PORT: testPort,
     BETTER_AUTH_URL: testBaseUrl,
     S3_KEY_PREFIX: testStorageKeyPrefix,
+    ANALYTICS_SALT: required(environment, "ANALYTICS_SALT"),
+    GATE_RATELIMIT_SALT: required(environment, "GATE_RATELIMIT_SALT"),
+    TRUSTED_PROXY_COUNT: "1",
   };
 }
 

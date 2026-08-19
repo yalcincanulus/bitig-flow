@@ -6,6 +6,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { and, eq } from "drizzle-orm";
 
 import { organizationPluginOptions } from "#/lib/access-control";
+import { redisSecondaryStorage } from "#/server/auth-redis-storage";
 import { db } from "#/server/db/client";
 import {
   account,
@@ -37,6 +38,15 @@ export const auth = betterAuth({
     provider: "pg",
     schema: authSchema,
   }),
+  secondaryStorage: redisSecondaryStorage(),
+  rateLimit: {
+    enabled: true,
+  },
+  // Redis secondary storage would otherwise own sessions and skip Postgres. Fixtures still write
+  // sessions to the database, so keep a database copy and a Redis-miss fallback.
+  session: {
+    storeSessionInDatabase: true,
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

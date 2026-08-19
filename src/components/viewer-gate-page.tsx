@@ -2,25 +2,64 @@ import { buttonVariants } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { viewerSenderFirstName, viewerSenderLine } from "#/lib/viewer-sender";
 import { cn } from "#/lib/utils";
-import type { VisitorGate } from "#/server/viewer/visitor-gate";
+import type { VisitorPage } from "#/server/viewer/visitor-gate";
 
-export function ViewerGatePage({ gate }: { gate: VisitorGate }) {
-  const firstName = viewerSenderFirstName(gate.senderName, gate.organizationName);
+function SenderLine({
+  senderName,
+  organizationName,
+}: {
+  senderName: string | null;
+  organizationName: string;
+}) {
+  return (
+    <p className="mb-6 text-sm text-muted-foreground">
+      {senderName ? (
+        <>
+          <span className="text-foreground">{senderName}</span> at {organizationName}
+        </>
+      ) : (
+        <span className="text-foreground">{viewerSenderLine(senderName, organizationName)}</span>
+      )}
+    </p>
+  );
+}
+
+export function ViewerGatePage({ page }: { page: VisitorPage }) {
+  if (page.status === "reveal") {
+    return (
+      <>
+        <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
+        <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
+          {page.targetTitle}
+        </h1>
+        {page.emptyVault ? (
+          <p className="mt-3 text-base text-muted-foreground">There's nothing in here yet.</p>
+        ) : null}
+      </>
+    );
+  }
+
+  if (page.status === "rate_limited") {
+    const minutes = Math.max(1, Math.ceil(page.retryAfterSeconds / 60));
+    return (
+      <>
+        <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
+        <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
+          Too many attempts.
+        </h1>
+        <p className="mt-3 text-base text-muted-foreground">
+          Try again in about {minutes} {minutes === 1 ? "minute" : "minutes"}.
+        </p>
+      </>
+    );
+  }
+
+  const firstName = viewerSenderFirstName(page.senderName, page.organizationName);
 
   return (
     <>
-      <p className="mb-6 text-sm text-muted-foreground">
-        {gate.senderName ? (
-          <>
-            <span className="text-foreground">{gate.senderName}</span> at {gate.organizationName}
-          </>
-        ) : (
-          <span className="text-foreground">
-            {viewerSenderLine(gate.senderName, gate.organizationName)}
-          </span>
-        )}
-      </p>
-      {gate.requiresPassword ? (
+      <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
+      {page.requiresPassword ? (
         <form
           onSubmit={(event) => {
             event.preventDefault();

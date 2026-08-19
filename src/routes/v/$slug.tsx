@@ -11,6 +11,6 @@ export const Route = createFileRoute("/v/$slug")({
 });
 
 function VisitorSlugPage() {
-  const gate = Route.useLoaderData();
-  return <ViewerGatePage gate={gate} />;
+  const page = Route.useLoaderData();
+  return <ViewerGatePage page={page} />;
 }
