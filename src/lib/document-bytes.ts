@@ -24,6 +24,10 @@ export function viewerBytesUrl(slug: string, documentId: string, options?: { dow
   return options?.download ? `${path}?download=button` : path;
 }
 
+export function viewerBeaconUrl(slug: string) {
+  return `/v/${slug}/beacon`;
+}
+
 export function viewerResolveImage(slug: string, referencedDocumentIds: ReadonlySet<string>) {
   return (src: string) => {
     const documentId = parseDocumentReference(src);
