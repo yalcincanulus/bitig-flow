@@ -15,7 +15,14 @@ import {
   listDocuments,
   updateDocument,
 } from "#/server/functions/documents";
-import { listLinks } from "#/server/functions/links";
+import { takeSharePassword } from "#/lib/pending-share-password";
+import {
+  createLink,
+  deleteLink,
+  listLinks,
+  rotateLinkSlug,
+  updateLink,
+} from "#/server/functions/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
@@ -39,6 +46,7 @@ const vaultItemSchema = vaultItemSelectSchema.extend({
 
 // The Link repository withholds the gate password hash, so the synced shape does not carry it.
 const linkSchema = linkSelectSchema.omit({ passwordHash: true }).extend({
+  passwordSet: z.boolean(),
   expiresAt: timestampSchema.nullable(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
@@ -96,6 +104,61 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
       queryFn: () => listLinks(),
       getKey: (link) => link.id,
       schema: linkSchema,
+      onInsert: async ({ transaction, collection }) => {
+        const created = await Promise.all(
+          transaction.mutations.map(({ modified }) =>
+            createLink({
+              data: {
+                linkId: modified.id,
+                documentId: modified.documentId ?? undefined,
+                vaultId: modified.vaultId ?? undefined,
+                name: modified.name,
+                password: takeSharePassword(modified.id) ?? undefined,
+                requiresEmail: modified.requiresEmail,
+                requiresVerification: modified.requiresVerification,
+                allowDownload: modified.allowDownload,
+                expiresAt: modified.expiresAt,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeInsert(created);
+        return { refetch: false };
+      },
+      onUpdate: async ({ transaction, collection }) => {
+        const updated = await Promise.all(
+          transaction.mutations.map(({ modified, original }) => {
+            if (modified.slug !== original.slug) {
+              return rotateLinkSlug({ data: { linkId: modified.id } });
+            }
+
+            const password = takeSharePassword(modified.id);
+            return updateLink({
+              data: {
+                linkId: modified.id,
+                name: modified.name,
+                password,
+                requiresEmail: modified.requiresEmail,
+                requiresVerification: modified.requiresVerification,
+                allowDownload: modified.allowDownload,
+                expiresAt: modified.expiresAt,
+                isActive: modified.isActive,
+              },
+            });
+          }),
+        );
+        collection.utils.writeUpdate(updated);
+        return { refetch: false };
+      },
+      onDelete: async ({ transaction, collection }) => {
+        const deleted = await Promise.all(
+          transaction.mutations.map(({ original }) =>
+            deleteLink({ data: { linkId: original.id } }),
+          ),
+        );
+        collection.utils.writeDelete(deleted.map(({ id }) => id));
+        return { refetch: false };
+      },
     }),
   );
 

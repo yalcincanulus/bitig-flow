@@ -1,6 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useLiveQuery } from "@tanstack/react-db";
+import { useState } from "react";
 
+import { LinkWriteDialog } from "#/components/link-write-dialog";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
@@ -29,6 +33,17 @@ export const Route = createFileRoute("/_authenticated/dashboard/documents/$docum
 
 function DocumentPage() {
   const { document, html } = Route.useLoaderData();
+  const { organization, queryClient, session } = Route.useRouteContext();
+  const { links, documents, vaults } = getCollections(queryClient, organization.id);
+  const { data: documentRows } = useLiveQuery(
+    (query) => query.from({ document: documents }).select(({ document }) => document),
+    [documents],
+  );
+  const { data: vaultRows } = useLiveQuery(
+    (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
+    [vaults],
+  );
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   return (
     <Page>
@@ -36,6 +51,22 @@ function DocumentPage() {
         <PageTitle>{document.title}</PageTitle>
         <PageDescription>What a Visitor gets for this Document.</PageDescription>
         <PageActions>
+          {document.status === "ready" ? (
+            <LinkWriteDialog
+              organizationId={organization.id}
+              organizationName={organization.name}
+              createdBy={session.user.id}
+              documents={documentRows}
+              vaults={vaultRows}
+              links={links}
+              watchPersistence={(transaction, message) => {
+                setMutationError(null);
+                void transaction.isPersisted.promise.catch(() => setMutationError(message));
+              }}
+              lockedTarget={{ documentId: document.id }}
+              triggerLabel="Create Link"
+            />
+          ) : null}
           {document.kind === "markdown" ? (
             <Button
               nativeButton={false}
@@ -63,6 +94,11 @@ function DocumentPage() {
           ) : null}
         </PageActions>
       </PageHeader>
+      {mutationError && (
+        <Alert variant="destructive" aria-live="polite">
+          <AlertDescription>{mutationError}</AlertDescription>
+        </Alert>
+      )}
       {document.status === "pending" ? (
         <p>Uploading…</p>
       ) : document.kind === "image" ? (

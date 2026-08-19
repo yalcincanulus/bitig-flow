@@ -22,17 +22,28 @@ vi.mock("#/server/functions/vault-items", () => ({
 }));
 
 vi.mock("#/server/functions/links", () => ({
+  createLink: vi.fn(),
+  deleteLink: vi.fn(),
   listLinks: vi.fn(),
+  rotateLinkSlug: vi.fn(),
+  updateLink: vi.fn(),
 }));
 
 import { getCollections } from "#/db-collections";
+import { queueSharePassword } from "#/lib/pending-share-password";
 import {
   createDocument,
   deleteDocument,
   listDocuments,
   updateDocument,
 } from "#/server/functions/documents";
-import { listLinks } from "#/server/functions/links";
+import {
+  createLink,
+  deleteLink,
+  listLinks,
+  rotateLinkSlug,
+  updateLink,
+} from "#/server/functions/links";
 import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
@@ -68,6 +79,29 @@ function vaultRow(overrides: Partial<Awaited<ReturnType<typeof listVaults>>[numb
     organizationId,
     name: "Launch notes",
     description: null,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function linkRow(overrides: Partial<Awaited<ReturnType<typeof listLinks>>[number]> = {}) {
+  const now = new Date("2026-08-17T12:00:00.000Z");
+  return {
+    id: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10505",
+    organizationId,
+    documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20101",
+    vaultId: null,
+    slug: "pending.slug",
+    name: "Launch",
+    passwordSet: false,
+    requiresEmail: false,
+    requiresVerification: false,
+    gateVersion: 1,
+    allowDownload: false,
+    expiresAt: null,
+    isActive: true,
+    createdBy: "0198b8f1-6ae4-7c39-9c3d-3cfd7af20000",
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -209,6 +243,7 @@ describe("getCollections", () => {
       vaultId: deletedVault.id,
       slug: "deleted-link",
       name: null,
+      passwordSet: false,
       requiresEmail: false,
       requiresVerification: false,
       gateVersion: 1,
@@ -390,6 +425,7 @@ describe("getCollections", () => {
       vaultId: null,
       slug: "deleted-link",
       name: null,
+      passwordSet: false,
       requiresEmail: false,
       requiresVerification: false,
       gateVersion: 1,
@@ -426,5 +462,119 @@ describe("getCollections", () => {
     expect(vaultItems.get(`${retainedMembership.vaultId}:${retainedDocument.id}`)).toBeDefined();
     expect(links.get(retainedLink.id)).toBeDefined();
     expect(listDocuments).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically inserts a Link and direct-writes the confirmed row without refetching", async () => {
+    const confirmed = linkRow({ slug: "abc123ABCXYZ", name: "Launch notes" });
+    vi.mocked(listLinks).mockResolvedValue([]);
+    vi.mocked(createLink).mockResolvedValue(confirmed);
+    const { links } = getCollections(new QueryClient(), organizationId);
+    await links.preload();
+    queueSharePassword(confirmed.id, "launch-gate");
+
+    const transaction = links.insert(linkRow({ slug: "............", name: "Launch notes" }));
+
+    expect(links.get(confirmed.id)).toMatchObject({
+      id: confirmed.id,
+      slug: "............",
+      name: "Launch notes",
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(createLink).toHaveBeenCalledWith({
+      data: {
+        linkId: confirmed.id,
+        documentId: confirmed.documentId ?? undefined,
+        vaultId: confirmed.vaultId ?? undefined,
+        name: "Launch notes",
+        password: "launch-gate",
+        requiresEmail: false,
+        requiresVerification: false,
+        allowDownload: false,
+        expiresAt: null,
+      },
+    });
+    expect(links.get(confirmed.id)).toMatchObject(confirmed);
+    expect(listLinks).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically updates a Link and direct-writes the confirmed row without refetching", async () => {
+    const initial = linkRow();
+    const confirmed = linkRow({
+      name: "Launch archive",
+      allowDownload: true,
+      updatedAt: new Date("2026-08-17T13:00:00.000Z"),
+    });
+    vi.mocked(listLinks).mockResolvedValue([initial]);
+    vi.mocked(updateLink).mockResolvedValue(confirmed);
+    const { links } = getCollections(new QueryClient(), organizationId);
+    await links.preload();
+
+    const transaction = links.update(initial.id, (draft) => {
+      draft.name = "Launch archive";
+      draft.allowDownload = true;
+    });
+
+    expect(links.get(initial.id)).toMatchObject({
+      name: "Launch archive",
+      allowDownload: true,
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(updateLink).toHaveBeenCalledWith({
+      data: {
+        linkId: initial.id,
+        name: "Launch archive",
+        password: undefined,
+        requiresEmail: false,
+        requiresVerification: false,
+        allowDownload: true,
+        expiresAt: null,
+        isActive: true,
+      },
+    });
+    expect(rotateLinkSlug).not.toHaveBeenCalled();
+    expect(links.get(initial.id)).toMatchObject(confirmed);
+    expect(listLinks).toHaveBeenCalledTimes(1);
+  });
+
+  test("a Slug change rotates the Slug without refetching", async () => {
+    const initial = linkRow({ slug: "oldslugvalue" });
+    const confirmed = linkRow({ slug: "newslugvalue" });
+    vi.mocked(listLinks).mockResolvedValue([initial]);
+    vi.mocked(rotateLinkSlug).mockResolvedValue(confirmed);
+    const { links } = getCollections(new QueryClient(), organizationId);
+    await links.preload();
+
+    const transaction = links.update(initial.id, (draft) => {
+      draft.slug = "............";
+    });
+
+    await transaction.isPersisted.promise;
+
+    expect(rotateLinkSlug).toHaveBeenCalledWith({ data: { linkId: initial.id } });
+    expect(updateLink).not.toHaveBeenCalled();
+    expect(links.get(initial.id)).toMatchObject(confirmed);
+    expect(listLinks).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically deletes a Link and direct-writes the deletion without refetching", async () => {
+    const initial = linkRow();
+    vi.mocked(listLinks).mockResolvedValue([initial]);
+    vi.mocked(deleteLink).mockResolvedValue(initial);
+    const { links } = getCollections(new QueryClient(), organizationId);
+    await links.preload();
+
+    const transaction = links.delete(initial.id);
+
+    expect(links.get(initial.id)).toBeUndefined();
+
+    await transaction.isPersisted.promise;
+
+    expect(deleteLink).toHaveBeenCalledWith({ data: { linkId: initial.id } });
+    expect(links.get(initial.id)).toBeUndefined();
+    expect(listLinks).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,6 +3,7 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { FileTextIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { LinkWriteDialog } from "#/components/link-write-dialog";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
@@ -58,8 +59,8 @@ type DocumentRow = NonNullable<ReturnType<ReturnType<typeof getCollections>["doc
 
 function VaultPage() {
   const vault = Route.useLoaderData();
-  const { organization, queryClient } = Route.useRouteContext();
-  const { documents, vaultItems } = getCollections(queryClient, organization.id);
+  const { organization, queryClient, session } = Route.useRouteContext();
+  const { documents, vaultItems, links, vaults } = getCollections(queryClient, organization.id);
   const { data: documentsInVault } = useLiveQuery(
     (query) =>
       query
@@ -80,6 +81,14 @@ function VaultPage() {
         .select(({ document }) => document),
     [documents],
   );
+  const { data: organizationVaults } = useLiveQuery(
+    (query) =>
+      query
+        .from({ vault: vaults })
+        .orderBy(({ vault }) => vault.name)
+        .select(({ vault }) => vault),
+    [vaults],
+  );
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   function watchPersistence(
@@ -98,6 +107,20 @@ function VaultPage() {
           {vault.description || "Documents in this Vault are shared together."}
         </PageDescription>
         <PageActions>
+          <LinkWriteDialog
+            organizationId={organization.id}
+            organizationName={organization.name}
+            createdBy={session.user.id}
+            documents={organizationDocuments}
+            vaults={organizationVaults}
+            links={links}
+            watchPersistence={(transaction, message) => {
+              setMutationError(null);
+              void transaction.isPersisted.promise.catch(() => setMutationError(message));
+            }}
+            lockedTarget={{ vaultId: vault.id }}
+            triggerLabel="Create Link"
+          />
           <AddDocumentsDialog
             documents={organizationDocuments}
             documentsInVault={documentsInVault}

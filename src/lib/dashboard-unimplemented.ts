@@ -1,6 +1,6 @@
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
-const unimplementedDestinations = ["links", "analytics", "settings"] as const;
+const unimplementedDestinations = ["analytics", "settings"] as const;
 
 export type UnimplementedDashboardDestination = (typeof unimplementedDestinations)[number];
 
@@ -12,7 +12,6 @@ export type DashboardUnimplemented = Readonly<{
 }>;
 
 const descriptions = {
-  links: "Share a Document or a Vault through a Link that carries its own Gate.",
   analytics: "The analytics stream each Link produces.",
   settings:
     "Organization administration will live here. Membership is Better Auth's surface today.",
