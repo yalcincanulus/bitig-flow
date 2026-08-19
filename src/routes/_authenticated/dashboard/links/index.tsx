@@ -6,7 +6,6 @@ import { useState } from "react";
 import {
   CopyLinkSlugButton,
   DeleteLinkDialog,
-  gateSummary,
   LinkTargetLabel,
   LinkWriteDialog,
   RotateLinkSlugButton,
@@ -35,6 +34,7 @@ import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { linksSearchSchema } from "#/lib/dashboard-search";
 import { isLinkSlug } from "#/lib/link-slug";
+import { linkTrust } from "#/lib/link-trust";
 
 export const Route = createFileRoute("/_authenticated/dashboard/links/")({
   validateSearch: linksSearchSchema,
@@ -156,7 +156,7 @@ function LinksPage() {
                 <CardDescription>
                   <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />
                   {" · "}
-                  {gateSummary(link)}
+                  {linkTrust(link).summary}
                   {link.isActive ? "" : " · Inactive"}
                 </CardDescription>
                 <CardAction>{link.$synced ? null : "Saving…"}</CardAction>

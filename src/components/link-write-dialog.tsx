@@ -93,16 +93,6 @@ function targetKeyOf(link: Pick<LinkRow, "documentId" | "vaultId">): TargetKey |
   return "";
 }
 
-export function gateSummary(
-  link: Pick<LinkRow, "passwordSet" | "requiresEmail" | "requiresVerification">,
-) {
-  const parts = [];
-  if (link.passwordSet) parts.push("Password");
-  if (link.requiresVerification) parts.push("Verified email");
-  else if (link.requiresEmail) parts.push("Email");
-  return parts.length > 0 ? parts.join(" and ") : "Public";
-}
-
 export function LinkWriteDialog({
   organizationId,
   organizationName,

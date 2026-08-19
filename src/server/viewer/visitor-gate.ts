@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 
+import { linkTrust } from "#/lib/link-trust";
 import { db } from "#/server/db/client";
 import { document, link, organization, user, vault } from "#/server/db/schema";
 import {
@@ -194,7 +195,11 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     requiresPassword: row.passwordHash !== null,
     requiresEmail: row.requiresEmail,
     requiresVerification: row.requiresVerification,
-    isPublic: row.passwordHash === null && !row.requiresEmail && !row.requiresVerification,
+    isPublic: !linkTrust({
+      passwordSet: row.passwordHash !== null,
+      requiresEmail: row.requiresEmail,
+      requiresVerification: row.requiresVerification,
+    }).trustworthy,
     gateVersion: row.gateVersion,
     allowDownload: row.allowDownload,
     documentId: row.documentId ? documentIdSchema.parse(row.documentId) : null,
