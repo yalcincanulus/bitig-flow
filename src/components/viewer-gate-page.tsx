@@ -1,28 +1,13 @@
 import { buttonVariants } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
-import { viewerSenderFirstName, viewerSenderLine } from "#/lib/viewer-sender";
+import { ViewerSenderLine } from "#/components/viewer-sender-line";
 import { cn } from "#/lib/utils";
-import type { GateReceiptItem, VisitorPage } from "#/server/viewer/visitor-gate";
-
-function SenderLine({
-  senderName,
-  organizationName,
-}: {
-  senderName: string | null;
-  organizationName: string;
-}) {
-  return (
-    <p className="mb-6 text-sm text-muted-foreground">
-      {senderName ? (
-        <>
-          <span className="text-foreground">{senderName}</span> at {organizationName}
-        </>
-      ) : (
-        <span className="text-foreground">{viewerSenderLine(senderName, organizationName)}</span>
-      )}
-    </p>
-  );
-}
+import { viewerSenderFirstName } from "#/lib/viewer-sender";
+import type {
+  GateReceiptItem,
+  VisitorGatePage,
+  VisitorRateLimitedPage,
+} from "#/server/viewer/visitor-gate";
 
 function Receipt({ receipt }: { receipt: ReadonlyArray<GateReceiptItem> }) {
   if (receipt.length === 0) return null;
@@ -48,25 +33,11 @@ function retryCopy(retryAfterSeconds: number) {
   return `Too many attempts. ${retryWaitCopy(retryAfterSeconds)}`;
 }
 
-export function ViewerGatePage({ page }: { page: VisitorPage }) {
-  if (page.status === "reveal") {
-    return (
-      <>
-        <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
-        <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
-          {page.targetTitle}
-        </h1>
-        {page.emptyVault ? (
-          <p className="mt-3 text-base text-muted-foreground">There's nothing in here yet.</p>
-        ) : null}
-      </>
-    );
-  }
-
+export function ViewerGatePage({ page }: { page: VisitorGatePage | VisitorRateLimitedPage }) {
   if (page.status === "rate_limited") {
     return (
       <>
-        <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
+        <ViewerSenderLine senderName={page.senderName} organizationName={page.organizationName} />
         <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
           Too many attempts.
         </h1>
@@ -84,7 +55,7 @@ export function ViewerGatePage({ page }: { page: VisitorPage }) {
 
   return (
     <>
-      <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
+      <ViewerSenderLine senderName={page.senderName} organizationName={page.organizationName} />
       <Receipt receipt={page.receipt} />
       {page.currentRequirement === "password" ? (
         <form method="post">

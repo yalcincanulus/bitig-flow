@@ -12,3 +12,7 @@ So the rule is one rule with two halves, and both must be applied together:
 Currently binding on `/v/$slug` and `/v/$slug/$documentId`. `defaultPreload: 'intent'` stays on globally and `defaultPreloadStaleTime` rises to the framework default, because the Dashboard preloads freely and correctly — nothing there writes.
 
 The alternative was moving the write out of the loader into a component effect, which would make it client-reported and reintroduce exactly the trust ADR-0026 refuses. Turning preloading off globally was rejected as paying for the Viewer's constraint on every Dashboard navigation.
+
+## Amendment: nothing in the content pane may re-run a loader
+
+The two named hazards were preloading and caching. A third arrives once the loader returns real content: **nothing in the content pane may re-run a loader**, because every re-run appends an open. Retrying a pending Document, refreshing the PDF island, or any other in-pane affordance that called `router.invalidate()` would fabricate `document_opened` rows. Ticket 3's retry is the first thing that would violate it. The write stays in the loader; the pane must not ask the loader to run again.

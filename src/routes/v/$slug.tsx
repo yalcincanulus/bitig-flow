@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
+import { ViewerContentPage } from "#/components/viewer-content-page";
 import { ViewerGatePage } from "#/components/viewer-gate-page";
 import { gateCredential } from "#/server/viewer/gate-credential";
 import { loadVisitorPage } from "#/server/viewer/load-visitor-page";
@@ -49,5 +50,6 @@ export const Route = createFileRoute("/v/$slug")({
 
 function VisitorSlugPage() {
   const page = Route.useLoaderData();
+  if (page.status === "content") return <ViewerContentPage page={page} />;
   return <ViewerGatePage page={page} />;
 }

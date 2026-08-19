@@ -16,12 +16,15 @@ What the steps *look like* is not decided here.
 
 ## What the loader returns past the gate
 
-A discriminated union on `document.kind`:
+A discriminated union on `status`: `gate`, `rate_limited`, or `content`. The `reveal` arm is retired — it was a placeholder for "past the Gate, here is a title" and every path that produced it now produces `content`.
+
+The `content` arm is itself a discriminated union on `kind`:
 
 - **markdown** — the loader runs the single server-side sanitized render path (ADR-0007) and returns HTML. Fully server-rendered, no client fetch for content.
-- **pdf** — metadata only (`page_count`, `file_name`); the client buffers the byte route into `getDocument({ data })`.
-- **image** — metadata only; the browser fetches the byte route as an `<img>` subresource, and the path-scoped visit cookie rides along.
+- **pdf** — metadata only (`pageCount`, `fileName`); the client buffers the byte route into `getDocument({ data })`. Until the pdf.js island lands, the pane renders a minimal shell (title and page count) behind the dynamic import that island will occupy.
+- **image** — metadata only (`fileName`). This slice's shell is the title; the `<img>` that fetches the byte route as a subresource lands with the image arm.
+- **vault** — title and the empty-state flag only, so `reveal` can retire before the Vault index exists. Opening a Vault Link writes no `document_opened`. The member list and `/v/$slug/$documentId` land in a later ticket.
 
 Because the branch is already in the loader, `pdfjs-dist` sits behind a dynamic import inside the PDF branch: opening a markdown Link downloads no PDF engine.
 
-A Link targeting a Document renders it at `/v/$slug` itself. A Link targeting a Vault renders a list there, and each member opens at `/v/$slug/$documentId`. Both loaders write `document_opened`, and both are subject to ADR-0031.
+A Link targeting a Document renders it at `/v/$slug` itself. A Link targeting a Vault will render a list there, and each member will open at `/v/$slug/$documentId`. Document loaders write `document_opened`. The Vault index does not. Document loaders are subject to ADR-0031.

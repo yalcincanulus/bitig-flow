@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { expect } from "vitest";
 
-import { document, link, visit } from "#/server/db/schema";
+import { viewerBytesUrl } from "#/lib/document-bytes";
+import { document, documentReference, link, visit, visitEvent } from "#/server/db/schema";
 import { hashSharePassword } from "#/server/share-password-hash";
 import { credentialGuessLimitKey } from "#/server/viewer/credential-guess-limit";
 import { formSubmissionLimitKey } from "#/server/viewer/form-submission-limit";
@@ -15,10 +16,12 @@ import {
   createCookieClient,
   createFixtureDocument,
   createFixtureLink,
+  createFixtureUploadedDocument,
   createFixtureVault,
   createFixtureVaultItem,
   createOrganizationFixture,
   database,
+  readUploadSample,
   redis,
 } from "../fixtures";
 import { mailpitBaseUrl } from "./environment";
@@ -262,6 +265,172 @@ test("the same jar GET of a public Link does not write a second Visit", async ()
   expect(
     await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, published.id)),
   ).toHaveLength(1);
+});
+
+test("GET of a public markdown Link renders the Document and resolves images through the byte route", async () => {
+  const fixture = await createOrganizationFixture();
+  const [logo, gone] = await Promise.all([
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "image/png",
+      fileName: "logo.png",
+      bytes: readUploadSample("pixel.png"),
+    }),
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "image/png",
+      fileName: "gone.png",
+      bytes: readUploadSample("pixel.png"),
+    }),
+  ]);
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+    content: [
+      "The indemnity survives closing.",
+      `![logo](doc/${logo.id})`,
+      "![beacon](https://evil.example/pixel.png)",
+      "![broken](doc/not-a-uuid)",
+      `![gone](doc/${gone.id})`,
+    ].join("\n\n"),
+  });
+  await database.insert(documentReference).values({
+    sourceDocumentId: documentRow.id,
+    targetDocumentId: logo.id,
+  });
+  await database.insert(documentReference).values({
+    sourceDocumentId: documentRow.id,
+    targetDocumentId: gone.id,
+  });
+  await database.delete(document).where(eq(document.id, gone.id));
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+  });
+
+  const response = await createCookieClient().http(viewerUrl(published.slug), {
+    redirect: "manual",
+  });
+  const html = await response.text();
+  const markup = serverRenderedMarkupOf(html);
+
+  expect(response.status).toBe(200);
+  expect(textOf(markup)).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(textOf(markup)).toContain(distinctiveTitle);
+  expect(markup).toContain("<p>The indemnity survives closing.</p>");
+  expect(markup).toContain(`<img src="${viewerBytesUrl(published.slug, logo.id)}" alt="logo">`);
+  expect(markup).not.toContain("evil.example");
+  expect(markup).not.toContain('<img src="https://');
+  expect(textOf(markup)).toContain("beacon");
+  expect(markup).not.toContain("doc/not-a-uuid");
+  expect(textOf(markup)).toContain("broken");
+  expect(markup).not.toContain(gone.id);
+  expect(textOf(markup)).toContain("gone");
+});
+
+test("opening a markdown Document appends document_opened once per open, including a revisit", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+  });
+  const client = createCookieClient();
+
+  expect((await client.http(viewerUrl(published.slug), { redirect: "manual" })).status).toBe(200);
+  expect((await client.http(viewerUrl(published.slug), { redirect: "manual" })).status).toBe(200);
+
+  const events = await database
+    .select({ type: visitEvent.type, documentId: visitEvent.documentId })
+    .from(visitEvent)
+    .innerJoin(visit, eq(visit.id, visitEvent.visitId))
+    .where(eq(visit.linkId, published.id));
+
+  expect(events).toEqual([
+    { type: "document_opened", documentId: documentRow.id },
+    { type: "document_opened", documentId: documentRow.id },
+  ]);
+});
+
+test("GET of a public pdf Link renders the title and page count, and an image Link renders the title", async () => {
+  const fixture = await createOrganizationFixture();
+  const [pdf, image] = await Promise.all([
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "application/pdf",
+      fileName: "term-sheet.pdf",
+      bytes: readUploadSample("two-page.pdf"),
+    }),
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "image/png",
+      fileName: "screenshot.png",
+      bytes: readUploadSample("pixel.png"),
+    }),
+  ]);
+  await database.update(document).set({ pageCount: 2 }).where(eq(document.id, pdf.id));
+  const [pdfLink, imageLink] = await Promise.all([
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: pdf.id,
+    }),
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: image.id,
+    }),
+  ]);
+
+  const pdfResponse = await createCookieClient().http(viewerUrl(pdfLink.slug), {
+    redirect: "manual",
+  });
+  const pdfMarkup = serverRenderedMarkupOf(await pdfResponse.text());
+  expect(pdfResponse.status).toBe(200);
+  expect(textOf(pdfMarkup)).toContain("term-sheet.pdf");
+  expect(textOf(pdfMarkup)).toContain("2 pages");
+
+  const imageResponse = await createCookieClient().http(viewerUrl(imageLink.slug), {
+    redirect: "manual",
+  });
+  const imageMarkup = serverRenderedMarkupOf(await imageResponse.text());
+  expect(imageResponse.status).toBe(200);
+  expect(textOf(imageMarkup)).toContain("screenshot.png");
+});
+
+test("opening a Vault Link writes no document_opened", async () => {
+  const fixture = await createOrganizationFixture();
+  const vault = await createFixtureVault({
+    organizationId: fixture.organization.id,
+    name: distinctiveVaultName,
+  });
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    vaultId: vault.id,
+  });
+
+  expect(
+    (await createCookieClient().http(viewerUrl(published.slug), { redirect: "manual" })).status,
+  ).toBe(200);
+  expect(
+    await database
+      .select({ id: visitEvent.id })
+      .from(visitEvent)
+      .innerJoin(visit, eq(visit.id, visitEvent.visitId))
+      .where(eq(visit.linkId, published.id)),
+  ).toEqual([]);
 });
 
 test("the Visit cookie is HttpOnly, Path-scoped to the Slug, and is not sent to another Slug or Dashboard bytes", async () => {
@@ -674,6 +843,13 @@ test("a right password on a password-only Link mints a Visit, sets the visit coo
   expect(
     await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
   ).toHaveLength(1);
+  expect(
+    await database
+      .select({ type: visitEvent.type, documentId: visitEvent.documentId })
+      .from(visitEvent)
+      .innerJoin(visit, eq(visit.id, visitEvent.visitId))
+      .where(eq(visit.linkId, gated.id)),
+  ).toEqual([{ type: "document_opened", documentId: documentRow.id }]);
 });
 
 test("a right password on a Link that still has Requirements sets Gate progress and the next GET shows the Receipt", async () => {
@@ -1242,7 +1418,7 @@ test("password then email then code mints a verified Visit and the next GET is t
   expect(revealed.status).toBe(200);
   expect(copy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
   expect(copy).toContain(distinctiveTitle);
-  expect(html).not.toContain("Fixture document content.");
+  expect(copy).toContain("Fixture document content.");
 
   const visits = await database.select().from(visit).where(eq(visit.linkId, gated.id));
   expect(visits).toHaveLength(1);

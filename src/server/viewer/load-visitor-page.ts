@@ -11,11 +11,12 @@ import {
   stashedVisitorPage,
   visitorPageRetryAfterSeconds,
 } from "#/server/viewer/visitor-page-stash";
+import { loadVisitorContent } from "#/server/viewer/load-visitor-content";
+import { visitIdSchema } from "#/server/ids";
 import {
   currentGateRequirement,
   findVisitorLink,
   gatePage,
-  revealPage,
   type VisitorPage,
 } from "#/server/viewer/visitor-gate";
 
@@ -36,11 +37,13 @@ export const loadVisitorPage = createServerFn({ method: "GET" })
     const link = await findVisitorLink(data.slug);
     if (!link) throw notFound();
 
-    if (await liveVisitForLink(link)) return revealPage(link);
+    const live = await liveVisitForLink(link);
+    if (live) return loadVisitorContent(link, visitIdSchema.parse(live.visitId));
 
     if (link.isPublic) {
       const minted = await mintVisitorVisit(link);
-      return applyLimitHeaders(minted);
+      if (minted.status === "rate_limited") return applyLimitHeaders(minted);
+      return loadVisitorContent(link, minted.visitId);
     }
 
     const redis = await getRedis();

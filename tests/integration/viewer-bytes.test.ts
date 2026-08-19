@@ -71,7 +71,7 @@ async function bumpGateVersion(http: typeof fetch, linkRow: { id: string; name: 
   });
 }
 
-test("a valid Visit cookie receives the Document's bytes inline and writes no Event", async () => {
+test("a valid Visit cookie receives the Document's bytes inline and writes no download Event", async () => {
   const fixture = await createOrganizationFixture();
   const uploaded = await createFixtureUploadedDocument({
     organizationId: fixture.organization.id,
@@ -107,7 +107,9 @@ test("a valid Visit cookie receives the Document's bytes inline and writes no Ev
   expect(response.headers.get("accept-ranges")).toBeNull();
   expectSecurityHeaders(response);
   expect(body).toEqual(pixelPng);
-  expect(await eventsForLink(published.id)).toEqual([]);
+  expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: uploaded.id },
+  ]);
 });
 
 test("a request with no Visit cookie, a cookie for a different Link, or a moved gate_version is refused", async () => {
@@ -205,10 +207,12 @@ test("a Document that is not Reachable from the Link's Target is refused, includ
   expect(response.status).toBe(404);
   expect(await response.arrayBuffer()).toHaveProperty("byteLength", 0);
   expectSecurityHeaders(response);
-  expect(await eventsForLink(published.id)).toEqual([]);
+  expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: target.id },
+  ]);
 });
 
-test("a Document Reachable only by Reference is served and writes no Event", async () => {
+test("a Document Reachable only by Reference is served and writes no download Event", async () => {
   const fixture = await createOrganizationFixture();
   const [markdown, image] = await Promise.all([
     createFixtureDocument({
@@ -251,7 +255,9 @@ test("a Document Reachable only by Reference is served and writes no Event", asy
   expect(response.status).toBe(200);
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(pixelPng);
   expect(response.headers.get("content-disposition")).toBe("inline");
-  expect(await eventsForLink(published.id)).toEqual([]);
+  expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: markdown.id },
+  ]);
 });
 
 test("download=button appends one download Event and serves an attachment under the original file name", async () => {
@@ -284,6 +290,7 @@ test("download=button appends one download Event and serves an attachment under 
   expectSecurityHeaders(response);
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(pixelPng);
   expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: uploaded.id },
     { type: "download", payload: { via: "button" }, documentId: uploaded.id },
   ]);
 });
@@ -311,7 +318,9 @@ test("the Dashboard download parameter does not attach or write a download Event
 
   expect(response.status).toBe(200);
   expect(response.headers.get("content-disposition")).toBe("inline");
-  expect(await eventsForLink(published.id)).toEqual([]);
+  expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: uploaded.id },
+  ]);
 });
 
 test("download=button returns 403 and appends nothing when the Link refuses downloads", async () => {
@@ -338,10 +347,12 @@ test("download=button returns 403 and appends nothing when the Link refuses down
   expect(response.status).toBe(403);
   expect(await response.arrayBuffer()).toHaveProperty("byteLength", 0);
   expectSecurityHeaders(response);
-  expect(await eventsForLink(published.id)).toEqual([]);
+  expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: uploaded.id },
+  ]);
 });
 
-test("a pending Document returns 409 and a missing object returns 404, and neither appends an Event", async () => {
+test("a pending Document returns 409 and a missing object returns 404, and neither appends a download Event", async () => {
   const fixture = await createOrganizationFixture();
   const [pending, missing] = await Promise.all([
     createFixturePendingDocument({
@@ -387,8 +398,12 @@ test("a pending Document returns 409 and a missing object returns 404, and neith
   expectSecurityHeaders(pendingResponse);
   expect(missingResponse.status).toBe(404);
   expectSecurityHeaders(missingResponse);
-  expect(await eventsForLink(pendingLink.id)).toEqual([]);
-  expect(await eventsForLink(missingLink.id)).toEqual([]);
+  expect(await eventsForLink(pendingLink.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: pending.id },
+  ]);
+  expect(await eventsForLink(missingLink.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: missing.id },
+  ]);
 });
 
 test("a forwarded Range still yields 206 with Content-Range and never Accept-Ranges", async () => {
@@ -417,5 +432,7 @@ test("a forwarded Range still yields 206 with Content-Range and never Accept-Ran
   expect(response.headers.get("content-type")).toBe("image/png");
   expectSecurityHeaders(response);
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(pixelPng.slice(0, 4));
-  expect(await eventsForLink(published.id)).toEqual([]);
+  expect(await eventsForLink(published.id)).toEqual([
+    { type: "document_opened", payload: null, documentId: uploaded.id },
+  ]);
 });

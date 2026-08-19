@@ -2,7 +2,14 @@ import { count, eq } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
 import { document, link, organization, user, vault, vaultItem } from "#/server/db/schema";
-import { linkIdSchema, type LinkId } from "#/server/ids";
+import {
+  documentIdSchema,
+  linkIdSchema,
+  vaultIdSchema,
+  type DocumentId,
+  type LinkId,
+  type VaultId,
+} from "#/server/ids";
 import { gateCodeResendAfterSeconds } from "#/server/viewer/gate-code";
 import type { GateProgressRecord } from "#/server/viewer/gate-progress";
 import {
@@ -29,13 +36,47 @@ export type VisitorGatePage = Readonly<{
   retryAfterSeconds?: number;
 }>;
 
-export type VisitorRevealPage = Readonly<{
-  status: "reveal";
+type VisitorContentShared = Readonly<{
+  status: "content";
   senderName: string | null;
   organizationName: string;
-  targetTitle: string;
-  emptyVault: boolean;
+  allowDownload: boolean;
+  title: string;
 }>;
+
+export type VisitorMarkdownContent = VisitorContentShared &
+  Readonly<{
+    kind: "markdown";
+    documentId: DocumentId;
+    html: string;
+  }>;
+
+export type VisitorPdfContent = VisitorContentShared &
+  Readonly<{
+    kind: "pdf";
+    documentId: DocumentId;
+    pageCount: number | null;
+    fileName: string | null;
+  }>;
+
+export type VisitorImageContent = VisitorContentShared &
+  Readonly<{
+    kind: "image";
+    documentId: DocumentId;
+    fileName: string | null;
+  }>;
+
+export type VisitorVaultContent = VisitorContentShared &
+  Readonly<{
+    kind: "vault";
+    emptyVault: boolean;
+  }>;
+
+export type VisitorContentPage =
+  | VisitorMarkdownContent
+  | VisitorPdfContent
+  | VisitorImageContent
+  | VisitorVaultContent;
 
 export type VisitorRateLimitedPage = Readonly<{
   status: "rate_limited";
@@ -44,7 +85,7 @@ export type VisitorRateLimitedPage = Readonly<{
   retryAfterSeconds: number;
 }>;
 
-export type VisitorPage = VisitorGatePage | VisitorRevealPage | VisitorRateLimitedPage;
+export type VisitorPage = VisitorGatePage | VisitorContentPage | VisitorRateLimitedPage;
 
 export type VisitorLink = Readonly<{
   id: LinkId;
@@ -58,26 +99,14 @@ export type VisitorLink = Readonly<{
   isPublic: boolean;
   gateVersion: number;
   allowDownload: boolean;
+  documentId: DocumentId | null;
+  vaultId: VaultId | null;
   targetTitle: string;
   emptyVault: boolean;
 }>;
 
 export function senderFields(link: { senderName: string | null; organizationName: string }) {
   return { senderName: link.senderName, organizationName: link.organizationName };
-}
-
-export function revealPage(link: {
-  senderName: string | null;
-  organizationName: string;
-  targetTitle: string;
-  emptyVault: boolean;
-}): VisitorRevealPage {
-  return {
-    status: "reveal",
-    ...senderFields(link),
-    targetTitle: link.targetTitle,
-    emptyVault: link.emptyVault,
-  };
 }
 
 export { currentGateRequirement, gateReceipt } from "#/server/viewer/gate-requirement";
@@ -127,6 +156,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
       allowDownload: link.allowDownload,
       expiresAt: link.expiresAt,
       isActive: link.isActive,
+      documentId: document.id,
       documentTitle: document.title,
       vaultName: vault.name,
       vaultId: vault.id,
@@ -167,6 +197,8 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     isPublic: row.passwordHash === null && !row.requiresEmail && !row.requiresVerification,
     gateVersion: row.gateVersion,
     allowDownload: row.allowDownload,
+    documentId: row.documentId ? documentIdSchema.parse(row.documentId) : null,
+    vaultId: row.vaultId ? vaultIdSchema.parse(row.vaultId) : null,
     targetTitle,
     emptyVault,
   };

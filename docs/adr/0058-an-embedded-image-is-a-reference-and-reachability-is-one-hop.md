@@ -10,6 +10,8 @@ The same markdown source is rendered on two surfaces that serve bytes from two d
 
 **`renderHtml()` therefore takes exactly one parameter, `resolveImage`,** and each surface passes its own. This is a refinement of ADR-0007's one-render-path rule, and the boundary must be stated in both directions: the resolver for an image is a parameter, and the parser options, `sanitizeUrl`, and the remote-image block are *not*. They stay internal to the module and are never arguments. "One parameter" invites a second one, so the rule is written as a prohibition rather than a count.
 
+**The Viewer's `resolveImage` checks the source Document's Reference rows, not Reachability.** It answers "is this a reference this Document actually holds", which covers a remote URL, a malformed reference, and a target the cascade has deleted, all three rendering as alt text. The byte route remains the sole enforcement point for Reachability. The two checks agree today and answer different questions; only one of them promises alt text.
+
 **An image that does not resolve renders as its alt text, in plain form.** That covers three cases with one behavior: a remote URL (which ADR-0007 blocks), a malformed reference, and a reference whose document has been deleted — the last arriving for free through the cascade below. A broken-image icon was rejected because it reads as our failure rather than as our policy.
 
 ## The reference graph

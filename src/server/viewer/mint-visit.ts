@@ -9,6 +9,7 @@ import { db } from "#/server/db/client";
 import { visit as visitTable } from "#/server/db/schema";
 import { getRedis } from "#/server/redis";
 import { requiredEnv, trustedProxyCount } from "#/server/runtime-env";
+import { visitIdSchema, type VisitId } from "#/server/ids";
 import { readLiveVisitRecord, writeLiveVisitRecord } from "#/server/viewer/live-visit-record";
 import { consumeVisitCreationLimit } from "#/server/viewer/visit-creation-limit";
 import {
@@ -20,7 +21,9 @@ import {
   visitorIdCookiePath,
   visitorIdTtlSeconds,
 } from "#/server/viewer/visit-cookies";
-import { revealPage, type VisitorLink, type VisitorPage } from "#/server/viewer/visitor-gate";
+import { type VisitorLink, type VisitorRateLimitedPage } from "#/server/viewer/visitor-gate";
+
+export type MintedVisit = VisitorRateLimitedPage | Readonly<{ status: "minted"; visitId: VisitId }>;
 
 export function visitorRequestIp() {
   const request = getRequest();
@@ -51,7 +54,7 @@ export async function liveVisitForLink(link: Pick<VisitorLink, "id" | "gateVersi
 export async function mintVisitorVisit(
   link: VisitorLink,
   options: { limitVisitCreation?: boolean; email?: string | null; emailVerified?: boolean } = {},
-): Promise<VisitorPage> {
+): Promise<MintedVisit> {
   const request = getRequest();
   const redis = await getRedis();
   const ip = visitorRequestIp();
@@ -110,5 +113,5 @@ export async function mintVisitorVisit(
     );
   }
 
-  return revealPage(link);
+  return { status: "minted", visitId: visitIdSchema.parse(created.id) };
 }
