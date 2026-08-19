@@ -12,6 +12,9 @@ test("Gate writes live in the Viewer directory and take a Slug or Link id, never
     "src/server/viewer/gate-progress.ts",
     "src/server/viewer/credential-guess-limit.ts",
     "src/server/viewer/form-submission-limit.ts",
+    "src/server/viewer/code-send-limit.ts",
+    "src/server/viewer/gate-code.ts",
+    "src/server/viewer/mask-email.ts",
     "src/server/viewer/mint-visit.ts",
   ];
 

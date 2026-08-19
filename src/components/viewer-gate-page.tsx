@@ -156,6 +156,69 @@ export function ViewerGatePage({ page }: { page: VisitorPage }) {
           </button>
         </form>
       ) : null}
+      {page.currentRequirement === "code" ? (
+        <>
+          <form method="post">
+            <input type="hidden" name="step" value="code" />
+            <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
+              Enter the 6-digit code we sent.
+            </h1>
+            <p className="mt-3 text-base text-muted-foreground">
+              We sent it to {page.maskedEmail}.
+            </p>
+            <Input
+              type="text"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              autoFocus={!disabled}
+              disabled={disabled}
+              aria-label="Code"
+              className="mt-7 h-14 rounded-lg text-base"
+            />
+            {page.error === "wrong_code" ? (
+              <p className="mt-3 text-sm text-destructive">
+                Wrong code. {page.remainingTries} {page.remainingTries === 1 ? "try" : "tries"}{" "}
+                left.
+              </p>
+            ) : null}
+            {page.error === "expired_code" ? (
+              <p className="mt-3 text-sm text-destructive">That code has expired.</p>
+            ) : null}
+            {page.error === "locked_code" ? (
+              <p className="mt-3 text-sm text-destructive">Too many tries. Request a new code.</p>
+            ) : null}
+            {limited ? (
+              <p className="mt-3 text-sm text-muted-foreground">{retryCopy(retryAfterSeconds)}</p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={disabled}
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "mt-4 h-14 w-full rounded-lg text-base",
+              )}
+            >
+              Continue
+            </button>
+          </form>
+          <form method="post" className="mt-3">
+            <input type="hidden" name="step" value="resend" />
+            <button
+              type="submit"
+              disabled={disabled || (page.resendAfterSeconds ?? 0) > 0}
+              className={cn(
+                buttonVariants({ variant: "ghost" }),
+                "h-14 w-full rounded-lg text-base",
+              )}
+            >
+              Resend code
+            </button>
+          </form>
+        </>
+      ) : null}
     </>
   );
 }

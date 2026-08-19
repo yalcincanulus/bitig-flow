@@ -5,6 +5,10 @@ export type GateProgressRecord = Readonly<{
   gateVersion: number;
   password: boolean;
   email: string | null;
+  codeHash: string | null;
+  codeAttempts: number;
+  codeSentAt: number | null;
+  codeExpiresAt: number | null;
 }>;
 
 type RedisKeyValue = {
@@ -27,6 +31,10 @@ export function gateProgressRecordKey(opaqueId: string) {
   return `gate:progress:${opaqueId}`;
 }
 
+function optionalUnix(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export async function readGateProgress(
   redis: Pick<RedisKeyValue, "get">,
   opaqueId: string | undefined,
@@ -41,6 +49,10 @@ export async function readGateProgress(
       gate_version?: unknown;
       password?: unknown;
       email?: unknown;
+      code_hash?: unknown;
+      code_attempts?: unknown;
+      code_sent_at?: unknown;
+      code_expires_at?: unknown;
     };
     if (typeof parsed.link_id !== "string" || typeof parsed.gate_version !== "number") {
       return null;
@@ -50,6 +62,10 @@ export async function readGateProgress(
       gateVersion: parsed.gate_version,
       password: parsed.password === true,
       email: typeof parsed.email === "string" ? parsed.email : null,
+      codeHash: typeof parsed.code_hash === "string" ? parsed.code_hash : null,
+      codeAttempts: typeof parsed.code_attempts === "number" ? parsed.code_attempts : 0,
+      codeSentAt: optionalUnix(parsed.code_sent_at),
+      codeExpiresAt: optionalUnix(parsed.code_expires_at),
     };
   } catch {
     return null;
@@ -70,6 +86,10 @@ export async function writeGateProgress(
         gate_version: record.gateVersion,
         password: record.password,
         email: record.email,
+        code_hash: record.codeHash,
+        code_attempts: record.codeAttempts,
+        code_sent_at: record.codeSentAt,
+        code_expires_at: record.codeExpiresAt,
       }),
       { EX: ttlSeconds },
     ),

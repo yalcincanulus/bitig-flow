@@ -20,6 +20,7 @@ import {
   database,
   redis,
 } from "../fixtures";
+import { mailpitBaseUrl } from "./environment";
 import { test } from "./http";
 
 const distinctiveTitle = "Series B Term Sheet";
@@ -704,6 +705,10 @@ test("a right password on a Link that still has Requirements sets Gate progress 
     gate_version: gated.gateVersion,
     password: true,
     email: null,
+    code_hash: null,
+    code_attempts: 0,
+    code_sent_at: null,
+    code_expires_at: null,
   });
 
   const next = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
@@ -890,6 +895,34 @@ test("a password Receipt is listed on the email step, and capture-only still min
   expect(visits[0]?.emailVerified).toBe(false);
 });
 
+async function waitForShareAccessCode(email: string) {
+  const mailpitUrl = mailpitBaseUrl(process.env);
+  const query = `to:${email}`;
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const searchResponse = await fetch(
+      `${mailpitUrl}/api/v1/search?query=${encodeURIComponent(query)}`,
+    );
+    if (searchResponse.ok) {
+      const { messages } = (await searchResponse.json()) as {
+        messages: Array<{ ID: string; Subject: string }>;
+      };
+      const shareCode = messages.find((message) => message.Subject.includes("share access code"));
+      expect(messages.some((message) => message.Subject.includes("verification code"))).toBe(false);
+      if (shareCode) {
+        const messageResponse = await fetch(`${mailpitUrl}/api/v1/message/${shareCode.ID}`);
+        const message = (await messageResponse.json()) as { Subject: string; Text: string };
+        const match = /Your share access code is (\d{6})/.exec(message.Text);
+        if (match?.[1]) return { code: match[1], subject: message.Subject };
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error(`No share access code arrived for ${email}`);
+}
+
 test("verification-to-follow submit stores the address on Gate progress and writes no Visit", async () => {
   const fixture = await createOrganizationFixture();
   const documentRow = await createFixtureDocument({
@@ -909,20 +942,35 @@ test("verification-to-follow submit stores the address on Gate progress and writ
   const posted = await postEmail(client.http, gated.slug, "  Visitor@Example.COM ");
   expect(posted.status).toBe(303);
 
+  const mailed = await waitForShareAccessCode("visitor@example.com");
+  expect(mailed.subject).not.toMatch(/verification code/i);
+
   const gateCookies = cookiesNamed(posted, "gate");
   expect(gateCookies).toHaveLength(1);
   const opaqueId = decodeURIComponent((gateCookies[0] ?? "").split("=")[1]?.split(";")[0] ?? "");
-  expect(JSON.parse((await redis.get(gateProgressRecordKey(opaqueId))) ?? "null")).toEqual({
+  const progress = JSON.parse((await redis.get(gateProgressRecordKey(opaqueId))) ?? "null") as {
+    link_id: string;
+    gate_version: number;
+    password: boolean;
+    email: string;
+    code_hash: string | null;
+  };
+  expect(progress).toMatchObject({
     link_id: gated.id,
     gate_version: gated.gateVersion,
     password: false,
     email: "visitor@example.com",
   });
+  expect(progress.code_hash).toEqual(expect.any(String));
+  expect(progress.code_hash).not.toContain(mailed.code);
 
   const next = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
   const html = await next.text();
+  const copy = textOf(serverRenderedMarkupOf(html));
   expect(next.status).toBe(200);
-  expect(textOf(serverRenderedMarkupOf(html))).toContain("visitor@example.com");
+  expect(copy).toContain("visitor@example.com");
+  expect(copy).toContain("v*****r@example.com");
+  expect(html).toMatch(/name="code"/i);
   expect(html).not.toContain(distinctiveTitle);
   expect(
     await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
@@ -975,3 +1023,228 @@ test("twenty email submissions in 15 minutes return 429; success does not reset 
     await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
   ).toEqual([]);
 });
+
+async function postCode(
+  http: typeof fetch,
+  slug: string,
+  code: string,
+  extra: { ip?: string } = {},
+) {
+  return http(viewerUrl(slug), {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      ...(extra.ip ? { "x-forwarded-for": extra.ip } : {}),
+    },
+    body: new URLSearchParams({ step: "code", code }),
+  });
+}
+
+async function postResend(http: typeof fetch, slug: string) {
+  return http(viewerUrl(slug), {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ step: "resend" }),
+  });
+}
+
+async function gateCookieValue(client: ReturnType<typeof createCookieClient>, slug: string) {
+  const cookies = await client.jar.getCookies(viewerUrl(slug).toString());
+  return cookies.find((cookie) => cookie.key === "gate")?.value ?? "";
+}
+
+async function ageGateProgress(opaqueId: string, patch: Record<string, unknown>) {
+  const key = gateProgressRecordKey(opaqueId);
+  const current = JSON.parse((await redis.get(key)) ?? "null") as Record<string, unknown>;
+  await redis.set(key, JSON.stringify({ ...current, ...patch }));
+}
+
+async function shareAccessCodeCount(email: string) {
+  const mailpitUrl = mailpitBaseUrl(process.env);
+  const searchResponse = await fetch(
+    `${mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+  );
+  const { messages } = (await searchResponse.json()) as {
+    messages: Array<{ Subject: string }>;
+  };
+  return messages.filter((message) => message.Subject.includes("share access code")).length;
+}
+
+async function waitForShareAccessCodeCount(email: string, count: number) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if ((await shareAccessCodeCount(email)) >= count) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Expected ${count} share access codes for ${email}`);
+}
+
+test("a wrong code shows remaining tries, five failures lock, and an expired code says so", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+  const client = createCookieClient();
+
+  expect((await postEmail(client.http, gated.slug, "visitor@example.com")).status).toBe(303);
+  await waitForShareAccessCode("visitor@example.com");
+
+  const firstWrong = await postCode(client.http, gated.slug, "000000");
+  expect(textOf(serverRenderedMarkupOf(await firstWrong.text()))).toContain(
+    "Wrong code. 4 tries left.",
+  );
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const wrong = await postCode(client.http, gated.slug, "000000");
+    expect(textOf(serverRenderedMarkupOf(await wrong.text()))).toMatch(/Wrong code/);
+  }
+
+  const locked = await postCode(client.http, gated.slug, "000000");
+  expect(textOf(serverRenderedMarkupOf(await locked.text()))).toMatch(/Too many tries/i);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+
+  const expiredClient = createCookieClient();
+  expect((await postEmail(expiredClient.http, gated.slug, "aged@example.com")).status).toBe(303);
+  await waitForShareAccessCode("aged@example.com");
+  await ageGateProgress(await gateCookieValue(expiredClient, gated.slug), { code_expires_at: 1 });
+  const expired = await postCode(expiredClient.http, gated.slug, "123456");
+  expect(textOf(serverRenderedMarkupOf(await expired.text()))).toMatch(/expired/i);
+}, 15_000);
+
+test("resend is disabled for 60 seconds on the same Gate-progress record, and clearing cookies starts over", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+  const client = createCookieClient();
+
+  const first = await postEmail(client.http, gated.slug, "visitor@example.com");
+  expect(first.status).toBe(303);
+  const opaqueId = await gateCookieValue(client, gated.slug);
+  await waitForShareAccessCode("visitor@example.com");
+
+  const codeStep = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  expect(await codeStep.text()).toMatch(/<button[^>]*disabled[^>]*>\s*Resend code/i);
+
+  const blocked = await postResend(client.http, gated.slug);
+  expect(blocked.status).toBe(200);
+  expect(await shareAccessCodeCount("visitor@example.com")).toBe(1);
+  expect(await gateCookieValue(client, gated.slug)).toBe(opaqueId);
+
+  await ageGateProgress(opaqueId, { code_sent_at: 1 });
+  const resent = await postResend(client.http, gated.slug);
+  expect(resent.status).toBe(303);
+  expect(await gateCookieValue(client, gated.slug)).toBe(opaqueId);
+  await waitForShareAccessCodeCount("visitor@example.com", 2);
+
+  const fresh = createCookieClient();
+  const restart = await fresh.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const restartHtml = await restart.text();
+  expect(textOf(serverRenderedMarkupOf(restartHtml))).toMatch(/wants to know who opened this/i);
+  expect(restartHtml).not.toMatch(/name="code"/i);
+}, 15_000);
+
+test("the sixth code send to one address in an hour keeps the screen and sends no mail", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+  const address = "capped@example.com";
+
+  for (let send = 0; send < 5; send++) {
+    expect((await postEmail(createCookieClient().http, gated.slug, address)).status).toBe(303);
+  }
+  await waitForShareAccessCodeCount(address, 5);
+  expect(await shareAccessCodeCount(address)).toBe(5);
+
+  const sixth = createCookieClient();
+  const posted = await postEmail(sixth.http, gated.slug, address);
+  expect(posted.status).toBe(303);
+  const next = await sixth.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await next.text();
+  expect(next.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(html))).toMatch(/6-digit code/i);
+  expect(html).toMatch(/<button[^>]*disabled[^>]*>\s*Resend code/i);
+  expect(html).not.toContain(distinctiveTitle);
+  expect(await shareAccessCodeCount(address)).toBe(5);
+
+  const guessed = await postCode(sixth.http, gated.slug, "000000");
+  const guessedCopy = textOf(serverRenderedMarkupOf(await guessed.text()));
+  expect(guessedCopy).toContain("Wrong code. 4 tries left.");
+  expect(guessedCopy).not.toMatch(/expired/i);
+}, 20_000);
+
+test("password then email then code mints a verified Visit and the next GET is the reveal", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+    content: "Fixture document content.",
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+  const client = createCookieClient();
+
+  expect((await postPassword(client.http, gated.slug, "launch-gate")).status).toBe(303);
+  expect((await postEmail(client.http, gated.slug, "journey@example.com")).status).toBe(303);
+  const mailed = await waitForShareAccessCode("journey@example.com");
+
+  const posted = await postCode(client.http, gated.slug, mailed.code);
+  expect(posted.status).toBe(303);
+  expect(new URL(posted.headers.get("location") ?? "", process.env.BETTER_AUTH_URL).pathname).toBe(
+    `/v/${gated.slug}`,
+  );
+  const visitCookies = cookiesNamed(posted, "visit");
+  expect(visitCookies).toHaveLength(1);
+  expect(cookieAttributes(visitCookies[0] ?? "").path).toBe(`/v/${gated.slug}`);
+
+  const revealed = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await revealed.text();
+  const copy = textOf(serverRenderedMarkupOf(html));
+  expect(revealed.status).toBe(200);
+  expect(copy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(copy).toContain(distinctiveTitle);
+  expect(html).not.toContain("Fixture document content.");
+
+  const visits = await database.select().from(visit).where(eq(visit.linkId, gated.id));
+  expect(visits).toHaveLength(1);
+  expect(visits[0]?.email).toBe("journey@example.com");
+  expect(visits[0]?.emailVerified).toBe(true);
+}, 15_000);

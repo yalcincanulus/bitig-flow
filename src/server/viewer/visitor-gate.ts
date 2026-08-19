@@ -2,12 +2,15 @@ import { count, eq } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
 import { document, link, organization, user, vault, vaultItem } from "#/server/db/schema";
+import { gateCodeResendAfterSeconds } from "#/server/viewer/gate-code";
 import type { GateProgressRecord } from "#/server/viewer/gate-progress";
 import {
+  capturedEmail,
   gateReceipt,
   type GateReceiptItem,
   type GateRequirement,
 } from "#/server/viewer/gate-requirement";
+import { maskCapturedEmail } from "#/server/viewer/mask-email";
 
 export type { GateReceiptItem, GateRequirement };
 
@@ -18,7 +21,10 @@ export type VisitorGatePage = Readonly<{
   currentRequirement: GateRequirement;
   requiresVerification: boolean;
   receipt: ReadonlyArray<GateReceiptItem>;
-  error?: "wrong_password";
+  maskedEmail?: string;
+  remainingTries?: number;
+  resendAfterSeconds?: number;
+  error?: "wrong_password" | "wrong_code" | "expired_code" | "locked_code";
   retryAfterSeconds?: number;
 }>;
 
@@ -77,15 +83,29 @@ export { currentGateRequirement, gateReceipt } from "#/server/viewer/gate-requir
 export function gatePage(
   link: Pick<VisitorLink, "senderName" | "organizationName" | "requiresVerification">,
   currentRequirement: GateRequirement,
-  progress: Pick<GateProgressRecord, "password" | "email"> | null,
-  extras: Pick<VisitorGatePage, "error" | "retryAfterSeconds"> = {},
+  progress: Pick<
+    GateProgressRecord,
+    "password" | "email" | "codeAttempts" | "codeSentAt" | "codeExpiresAt"
+  > | null,
+  extras: Pick<
+    VisitorGatePage,
+    "error" | "retryAfterSeconds" | "remainingTries" | "resendAfterSeconds"
+  > = {},
 ): VisitorGatePage {
+  const address = capturedEmail(progress);
+  const nowSeconds = Math.floor(Date.now() / 1000);
   return {
     status: "gate",
     ...senderFields(link),
     currentRequirement,
     requiresVerification: link.requiresVerification,
     receipt: gateReceipt(progress),
+    ...(currentRequirement === "code" && address
+      ? {
+          maskedEmail: maskCapturedEmail(address),
+          resendAfterSeconds: gateCodeResendAfterSeconds(progress?.codeSentAt ?? null, nowSeconds),
+        }
+      : {}),
     ...extras,
   };
 }

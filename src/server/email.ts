@@ -14,6 +14,15 @@ function requiredEnvironmentVariable(name: string): string {
   return value;
 }
 
+const emailTransportGlobal = globalThis as typeof globalThis & {
+  bitigFlowEmailTransport?: EmailTransport;
+};
+
+export function getEmailTransport(): EmailTransport {
+  emailTransportGlobal.bitigFlowEmailTransport ??= createMailpitEmailTransport();
+  return emailTransportGlobal.bitigFlowEmailTransport;
+}
+
 export function createMailpitEmailTransport(): EmailTransport {
   const transporter = nodemailer.createTransport({
     host: requiredEnvironmentVariable("SMTP_HOST"),

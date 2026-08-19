@@ -41,7 +41,7 @@ export async function liveVisitForLink(link: Pick<VisitorLink, "id" | "gateVersi
 
 export async function mintVisitorVisit(
   link: VisitorLink,
-  options: { limitVisitCreation?: boolean; email?: string | null } = {},
+  options: { limitVisitCreation?: boolean; email?: string | null; emailVerified?: boolean } = {},
 ): Promise<VisitorPage> {
   const request = getRequest();
   const redis = await getRedis();
@@ -69,7 +69,7 @@ export async function mintVisitorVisit(
       linkId: link.id,
       visitorId,
       email: options.email ?? null,
-      emailVerified: false,
+      emailVerified: options.emailVerified === true,
       gateVersion: link.gateVersion,
       startedAt: now,
       lastSeenAt: now,
