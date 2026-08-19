@@ -27,6 +27,7 @@ import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_au
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as VSlugIndexRouteImport } from './routes/v/$slug.index'
 import { Route as VSlugDocumentIdRouteImport } from './routes/v/$slug.$documentId'
+import { Route as VSlugBeaconRouteImport } from './routes/v/$slug.beacon'
 import { Route as AuthenticatedDashboardDocumentsIndexRouteImport } from './routes/_authenticated/dashboard/documents/index'
 import { Route as AuthenticatedDashboardLinksIndexRouteImport } from './routes/_authenticated/dashboard/links/index'
 import { Route as AuthenticatedDashboardLinksLinkIdRouteImport } from './routes/_authenticated/dashboard/links/$linkId'
@@ -128,6 +129,11 @@ const VSlugDocumentIdRoute = VSlugDocumentIdRouteImport.update({
   path: '/$documentId',
   getParentRoute: () => VSlugRoute,
 } as any)
+const VSlugBeaconRoute = VSlugBeaconRouteImport.update({
+  id: '/beacon',
+  path: '/beacon',
+  getParentRoute: () => VSlugRoute,
+} as any)
 const AuthenticatedDashboardDocumentsIndexRoute =
   AuthenticatedDashboardDocumentsIndexRouteImport.update({
     id: '/documents/',
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
+  '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
+  '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug': typeof VSlugIndexRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
+  '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
   '/_authenticated/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/_authenticated/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
@@ -283,6 +292,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/api/auth/$'
     | '/v/$slug/$documentId'
+    | '/v/$slug/beacon'
     | '/v/$slug/'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/dashboard/settings'
     | '/api/auth/$'
     | '/v/$slug/$documentId'
+    | '/v/$slug/beacon'
     | '/v/$slug'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
@@ -338,6 +349,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/settings'
     | '/api/auth/$'
     | '/v/$slug/$documentId'
+    | '/v/$slug/beacon'
     | '/v/$slug/'
     | '/_authenticated/dashboard/links/$linkId'
     | '/_authenticated/dashboard/vaults/$vaultId'
@@ -489,6 +501,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VSlugDocumentIdRouteImport
       parentRoute: typeof VSlugRoute
     }
+    '/v/$slug/beacon': {
+      id: '/v/$slug/beacon'
+      path: '/beacon'
+      fullPath: '/v/$slug/beacon'
+      preLoaderRoute: typeof VSlugBeaconRouteImport
+      parentRoute: typeof VSlugRoute
+    }
     '/_authenticated/dashboard/documents/': {
       id: '/_authenticated/dashboard/documents/'
       path: '/documents'
@@ -624,12 +643,14 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface VSlugRouteChildren {
   VSlugDocumentIdRoute: typeof VSlugDocumentIdRoute
+  VSlugBeaconRoute: typeof VSlugBeaconRoute
   VSlugIndexRoute: typeof VSlugIndexRoute
   VSlugBytesDocumentIdRoute: typeof VSlugBytesDocumentIdRoute
 }
 
 const VSlugRouteChildren: VSlugRouteChildren = {
   VSlugDocumentIdRoute: VSlugDocumentIdRoute,
+  VSlugBeaconRoute: VSlugBeaconRoute,
   VSlugIndexRoute: VSlugIndexRoute,
   VSlugBytesDocumentIdRoute: VSlugBytesDocumentIdRoute,
 }
