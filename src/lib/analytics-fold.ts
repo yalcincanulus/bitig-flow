@@ -48,6 +48,79 @@ export type AnalyticsLinkDocument = Readonly<{
   pages: ReadonlyArray<{ page: number; ms: number }>;
 }>;
 
+type TimelineDocumentView = {
+  documentId: string;
+  views: number;
+  totalMs: number;
+  downloads: number;
+  pages: Map<number, number>;
+};
+
+function createDocumentView(documentId: string): TimelineDocumentView {
+  return { documentId, views: 1, totalMs: 0, downloads: 0, pages: new Map() };
+}
+
+function viewForEvent(
+  visitViews: TimelineDocumentView[],
+  lastViewByVisit: Map<string, Map<string, TimelineDocumentView>>,
+  event: AnalyticsEventRow,
+) {
+  if (event.documentId === null) return null;
+
+  let lastByDocument = lastViewByVisit.get(event.visitId);
+  if (lastByDocument === undefined) {
+    lastByDocument = new Map();
+    lastViewByVisit.set(event.visitId, lastByDocument);
+  }
+
+  if (event.type === "document_opened") {
+    const viewed = createDocumentView(event.documentId);
+    visitViews.push(viewed);
+    lastByDocument.set(event.documentId, viewed);
+    return viewed;
+  }
+
+  return lastByDocument.get(event.documentId) ?? null;
+}
+
+function accumulateLinkDocument(
+  documents: Map<
+    string,
+    { views: number; totalMs: number; downloads: number; pages: Map<number, number> }
+  >,
+  event: AnalyticsEventRow,
+  dwell: { page: number; ms: number } | null,
+) {
+  if (event.documentId === null) return;
+
+  let document = documents.get(event.documentId);
+  if (document === undefined) {
+    document = { views: 0, totalMs: 0, downloads: 0, pages: new Map() };
+    documents.set(event.documentId, document);
+  }
+
+  if (event.type === "document_opened") document.views += 1;
+  if (event.type === "download") document.downloads += 1;
+  if (dwell !== null) {
+    document.totalMs += dwell.ms;
+    addDwell(document.pages, dwell);
+  }
+}
+
+function foldViewerIdentities(visits: ReturnType<typeof foldAnalytics>["visits"]) {
+  return [
+    ...groupRows(visits, (visit) => visit.viewerIdentity.email ?? visit.viewerIdentity.visitorId),
+  ].map(([, grouped]) => {
+    const latest = grouped[0]!;
+    return {
+      email: latest.viewerIdentity.email,
+      visitorId: latest.viewerIdentity.visitorId,
+      visitCount: grouped.length,
+      visits: grouped,
+    };
+  });
+}
+
 function utcDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
@@ -118,22 +191,24 @@ export function foldAnalytics(
   );
   const scopedVisitIds = new Set(scopedVisits.map((visit) => visit.id));
   const pages = new Map<number, number>();
-  const documentsByVisit = new Map<
+  const viewsByVisit = new Map<string, TimelineDocumentView[]>(
+    scopedVisits.map((visit) => [visit.id, []]),
+  );
+  const lastViewByVisit = new Map<string, Map<string, TimelineDocumentView>>();
+  const linkDocuments = new Map<
     string,
-    Map<
-      string,
-      {
-        views: number;
-        totalMs: number;
-        downloads: number;
-        pages: Map<number, number>;
-      }
-    >
-  >(scopedVisits.map((visit) => [visit.id, new Map()]));
+    { views: number; totalMs: number; downloads: number; pages: Map<number, number> }
+  >();
   let totalMs = 0;
   let downloads = 0;
+  const orderedEvents = [...events].sort(
+    (first, second) =>
+      first.occurredAt.getTime() - second.occurredAt.getTime() ||
+      first.visitId.localeCompare(second.visitId) ||
+      first.type.localeCompare(second.type),
+  );
 
-  for (const event of events) {
+  for (const event of orderedEvents) {
     if (!scopedVisitIds.has(event.visitId)) continue;
     if (event.type === "download") downloads += 1;
     const dwell = event.type === "page_dwell" ? pageDwell(event.payload) : null;
@@ -143,19 +218,16 @@ export function foldAnalytics(
     }
 
     if (event.documentId === null) continue;
-    const visitDocuments = documentsByVisit.get(event.visitId);
-    if (visitDocuments === undefined) continue;
-    let document = visitDocuments.get(event.documentId);
-    if (document === undefined) {
-      document = { views: 0, totalMs: 0, downloads: 0, pages: new Map() };
-      visitDocuments.set(event.documentId, document);
-    }
+    accumulateLinkDocument(linkDocuments, event, dwell);
+    const visitViews = viewsByVisit.get(event.visitId);
+    if (visitViews === undefined) continue;
+    const view = viewForEvent(visitViews, lastViewByVisit, event);
+    if (view === null) continue;
 
-    if (event.type === "document_opened") document.views += 1;
-    if (event.type === "download") document.downloads += 1;
+    if (event.type === "download") view.downloads += 1;
     if (dwell !== null) {
-      document.totalMs += dwell.ms;
-      addDwell(document.pages, dwell);
+      view.totalMs += dwell.ms;
+      addDwell(view.pages, dwell);
     }
   }
 
@@ -175,16 +247,14 @@ export function foldAnalytics(
       startedAt: visit.startedAt,
       lastSeenAt: visit.lastSeenAt,
       viewerIdentity: { email: visit.email, visitorId: visit.visitorId },
-      documents: [...(documentsByVisit.get(visit.id) ?? [])]
-        .sort(([first], [second]) => first.localeCompare(second))
-        .map(([documentId, document]) => ({
-          documentId,
-          views: document.views,
-          totalMs: document.totalMs,
-          pagesRead: document.pages.size,
-          downloads: document.downloads,
-          pages: pageRows(document.pages),
-        })),
+      documents: (viewsByVisit.get(visit.id) ?? []).map((document) => ({
+        documentId: document.documentId,
+        views: document.views,
+        totalMs: document.totalMs,
+        pagesRead: document.pages.size,
+        downloads: document.downloads,
+        pages: pageRows(document.pages),
+      })),
     }));
 
   return {
@@ -198,6 +268,7 @@ export function foldAnalytics(
     },
     lastSeenAt,
     pages: pageRows(pages),
+    documents: foldLinkDocuments(linkDocuments),
     visits: visitRows,
   };
 }
@@ -226,28 +297,11 @@ export function foldAnalyticsOverview<LinkKey extends string>(
 }
 
 function foldLinkDocuments(
-  visits: ReturnType<typeof foldAnalytics>["visits"],
-): Array<AnalyticsLinkDocument> {
-  const documents = new Map<
+  documents: Map<
     string,
     { views: number; totalMs: number; downloads: number; pages: Map<number, number> }
-  >();
-
-  for (const visit of visits) {
-    for (const document of visit.documents) {
-      let aggregated = documents.get(document.documentId);
-      if (aggregated === undefined) {
-        aggregated = { views: 0, totalMs: 0, downloads: 0, pages: new Map() };
-        documents.set(document.documentId, aggregated);
-      }
-
-      aggregated.views += document.views;
-      aggregated.totalMs += document.totalMs;
-      aggregated.downloads += document.downloads;
-      for (const dwell of document.pages) addDwell(aggregated.pages, dwell);
-    }
-  }
-
+  >,
+): Array<AnalyticsLinkDocument> {
   return [...documents]
     .sort(([first], [second]) => first.localeCompare(second))
     .map(([documentId, document]) => ({
@@ -286,6 +340,9 @@ export function foldAnalyticsLink(
     lastSeenAt: folded.lastSeenAt,
     totals: folded.totals,
     pages: folded.pages,
-    documents: foldLinkDocuments(folded.visits),
+    documents: folded.documents,
+    identities: foldViewerIdentities(folded.visits),
   };
 }
+
+export type AnalyticsLinkPayload = ReturnType<typeof foldAnalyticsLink>;

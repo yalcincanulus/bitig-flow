@@ -90,30 +90,107 @@ test("the page aggregate sums Dwell and exposes distinct pages read", () => {
   ]);
 });
 
-test("a Visit keeps its per-Document views, pages read, Total time, and download count", () => {
+test("a Visit keeps a row per Document opened rather than flattening a reopen", () => {
   const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-17" });
   const visits = [visitRow("visit", "2026-08-01T12:00:00.000Z")];
   const events = [
-    eventRow("visit", "document_opened", null),
-    eventRow("visit", "page_dwell", { page: 1, ms: 1_000 }),
-    eventRow("visit", "page_dwell", { page: 1, ms: 500 }),
-    eventRow("visit", "page_dwell", { page: 3, ms: 500 }),
-    eventRow("visit", "download", { via: "button" }),
-    eventRow("visit", "document_opened", null),
-    eventRow("visit", "download", { via: "button" }),
+    eventRow("visit", "document_opened", null, "2026-08-01T12:01:00.000Z"),
+    eventRow("visit", "page_dwell", { page: 1, ms: 1_000 }, "2026-08-01T12:02:00.000Z"),
+    eventRow("visit", "page_dwell", { page: 1, ms: 500 }, "2026-08-01T12:03:00.000Z"),
+    eventRow("visit", "page_dwell", { page: 3, ms: 500 }, "2026-08-01T12:04:00.000Z"),
+    eventRow("visit", "download", { via: "button" }, "2026-08-01T12:05:00.000Z"),
+    eventRow("visit", "document_opened", null, "2026-08-01T12:06:00.000Z"),
+    eventRow("visit", "download", { via: "button" }, "2026-08-01T12:07:00.000Z"),
   ];
 
-  expect(foldAnalytics(visits, events, range).visits[0]?.documents[0]).toEqual({
-    documentId: "document-1",
-    views: 2,
-    totalMs: 2_000,
-    pagesRead: 2,
-    downloads: 2,
-    pages: [
-      { page: 1, ms: 1_500 },
-      { page: 3, ms: 500 },
-    ],
-  });
+  expect(foldAnalytics(visits, events, range).visits[0]?.documents).toEqual([
+    {
+      documentId: "document-1",
+      views: 1,
+      totalMs: 2_000,
+      pagesRead: 2,
+      downloads: 1,
+      pages: [
+        { page: 1, ms: 1_500 },
+        { page: 3, ms: 500 },
+      ],
+    },
+    {
+      documentId: "document-1",
+      views: 1,
+      totalMs: 0,
+      pagesRead: 0,
+      downloads: 1,
+      pages: [],
+    },
+  ]);
+});
+
+test("a Visit that opened nothing still appears", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-17" });
+  const visits = [visitRow("empty", "2026-08-01T12:00:00.000Z")];
+
+  expect(foldAnalytics(visits, [], range).visits).toEqual([
+    {
+      visitId: "empty",
+      linkId: "link-1",
+      startedAt: visits[0]?.startedAt,
+      lastSeenAt: visits[0]?.lastSeenAt,
+      viewerIdentity: { email: null, visitorId: "visitor-empty" },
+      documents: [],
+    },
+  ]);
+});
+
+test("a download without a View does not invent a timeline row", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-17" });
+  const visits = [visitRow("visit", "2026-08-01T12:00:00.000Z")];
+  const events = [eventRow("visit", "download", { via: "button" })];
+
+  expect(foldAnalytics(visits, events, range).visits[0]?.documents).toEqual([]);
+  expect(foldAnalyticsLink(visits, events, range, false).documents).toEqual([
+    {
+      documentId: "document-1",
+      views: 0,
+      totalMs: 0,
+      downloads: 1,
+      pages: [],
+    },
+  ]);
+});
+
+test("the per-Link fold groups Visits by Viewer identity, newest identity first", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-17" });
+  const visits = [
+    visitRow("later-anon", "2026-08-03T12:00:00.000Z", { visitorId: "cookie-later" }),
+    visitRow("second-email", "2026-08-02T12:00:00.000Z", {
+      visitorId: "cookie-b",
+      email: "reader@example.com",
+    }),
+    visitRow("first-email", "2026-08-01T12:00:00.000Z", {
+      visitorId: "cookie-a",
+      email: "reader@example.com",
+    }),
+    visitRow("earlier-anon", "2026-08-01T08:00:00.000Z", { visitorId: "cookie-later" }),
+  ];
+
+  const folded = foldAnalyticsLink(visits, [], range, false);
+
+  expect(folded.identities.map((identity) => identity.visitCount)).toEqual([2, 2]);
+  expect(
+    folded.identities.map((identity) => ({
+      email: identity.email,
+      visitorId: identity.visitorId,
+      visitIds: identity.visits.map((visit) => visit.visitId),
+    })),
+  ).toEqual([
+    { email: null, visitorId: "cookie-later", visitIds: ["later-anon", "earlier-anon"] },
+    {
+      email: "reader@example.com",
+      visitorId: "cookie-b",
+      visitIds: ["second-email", "first-email"],
+    },
+  ]);
 });
 
 test("the per-Link fold flags truncation and rolls Documents up across Visits", () => {
@@ -157,6 +234,56 @@ test("the per-Link fold flags truncation and rolls Documents up across Visits", 
         ],
       },
     ],
+    identities: [
+      {
+        email: null,
+        visitorId: "visitor-second",
+        visitCount: 1,
+        visits: [
+          {
+            visitId: "second",
+            linkId: "link-1",
+            startedAt: visits[1]?.startedAt,
+            lastSeenAt: visits[1]?.lastSeenAt,
+            viewerIdentity: { email: null, visitorId: "visitor-second" },
+            documents: [
+              {
+                documentId: "document-1",
+                views: 1,
+                totalMs: 500,
+                pagesRead: 1,
+                downloads: 1,
+                pages: [{ page: 2, ms: 500 }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        email: null,
+        visitorId: "visitor-first",
+        visitCount: 1,
+        visits: [
+          {
+            visitId: "first",
+            linkId: "link-1",
+            startedAt: visits[0]?.startedAt,
+            lastSeenAt: visits[0]?.lastSeenAt,
+            viewerIdentity: { email: null, visitorId: "visitor-first" },
+            documents: [
+              {
+                documentId: "document-1",
+                views: 1,
+                totalMs: 1_000,
+                pagesRead: 1,
+                downloads: 0,
+                pages: [{ page: 1, ms: 1_000 }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   });
 });
 
@@ -181,10 +308,11 @@ function eventRow(
   type: "document_opened" | "page_dwell" | "download",
   payload: unknown,
   occurredAt = "2026-08-01T12:05:00.000Z",
+  documentId = "document-1",
 ) {
   return {
     visitId,
-    documentId: "document-1",
+    documentId,
     type,
     payload,
     occurredAt: new Date(occurredAt),

@@ -286,8 +286,195 @@ test("a Link's analytics totals match the seeded Visit and Event rows", async ()
         ],
       },
     ],
+    identities: [
+      {
+        email: null,
+        visitorId: endBoundary.visitorId,
+        visitCount: 1,
+        visits: [
+          {
+            visitId: endBoundary.id,
+            linkId: link.id,
+            startedAt: endBoundary.startedAt.toISOString(),
+            lastSeenAt: endBoundary.lastSeenAt.toISOString(),
+            viewerIdentity: { email: null, visitorId: endBoundary.visitorId },
+            documents: [],
+          },
+        ],
+      },
+      {
+        email: "captured@example.com",
+        visitorId: startBoundary.visitorId,
+        visitCount: 1,
+        visits: [
+          {
+            visitId: startBoundary.id,
+            linkId: link.id,
+            startedAt: startBoundary.startedAt.toISOString(),
+            lastSeenAt: startBoundary.lastSeenAt.toISOString(),
+            viewerIdentity: {
+              email: "captured@example.com",
+              visitorId: startBoundary.visitorId,
+            },
+            documents: [
+              {
+                documentId: document.id,
+                views: 1,
+                totalMs: 5_500,
+                pagesRead: 2,
+                downloads: 0,
+                pages: [
+                  { page: 1, ms: 1_500 },
+                  { page: 7, ms: 4_000 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
   });
   expect(JSON.stringify(payload)).not.toContain("Detail Link");
+});
+
+test("a Link's Visit timeline groups Viewer identities and keeps each Document opened", async () => {
+  const fixture = await createOrganizationFixture();
+  const { document, link } = await analyticsLinkFixture(fixture, "Timeline Link");
+  const visitorId = "visitor-abcdefghijklmnop";
+
+  const [returningEmail, emptyVisit, identifiedEarlier, anonymous] = await Promise.all([
+    fixtureVisit(link.id, "2026-08-17T12:00:00.000Z", { email: "lead@example.com" }),
+    fixtureVisit(link.id, "2026-08-16T12:00:00.000Z", { email: "lead@example.com" }),
+    fixtureVisit(link.id, "2026-08-15T12:00:00.000Z", {
+      email: "lead@example.com",
+      visitorId: "other-cookie",
+    }),
+    fixtureVisit(link.id, "2026-08-14T12:00:00.000Z", { visitorId }),
+  ]);
+
+  await Promise.all([
+    createFixtureVisitEvent({
+      visitId: returningEmail.id,
+      documentId: document.id,
+      type: "document_opened",
+      payload: null,
+      occurredAt: new Date("2026-08-17T12:00:10.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: returningEmail.id,
+      documentId: document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 1_000 },
+      occurredAt: new Date("2026-08-17T12:00:20.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: returningEmail.id,
+      documentId: document.id,
+      type: "document_opened",
+      payload: null,
+      occurredAt: new Date("2026-08-17T12:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: returningEmail.id,
+      documentId: document.id,
+      type: "download",
+      payload: { via: "button" },
+      occurredAt: new Date("2026-08-17T12:01:10.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: anonymous.id,
+      documentId: document.id,
+      type: "document_opened",
+      payload: null,
+      occurredAt: new Date("2026-08-14T12:00:10.000Z"),
+    }),
+  ]);
+
+  const response = await callServerFunction(fixture.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsLink",
+    method: "GET",
+    data: { linkId: link.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(200);
+  const payload = await response.json();
+  expect(payload.identities).toEqual([
+    {
+      email: "lead@example.com",
+      visitorId: returningEmail.visitorId,
+      visitCount: 3,
+      visits: [
+        {
+          visitId: returningEmail.id,
+          linkId: link.id,
+          startedAt: returningEmail.startedAt.toISOString(),
+          lastSeenAt: returningEmail.lastSeenAt.toISOString(),
+          viewerIdentity: { email: "lead@example.com", visitorId: returningEmail.visitorId },
+          documents: [
+            {
+              documentId: document.id,
+              views: 1,
+              totalMs: 1_000,
+              pagesRead: 1,
+              downloads: 0,
+              pages: [{ page: 1, ms: 1_000 }],
+            },
+            {
+              documentId: document.id,
+              views: 1,
+              totalMs: 0,
+              pagesRead: 0,
+              downloads: 1,
+              pages: [],
+            },
+          ],
+        },
+        {
+          visitId: emptyVisit.id,
+          linkId: link.id,
+          startedAt: emptyVisit.startedAt.toISOString(),
+          lastSeenAt: emptyVisit.lastSeenAt.toISOString(),
+          viewerIdentity: { email: "lead@example.com", visitorId: emptyVisit.visitorId },
+          documents: [],
+        },
+        {
+          visitId: identifiedEarlier.id,
+          linkId: link.id,
+          startedAt: identifiedEarlier.startedAt.toISOString(),
+          lastSeenAt: identifiedEarlier.lastSeenAt.toISOString(),
+          viewerIdentity: { email: "lead@example.com", visitorId: "other-cookie" },
+          documents: [],
+        },
+      ],
+    },
+    {
+      email: null,
+      visitorId,
+      visitCount: 1,
+      visits: [
+        {
+          visitId: anonymous.id,
+          linkId: link.id,
+          startedAt: anonymous.startedAt.toISOString(),
+          lastSeenAt: anonymous.lastSeenAt.toISOString(),
+          viewerIdentity: { email: null, visitorId },
+          documents: [
+            {
+              documentId: document.id,
+              views: 1,
+              totalMs: 0,
+              pagesRead: 0,
+              downloads: 0,
+              pages: [],
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+  expect(JSON.stringify(payload)).toContain("lead@example.com");
+  expect(JSON.stringify(payload)).not.toContain("l**d@example.com");
 });
 
 test("Analytics distinguishes an Organization that has never received a Visit", async () => {

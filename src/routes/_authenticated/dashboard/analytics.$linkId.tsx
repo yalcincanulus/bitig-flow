@@ -4,6 +4,7 @@ import { ShieldAlertIcon } from "lucide-react";
 
 import { AnalyticsDwellChart } from "#/components/analytics-dwell-chart";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
+import { AnalyticsVisitTimeline } from "#/components/analytics-visit-timeline";
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
@@ -23,7 +24,11 @@ import {
   dwellPagesWithZeros,
   type AnalyticsLinkDocument,
 } from "#/lib/analytics-fold";
-import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
+import {
+  analyticsNumberFormat,
+  formatAnalyticsInstant,
+  formatTotalTime,
+} from "#/lib/analytics-format";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
 import { analyticsTrustworthy } from "#/lib/link-trust";
@@ -44,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/dashboard/analytics/$linkI
 
 function lastActiveIso(value: Date | string | null) {
   if (value === null) return null;
-  return value instanceof Date ? value.toISOString() : value;
+  return formatAnalyticsInstant(value);
 }
 
 function linkLabel(link: { name: string | null; slug: string }) {
@@ -83,8 +88,7 @@ function AnalyticsLinkPage() {
         <PageDescription>
           {lastActive ? (
             <>
-              Last active{" "}
-              <time dateTime={lastActive}>{lastActive.slice(0, 16).replace("T", " ")} UTC</time>.
+              Last active <time dateTime={lastActive.dateTime}>{lastActive.label}</time>.
             </>
           ) : (
             "This Link has not been active in the range."
@@ -171,6 +175,8 @@ function AnalyticsLinkPage() {
           </Card>
         );
       })}
+
+      <AnalyticsVisitTimeline identities={analytics.identities} documents={documentById} />
     </Page>
   );
 }
