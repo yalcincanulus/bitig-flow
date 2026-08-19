@@ -296,6 +296,26 @@ export function foldAnalyticsOverview<LinkKey extends string>(
   };
 }
 
+export function foldAnalyticsDocument<LinkKey extends string>(
+  documentId: string,
+  linkIds: ReadonlyArray<LinkKey>,
+  visits: ReadonlyArray<AnalyticsVisitRow>,
+  events: ReadonlyArray<AnalyticsEventRow>,
+  range: ResolvedAnalyticsRange,
+) {
+  const documentEvents = events.filter((event) => event.documentId === documentId);
+  const visitIds = new Set(documentEvents.map((event) => event.visitId));
+  const documentVisits = visits.filter((visit) => visitIds.has(visit.id));
+  const { range: foldedRange, links } = foldAnalyticsOverview(
+    linkIds,
+    documentVisits,
+    documentEvents,
+    range,
+  );
+
+  return { range: foldedRange, links };
+}
+
 function foldLinkDocuments(
   documents: Map<
     string,

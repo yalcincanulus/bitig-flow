@@ -1,6 +1,11 @@
 import { expect, test } from "vitest";
 
-import { foldAnalytics, foldAnalyticsLink, resolveAnalyticsRange } from "#/lib/analytics-fold";
+import {
+  foldAnalytics,
+  foldAnalyticsDocument,
+  foldAnalyticsLink,
+  resolveAnalyticsRange,
+} from "#/lib/analytics-fold";
 
 test("an absent analytics range resolves to the last 30 UTC dates", () => {
   expect(resolveAnalyticsRange({}, new Date("2026-08-19T23:30:00.000Z"))).toEqual({
@@ -287,15 +292,79 @@ test("the per-Link fold flags truncation and rolls Documents up across Visits", 
   });
 });
 
+test("a Document fold returns one row per Link and no combined total", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-17" });
+  const visits = [
+    visitRow("public", "2026-08-01T12:00:00.000Z", {
+      linkId: "public-link",
+      email: "reader@example.com",
+    }),
+    visitRow("gated", "2026-08-02T12:00:00.000Z", { linkId: "gated-link" }),
+    visitRow("other-document", "2026-08-03T12:00:00.000Z", { linkId: "gated-link" }),
+    visitRow("unrelated", "2026-08-04T12:00:00.000Z", { linkId: "other-link" }),
+  ];
+  const events = [
+    eventRow("public", "page_dwell", { page: 1, ms: 1_500 }),
+    eventRow("gated", "page_dwell", { page: 1, ms: 2_000 }),
+    eventRow("gated", "download", { via: "button" }),
+    eventRow(
+      "other-document",
+      "page_dwell",
+      { page: 1, ms: 9_999 },
+      "2026-08-03T12:05:00.000Z",
+      "document-2",
+    ),
+    eventRow("unrelated", "page_dwell", { page: 1, ms: 8_888 }),
+  ];
+
+  expect(
+    foldAnalyticsDocument(
+      "document-1",
+      ["public-link", "gated-link", "quiet-link"],
+      visits,
+      events,
+      range,
+    ),
+  ).toEqual({
+    range: { from: "2026-08-01", to: "2026-08-17" },
+    links: [
+      {
+        linkId: "public-link",
+        visits: 1,
+        viewerIdentities: 1,
+        emails: 1,
+        totalMs: 1_500,
+        downloads: 0,
+      },
+      {
+        linkId: "gated-link",
+        visits: 1,
+        viewerIdentities: 1,
+        emails: 0,
+        totalMs: 2_000,
+        downloads: 1,
+      },
+      {
+        linkId: "quiet-link",
+        visits: 0,
+        viewerIdentities: 0,
+        emails: 0,
+        totalMs: 0,
+        downloads: 0,
+      },
+    ],
+  });
+});
+
 function visitRow(
   id: string,
   startedAt: string,
-  overrides: Partial<{ visitorId: string; email: string | null }> = {},
+  overrides: Partial<{ visitorId: string; email: string | null; linkId: string }> = {},
 ) {
   const date = new Date(startedAt);
   return {
     id,
-    linkId: "link-1",
+    linkId: overrides.linkId ?? "link-1",
     visitorId: overrides.visitorId ?? `visitor-${id}`,
     email: overrides.email ?? null,
     startedAt: date,

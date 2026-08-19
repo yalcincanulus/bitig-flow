@@ -4,8 +4,12 @@ import { z } from "zod";
 
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { orgMiddleware } from "#/server/auth-middleware";
-import { linkIdSchema } from "#/server/ids";
-import { readAnalyticsLink, readAnalyticsOverview } from "#/server/repositories/analytics";
+import { documentIdSchema, linkIdSchema } from "#/server/ids";
+import {
+  readAnalyticsDocument,
+  readAnalyticsLink,
+  readAnalyticsOverview,
+} from "#/server/repositories/analytics";
 
 export const getAnalytics = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])
@@ -17,6 +21,15 @@ export const getAnalyticsLink = createServerFn({ method: "GET" })
   .validator(analyticsRangeSchema.and(z.object({ linkId: linkIdSchema })))
   .handler(async ({ context, data }) => {
     const found = await readAnalyticsLink(context.orgId, data.linkId, data);
+    if (!found) throw notFound();
+    return found;
+  });
+
+export const getAnalyticsDocument = createServerFn({ method: "GET" })
+  .middleware([orgMiddleware])
+  .validator(analyticsRangeSchema.and(z.object({ documentId: documentIdSchema })))
+  .handler(async ({ context, data }) => {
+    const found = await readAnalyticsDocument(context.orgId, data.documentId, data);
     if (!found) throw notFound();
     return found;
   });

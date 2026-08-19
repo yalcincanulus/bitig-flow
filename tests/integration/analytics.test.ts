@@ -6,6 +6,8 @@ import {
   callServerFunction,
   createFixtureDocument,
   createFixtureLink,
+  createFixtureVault,
+  createFixtureVaultItem,
   createFixtureVisit,
   createFixtureVisitEvent,
   createOrganizationFixture,
@@ -570,6 +572,180 @@ test("a Link's analytics is not-found for another Organization", async () => {
     exportName: "getAnalyticsLink",
     method: "GET",
     data: { linkId: link.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(404);
+});
+
+test("a Document's analytics is one row per reaching Link and has no combined total", async () => {
+  const [first, second] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const document = await createFixtureDocument({
+    organizationId: first.organization.id,
+    createdBy: first.owner.user.id,
+    title: "Shared Document",
+  });
+  const otherDocument = await createFixtureDocument({
+    organizationId: first.organization.id,
+    createdBy: first.owner.user.id,
+    title: "Other Document",
+  });
+  const vault = await createFixtureVault({ organizationId: first.organization.id });
+  await createFixtureVaultItem({ vaultId: vault.id, documentId: document.id });
+
+  const [direct, vaultLink, unrelated, otherOrganization] = await Promise.all([
+    createFixtureLink({
+      organizationId: first.organization.id,
+      createdBy: first.owner.user.id,
+      documentId: document.id,
+      name: "Direct Link",
+    }),
+    createFixtureLink({
+      organizationId: first.organization.id,
+      createdBy: first.owner.user.id,
+      vaultId: vault.id,
+      name: "Vault Link",
+    }),
+    createFixtureLink({
+      organizationId: first.organization.id,
+      createdBy: first.owner.user.id,
+      documentId: otherDocument.id,
+      name: "Unrelated Link",
+    }),
+    analyticsLinkFixture(second, "Other Organization Link"),
+  ]);
+
+  const [directVisit, vaultVisit, otherDocumentVisit, unrelatedVisit, otherOrganizationVisit] =
+    await Promise.all([
+      fixtureVisit(direct.id, "2026-08-01T12:00:00.000Z", { email: "captured@example.com" }),
+      fixtureVisit(vaultLink.id, "2026-08-02T12:00:00.000Z"),
+      fixtureVisit(vaultLink.id, "2026-08-03T12:00:00.000Z"),
+      fixtureVisit(unrelated.id, "2026-08-04T12:00:00.000Z"),
+      fixtureVisit(otherOrganization.link.id, "2026-08-10T12:00:00.000Z"),
+    ]);
+
+  await Promise.all([
+    createFixtureVisitEvent({
+      visitId: directVisit.id,
+      documentId: document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 1_500 },
+      occurredAt: new Date("2026-08-01T12:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: vaultVisit.id,
+      documentId: document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 2_000 },
+      occurredAt: new Date("2026-08-02T12:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: vaultVisit.id,
+      documentId: document.id,
+      type: "download",
+      payload: { via: "button" },
+      occurredAt: new Date("2026-08-02T12:02:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: otherDocumentVisit.id,
+      documentId: otherDocument.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 9_999 },
+      occurredAt: new Date("2026-08-03T12:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: unrelatedVisit.id,
+      documentId: otherDocument.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 8_888 },
+      occurredAt: new Date("2026-08-04T12:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: otherOrganizationVisit.id,
+      documentId: otherOrganization.document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 7_777 },
+      occurredAt: new Date("2026-08-10T12:01:00.000Z"),
+    }),
+  ]);
+
+  const response = await callServerFunction(first.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsDocument",
+    method: "GET",
+    data: { documentId: document.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(200);
+  const payload = await response.json();
+  expect(payload).toEqual({
+    range: { from: "2026-08-01", to: "2026-08-17" },
+    links: expect.arrayContaining([
+      {
+        linkId: direct.id,
+        visits: 1,
+        viewerIdentities: 1,
+        emails: 1,
+        totalMs: 1_500,
+        downloads: 0,
+      },
+      {
+        linkId: vaultLink.id,
+        visits: 1,
+        viewerIdentities: 1,
+        emails: 0,
+        totalMs: 2_000,
+        downloads: 1,
+      },
+    ]),
+  });
+  expect(payload.links).toHaveLength(2);
+  expect(payload).not.toHaveProperty("totals");
+  expect(payload).not.toHaveProperty("allTimeVisits");
+  expect(JSON.stringify(payload)).not.toContain("Direct Link");
+  expect(JSON.stringify(payload)).not.toContain(unrelated.id);
+});
+
+test("a Document in no Links returns an empty Link list", async () => {
+  const fixture = await createOrganizationFixture();
+  const document = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.owner.user.id,
+    title: "Unshared Document",
+  });
+
+  const response = await callServerFunction(fixture.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsDocument",
+    method: "GET",
+    data: { documentId: document.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    range: { from: "2026-08-01", to: "2026-08-17" },
+    links: [],
+  });
+});
+
+test("a Document's analytics is not-found for another Organization", async () => {
+  const [viewer, owner] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const document = await createFixtureDocument({
+    organizationId: owner.organization.id,
+    createdBy: owner.owner.user.id,
+    title: "Secret Document",
+  });
+
+  const response = await callServerFunction(viewer.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsDocument",
+    method: "GET",
+    data: { documentId: document.id, from: "2026-08-01", to: "2026-08-17" },
   });
 
   expect(response.status).toBe(404);

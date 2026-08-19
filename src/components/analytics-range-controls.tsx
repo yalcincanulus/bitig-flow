@@ -10,18 +10,22 @@ type AnalyticsRangeControlsProps = Readonly<{
   from: string;
   to: string;
   linkId?: string;
+  documentId?: string;
 }>;
 
-export function AnalyticsRangeControls({ from, to, linkId }: AnalyticsRangeControlsProps) {
+export function AnalyticsRangeControls({
+  from,
+  to,
+  linkId,
+  documentId,
+}: AnalyticsRangeControlsProps) {
   const navigate = useNavigate();
 
-  function applyRange(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = new FormData(event.currentTarget);
-    const nextFrom = values.get("from");
-    const nextTo = values.get("to");
-    if (typeof nextFrom !== "string" || typeof nextTo !== "string") return;
-    const search = { from: nextFrom, to: nextTo };
+  function goToRange(search: { from?: string; to?: string }) {
+    if (documentId) {
+      void navigate({ to: "/dashboard/documents/$documentId", params: { documentId }, search });
+      return;
+    }
 
     if (linkId) {
       void navigate({ to: "/dashboard/analytics/$linkId", params: { linkId }, search });
@@ -31,13 +35,17 @@ export function AnalyticsRangeControls({ from, to, linkId }: AnalyticsRangeContr
     void navigate({ to: "/dashboard/analytics", search });
   }
 
-  function lastThirtyDays() {
-    if (linkId) {
-      void navigate({ to: "/dashboard/analytics/$linkId", params: { linkId }, search: {} });
-      return;
-    }
+  function applyRange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    const nextFrom = values.get("from");
+    const nextTo = values.get("to");
+    if (typeof nextFrom !== "string" || typeof nextTo !== "string") return;
+    goToRange({ from: nextFrom, to: nextTo });
+  }
 
-    void navigate({ to: "/dashboard/analytics", search: {} });
+  function lastThirtyDays() {
+    goToRange({});
   }
 
   return (

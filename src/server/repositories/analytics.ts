@@ -2,14 +2,16 @@ import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
 
 import {
   ANALYTICS_VISIT_CAP,
+  foldAnalyticsDocument,
   foldAnalyticsLink,
   foldAnalyticsOverview,
   resolveAnalyticsRange,
   type AnalyticsRangeInput,
 } from "#/lib/analytics-fold";
 import { db } from "#/server/db/client";
-import { link, visit, visitEvent, visitEventTypeSchema } from "#/server/db/schema";
-import { linkIdSchema, type LinkId, type OrganizationId } from "#/server/ids";
+import { document, link, visit, visitEvent, visitEventTypeSchema } from "#/server/db/schema";
+import { linkIdSchema, type DocumentId, type LinkId, type OrganizationId } from "#/server/ids";
+import { documentReachableFromLink } from "#/server/viewer/reachability";
 
 const visitColumns = {
   id: visit.id,
@@ -87,4 +89,31 @@ export async function readAnalyticsLink(
   const eventRows = await eventsForVisits(visitRows.map(({ id }) => id));
 
   return foldAnalyticsLink(visitRows, eventRows, range, truncated);
+}
+
+export async function readAnalyticsDocument(
+  orgId: OrganizationId,
+  documentId: DocumentId,
+  input: AnalyticsRangeInput,
+) {
+  const range = resolveAnalyticsRange(input);
+  const [owned] = await db
+    .select({ id: document.id })
+    .from(document)
+    .where(and(eq(document.organizationId, orgId), eq(document.id, documentId)))
+    .limit(1);
+
+  if (!owned) return null;
+
+  const linkRows = await db
+    .select({ id: link.id })
+    .from(link)
+    .where(and(eq(link.organizationId, orgId), documentReachableFromLink(documentId)));
+  const linkIds = linkRows.map(({ id }) => linkIdSchema.parse(id));
+  if (linkIds.length === 0) return foldAnalyticsDocument(documentId, linkIds, [], [], range);
+
+  const visitRows = await db.select(visitColumns).from(visit).where(inArray(visit.linkId, linkIds));
+  const eventRows = await eventsForVisits(visitRows.map(({ id }) => id));
+
+  return foldAnalyticsDocument(documentId, linkIds, visitRows, eventRows, range);
 }
