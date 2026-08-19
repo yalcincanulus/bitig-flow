@@ -129,7 +129,7 @@ Time a visitor spent on one page of one document, accumulated in the browser and
 _Avoid_: time on page, engagement, duration
 
 **Beacon**:
-The anonymous `sendBeacon` write that carries dwell from the viewer to our origin. It is authenticated solely by the visit cookie and is the only analytics writer that is not the server itself.
+The anonymous `sendBeacon` write that carries dwell from the viewer to our origin — for every Document it accumulated against since the last one, not just the one on screen. It is authenticated solely by the visit cookie and is the only analytics writer that is not the server itself.
 _Avoid_: ping, telemetry, tracker
 
 **Visitor id**:
