@@ -24,6 +24,24 @@ function SenderLine({
   );
 }
 
+function Receipt({ receipt }: { receipt: ReadonlyArray<"password"> }) {
+  if (receipt.length === 0) return null;
+  return (
+    <ul className="mb-6 list-none space-y-1 text-sm text-muted-foreground">
+      {receipt.includes("password") ? <li>Password accepted</li> : null}
+    </ul>
+  );
+}
+
+function retryWaitCopy(retryAfterSeconds: number) {
+  const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+  return `Try again in about ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`;
+}
+
+function retryCopy(retryAfterSeconds: number) {
+  return `Too many attempts. ${retryWaitCopy(retryAfterSeconds)}`;
+}
+
 export function ViewerGatePage({ page }: { page: VisitorPage }) {
   if (page.status === "reveal") {
     return (
@@ -40,7 +58,6 @@ export function ViewerGatePage({ page }: { page: VisitorPage }) {
   }
 
   if (page.status === "rate_limited") {
-    const minutes = Math.max(1, Math.ceil(page.retryAfterSeconds / 60));
     return (
       <>
         <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
@@ -48,23 +65,24 @@ export function ViewerGatePage({ page }: { page: VisitorPage }) {
           Too many attempts.
         </h1>
         <p className="mt-3 text-base text-muted-foreground">
-          Try again in about {minutes} {minutes === 1 ? "minute" : "minutes"}.
+          {retryWaitCopy(page.retryAfterSeconds)}
         </p>
       </>
     );
   }
 
   const firstName = viewerSenderFirstName(page.senderName, page.organizationName);
+  const retryAfterSeconds = page.retryAfterSeconds;
+  const limited = retryAfterSeconds !== undefined;
+  const disabled = limited;
 
   return (
     <>
       <SenderLine senderName={page.senderName} organizationName={page.organizationName} />
-      {page.requiresPassword ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-          }}
-        >
+      <Receipt receipt={page.receipt} />
+      {page.currentRequirement === "password" ? (
+        <form method="post">
+          <input type="hidden" name="step" value="password" />
           <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
             {firstName} shared something with you.
           </h1>
@@ -73,12 +91,21 @@ export function ViewerGatePage({ page }: { page: VisitorPage }) {
           </p>
           <Input
             type="password"
-            autoFocus
+            name="password"
+            autoFocus={!disabled}
+            disabled={disabled}
             aria-label="Password"
             className="mt-7 h-14 rounded-lg text-base"
           />
+          {page.error === "wrong_password" ? (
+            <p className="mt-3 text-sm text-destructive">Wrong password.</p>
+          ) : null}
+          {limited ? (
+            <p className="mt-3 text-sm text-muted-foreground">{retryCopy(retryAfterSeconds)}</p>
+          ) : null}
           <button
             type="submit"
+            disabled={disabled}
             className={cn(
               buttonVariants({ variant: "default" }),
               "mt-4 h-14 w-full rounded-lg text-base",

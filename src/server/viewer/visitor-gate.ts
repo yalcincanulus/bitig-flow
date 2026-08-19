@@ -2,12 +2,19 @@ import { count, eq } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
 import { document, link, organization, user, vault, vaultItem } from "#/server/db/schema";
+import type { GateProgressRecord } from "#/server/viewer/gate-progress";
+import { gateReceipt, type GateRequirement } from "#/server/viewer/gate-requirement";
+
+export type { GateRequirement };
 
 export type VisitorGatePage = Readonly<{
   status: "gate";
   senderName: string | null;
   organizationName: string;
-  requiresPassword: boolean;
+  currentRequirement: GateRequirement;
+  receipt: ReadonlyArray<"password">;
+  error?: "wrong_password";
+  retryAfterSeconds?: number;
 }>;
 
 export type VisitorRevealPage = Readonly<{
@@ -32,12 +39,50 @@ export type VisitorLink = Readonly<{
   slug: string;
   senderName: string | null;
   organizationName: string;
+  passwordHash: string | null;
   requiresPassword: boolean;
+  requiresEmail: boolean;
+  requiresVerification: boolean;
   isPublic: boolean;
   gateVersion: number;
   targetTitle: string;
   emptyVault: boolean;
 }>;
+
+export function senderFields(link: { senderName: string | null; organizationName: string }) {
+  return { senderName: link.senderName, organizationName: link.organizationName };
+}
+
+export function revealPage(link: {
+  senderName: string | null;
+  organizationName: string;
+  targetTitle: string;
+  emptyVault: boolean;
+}): VisitorRevealPage {
+  return {
+    status: "reveal",
+    ...senderFields(link),
+    targetTitle: link.targetTitle,
+    emptyVault: link.emptyVault,
+  };
+}
+
+export { currentGateRequirement, gateReceipt } from "#/server/viewer/gate-requirement";
+
+export function gatePage(
+  link: Pick<VisitorLink, "senderName" | "organizationName">,
+  currentRequirement: GateRequirement,
+  progress: Pick<GateProgressRecord, "password"> | null,
+  extras: Pick<VisitorGatePage, "error" | "retryAfterSeconds"> = {},
+): VisitorGatePage {
+  return {
+    status: "gate",
+    ...senderFields(link),
+    currentRequirement,
+    receipt: gateReceipt(progress),
+    ...extras,
+  };
+}
 
 export async function findVisitorLink(slug: string): Promise<VisitorLink | null> {
   const now = new Date();
@@ -86,7 +131,10 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     slug: row.slug,
     senderName: row.senderName,
     organizationName: row.organizationName,
+    passwordHash: row.passwordHash,
     requiresPassword: row.passwordHash !== null,
+    requiresEmail: row.requiresEmail,
+    requiresVerification: row.requiresVerification,
     isPublic: row.passwordHash === null && !row.requiresEmail && !row.requiresVerification,
     gateVersion: row.gateVersion,
     targetTitle,

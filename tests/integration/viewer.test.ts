@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 import { expect } from "vitest";
 
 import { document, link, visit } from "#/server/db/schema";
+import { hashSharePassword } from "#/server/share-password-hash";
+import { credentialGuessLimitKey } from "#/server/viewer/credential-guess-limit";
+import { gateProgressRecordKey } from "#/server/viewer/gate-progress";
 import { liveVisitRecordKey } from "#/server/viewer/live-visit-record";
 
 import {
@@ -495,4 +498,216 @@ test("the visit-creation limiter returns a typed limit on the page once the buck
   expect(
     await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, published.id)),
   ).toHaveLength(30);
+});
+
+async function postPassword(
+  http: typeof fetch,
+  slug: string,
+  password: string,
+  extra: { step?: string; ip?: string } = {},
+) {
+  return http(viewerUrl(slug), {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      ...(extra.ip ? { "x-forwarded-for": extra.ip } : {}),
+    },
+    body: new URLSearchParams({ step: extra.step ?? "password", password }),
+  });
+}
+
+test("the password form POSTs to the Slug, not to a server-function URL", async ({ http }) => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+  });
+
+  const html = await (await getViewer(http, gated.slug)).text();
+  const markup = serverRenderedMarkupOf(html);
+  expect(markup).toMatch(/<form[^>]*method="post"/i);
+  expect(markup).not.toMatch(/\/_serverFn/);
+});
+
+test("a wrong password re-renders the step, does not advance the Receipt, and writes no Visit", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+    requiresEmail: true,
+  });
+  const client = createCookieClient();
+
+  const response = await postPassword(client.http, gated.slug, "wrong-password");
+  const html = await response.text();
+
+  expect(response.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(html))).toContain("Wrong password.");
+  expect(html).not.toContain("Password accepted");
+  expect(html).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+});
+
+test("a right password on a password-only Link mints a Visit, sets the visit cookie, and 303s to the reveal", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+  });
+  const client = createCookieClient();
+
+  const posted = await postPassword(client.http, gated.slug, "launch-gate");
+  expect(posted.status).toBe(303);
+  expect(new URL(posted.headers.get("location") ?? "", process.env.BETTER_AUTH_URL).pathname).toBe(
+    `/v/${gated.slug}`,
+  );
+
+  const visitCookies = cookiesNamed(posted, "visit");
+  expect(visitCookies).toHaveLength(1);
+  expect(cookieAttributes(visitCookies[0] ?? "").path).toBe(`/v/${gated.slug}`);
+
+  const revealed = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await revealed.text();
+  expect(revealed.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(html))).toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toHaveLength(1);
+});
+
+test("a right password on a Link that still has Requirements sets Gate progress and the next GET shows the Receipt", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+    requiresEmail: true,
+  });
+  const client = createCookieClient();
+
+  const posted = await postPassword(client.http, gated.slug, "launch-gate");
+  expect(posted.status).toBe(303);
+
+  const gateCookies = cookiesNamed(posted, "gate");
+  expect(gateCookies).toHaveLength(1);
+  const attributes = cookieAttributes(gateCookies[0] ?? "");
+  expect(attributes.httponly).toBe(true);
+  expect(attributes.path).toBe(`/v/${gated.slug}`);
+  const opaqueId = decodeURIComponent((gateCookies[0] ?? "").split("=")[1]?.split(";")[0] ?? "");
+  expect(JSON.parse((await redis.get(gateProgressRecordKey(opaqueId))) ?? "null")).toEqual({
+    link_id: gated.id,
+    gate_version: gated.gateVersion,
+    password: true,
+  });
+
+  const next = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await next.text();
+  expect(next.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(html))).toContain("Password accepted");
+  expect(html).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+});
+
+test("an out-of-order password POST is rejected and the current step is unchanged", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+  });
+  const client = createCookieClient();
+
+  const response = await postPassword(client.http, gated.slug, "launch-gate");
+  const html = await response.text();
+
+  expect(response.status).toBe(200);
+  expect(html).not.toContain("Password accepted");
+  expect(html).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+});
+
+test("ten wrong guesses in 15 minutes return 429 with Retry-After; a correct password deletes the credential key", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+  });
+  const attackerIp = "203.0.113.81";
+  const salt = process.env.GATE_RATELIMIT_SALT!;
+  const client = createCookieClient();
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const wrong = await postPassword(client.http, gated.slug, "wrong-password", { ip: attackerIp });
+    expect(wrong.status).toBe(200);
+    expect(textOf(serverRenderedMarkupOf(await wrong.text()))).toContain("Wrong password.");
+  }
+
+  const limited = await postPassword(createCookieClient().http, gated.slug, "wrong-password", {
+    ip: attackerIp,
+  });
+  const limitedHtml = await limited.text();
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get("retry-after")).toEqual(expect.any(String));
+  expect(textOf(serverRenderedMarkupOf(limitedHtml))).toMatch(/too many attempts/i);
+  expect(limitedHtml).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+  expect(await redis.get(credentialGuessLimitKey(gated.id, attackerIp, salt))).not.toBeNull();
+
+  const accepted = await postPassword(createCookieClient().http, gated.slug, "launch-gate", {
+    ip: attackerIp,
+  });
+  expect(accepted.status).toBe(303);
+  expect(await redis.get(credentialGuessLimitKey(gated.id, attackerIp, salt))).toBeNull();
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toHaveLength(1);
 });

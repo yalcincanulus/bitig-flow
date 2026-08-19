@@ -10,11 +10,16 @@ import {
 
 const functionTierNames: ReadonlySet<string> = new Set(["authedMiddleware", "orgMiddleware"]);
 
-// A server route is stricter than a server function: the routes we own serve organization-owned
+// A server route is stricter than a server function: Dashboard routes serve organization-owned
 // bytes, so being signed in is not a tier — the request must be scoped to an organization.
-// `server.middleware` takes request middleware. `orgMiddleware` is request-type so a byte route
-// can declare the same tier the scan looks for.
-const routeTierNames: ReadonlySet<string> = new Set(["orgMiddleware"]);
+// Viewer Gate POSTs declare a fourth credential instead: the Path-scoped Gate cookie, never
+// `orgMiddleware`. `server.middleware` takes request middleware so a route can name its credential.
+const dashboardRouteTierNames: ReadonlySet<string> = new Set(["orgMiddleware"]);
+const viewerRouteTierNames: ReadonlySet<string> = new Set(["gateCredential"]);
+
+function routeTierNamesFor(name: string): ReadonlySet<string> {
+  return /(?:^|\/)src\/routes\/v\//.test(name) ? viewerRouteTierNames : dashboardRouteTierNames;
+}
 
 export type TierDeclaration = Readonly<{
   name: string;
@@ -237,7 +242,7 @@ export function serverRoutesIn(name: string, source: string): TierDeclaration[] 
         // Only route-level middleware counts. Handler-level middleware would leave every handler
         // nobody annotated uncovered, which is the mistake this scan exists to catch.
         declaresTier:
-          middleware !== undefined && arrayNamesTierMiddleware(middleware, routeTierNames),
+          middleware !== undefined && arrayNamesTierMiddleware(middleware, routeTierNamesFor(name)),
       });
     },
   }).visit(parsed.program);

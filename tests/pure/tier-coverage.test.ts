@@ -144,6 +144,75 @@ test("a route with no server block is not a server route", () => {
   expect(serverRoutesIn("src/routes/dashboard.tsx", source)).toEqual([]);
 });
 
+test("a Viewer Gate POST declaring gateCredential passes", () => {
+  const source = `
+    import { createFileRoute } from "@tanstack/react-router";
+
+    export const Route = createFileRoute("/v/$slug")({
+      server: {
+        middleware: [gateCredential],
+        handlers: {
+          POST: () => new Response(null, { status: 303 }),
+        },
+      },
+    });
+  `;
+
+  expect(serverRoutesIn("src/routes/v/$slug.tsx", source)).toEqual([
+    { name: "src/routes/v/$slug.tsx", declaresTier: true },
+  ]);
+});
+
+test("orgMiddleware is not a Viewer Gate credential", () => {
+  const source = `
+    import { createFileRoute } from "@tanstack/react-router";
+
+    export const Route = createFileRoute("/v/$slug")({
+      server: {
+        middleware: [orgMiddleware],
+        handlers: { POST: () => new Response(null, { status: 303 }) },
+      },
+    });
+  `;
+
+  expect(serverRoutesIn("src/routes/v/$slug.tsx", source)).toEqual([
+    { name: "src/routes/v/$slug.tsx", declaresTier: false },
+  ]);
+});
+
+test("gateCredential does not tier a Dashboard byte route", () => {
+  const source = `
+    import { createFileRoute } from "@tanstack/react-router";
+
+    export const Route = createFileRoute("/api/documents/$documentId/bytes")({
+      server: {
+        middleware: [gateCredential],
+        handlers: { GET: () => new Response("leak") },
+      },
+    });
+  `;
+
+  expect(serverRoutesIn("src/routes/api/documents/$documentId/bytes.ts", source)).toEqual([
+    { name: "src/routes/api/documents/$documentId/bytes.ts", declaresTier: false },
+  ]);
+});
+
+test("a Dashboard byte route without orgMiddleware still fails", () => {
+  const source = `
+    import { createFileRoute } from "@tanstack/react-router";
+
+    export const Route = createFileRoute("/api/documents/$documentId/bytes")({
+      server: {
+        handlers: { GET: () => new Response("leak") },
+      },
+    });
+  `;
+
+  expect(serverRoutesIn("src/routes/api/documents/$documentId/bytes.ts", source)).toEqual([
+    { name: "src/routes/api/documents/$documentId/bytes.ts", declaresTier: false },
+  ]);
+});
+
 test("handler-level middleware does not stand in for a route-level tier", () => {
   const source = `
     import { createFileRoute } from "@tanstack/react-router";
