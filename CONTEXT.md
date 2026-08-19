@@ -112,6 +112,14 @@ _Avoid_: capability, scope, grant, right
 
 ### Analytics
 
+**Viewer identity**:
+The non-transitive identity used to group Visits: a captured email when present, otherwise the Visitor id. Distinct Viewer identities are what analytics calls unique visitors.
+_Avoid_: unique Visitor id, person
+
+**Total time**:
+The sum of Dwell recorded within an analytics scope.
+_Avoid_: engagement time, time spent
+
 **Visit**:
 One visitor's gated session on one link — created the moment its gate is satisfied, and expiring on its own schedule. The unit every analytics event hangs from.
 _Avoid_: session, visitor session, access
