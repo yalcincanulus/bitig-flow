@@ -388,6 +388,9 @@ export function LinkWriteDialog({
               />
               <FieldContent>
                 <FieldLabel htmlFor="link-allow-download">Allow download</FieldLabel>
+                <FieldDescription>
+                  This discourages rather than prevents downloading.
+                </FieldDescription>
               </FieldContent>
             </Field>
             <Field>

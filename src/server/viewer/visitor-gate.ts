@@ -41,6 +41,7 @@ type VisitorContentShared = Readonly<{
   senderName: string | null;
   organizationName: string;
   allowDownload: boolean;
+  slug: string;
   title: string;
 }>;
 
@@ -57,6 +58,7 @@ export type VisitorPdfContent = VisitorContentShared &
     documentId: DocumentId;
     pageCount: number | null;
     fileName: string | null;
+    bytesPending: boolean;
   }>;
 
 export type VisitorImageContent = VisitorContentShared &
@@ -64,6 +66,7 @@ export type VisitorImageContent = VisitorContentShared &
     kind: "image";
     documentId: DocumentId;
     fileName: string | null;
+    bytesPending: boolean;
   }>;
 
 export type VisitorVaultContent = VisitorContentShared &

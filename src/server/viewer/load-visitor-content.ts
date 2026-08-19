@@ -38,6 +38,7 @@ export async function loadVisitorContent(
     status: "content" as const,
     ...senderFields(link),
     allowDownload: link.allowDownload,
+    slug: link.slug,
   };
 
   if (!link.documentId) {
@@ -57,6 +58,7 @@ export async function loadVisitorContent(
       content: document.content,
       pageCount: document.pageCount,
       fileName: document.fileName,
+      documentStatus: document.status,
     })
     .from(document)
     .where(eq(document.id, link.documentId))
@@ -83,6 +85,7 @@ export async function loadVisitorContent(
       title: found.title,
       pageCount: found.pageCount,
       fileName: found.fileName,
+      bytesPending: found.documentStatus === "pending",
     };
   }
 
@@ -92,5 +95,6 @@ export async function loadVisitorContent(
     documentId,
     title: found.title,
     fileName: found.fileName,
+    bytesPending: found.documentStatus === "pending",
   };
 }

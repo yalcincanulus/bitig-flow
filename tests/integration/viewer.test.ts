@@ -16,6 +16,7 @@ import {
   createCookieClient,
   createFixtureDocument,
   createFixtureLink,
+  createFixturePendingDocument,
   createFixtureUploadedDocument,
   createFixtureVault,
   createFixtureVaultItem,
@@ -361,7 +362,7 @@ test("opening a markdown Document appends document_opened once per open, includi
   ]);
 });
 
-test("GET of a public pdf Link renders the title and page count, and an image Link renders the title", async () => {
+test("GET of a public pdf Link renders the title and page count, and an image Link renders the image at the byte route", async () => {
   const fixture = await createOrganizationFixture();
   const [pdf, image] = await Promise.all([
     createFixtureUploadedDocument({
@@ -407,6 +408,124 @@ test("GET of a public pdf Link renders the title and page count, and an image Li
   const imageMarkup = serverRenderedMarkupOf(await imageResponse.text());
   expect(imageResponse.status).toBe(200);
   expect(textOf(imageMarkup)).toContain("screenshot.png");
+  expect(imageMarkup).toContain(`<img src="${viewerBytesUrl(imageLink.slug, image.id)}"`);
+});
+
+test("a pending image or pdf Document renders an uploading state with Retry, and byte retries append no Events", async () => {
+  const fixture = await createOrganizationFixture();
+  const [pendingImage, pendingPdf] = await Promise.all([
+    createFixturePendingDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      kind: "image",
+      fileName: "uploading.png",
+    }),
+    createFixturePendingDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      kind: "pdf",
+      fileName: "uploading.pdf",
+    }),
+  ]);
+  const [imageLink, pdfLink] = await Promise.all([
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: pendingImage.id,
+    }),
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: pendingPdf.id,
+    }),
+  ]);
+  const visitor = createCookieClient();
+
+  const imageResponse = await visitor.http(viewerUrl(imageLink.slug), { redirect: "manual" });
+  const imageMarkup = serverRenderedMarkupOf(await imageResponse.text());
+  expect(imageResponse.status).toBe(200);
+  expect(textOf(imageMarkup)).toContain("This Document is still uploading.");
+  expect(imageMarkup).toMatch(/<button[^>]*type="button"[^>]*>Retry<\/button>/);
+  expect(imageMarkup).not.toContain("<img ");
+  expect(imageMarkup).not.toMatch(/<form[\s\S]*Retry/);
+
+  const pdfResponse = await visitor.http(viewerUrl(pdfLink.slug), { redirect: "manual" });
+  const pdfMarkup = serverRenderedMarkupOf(await pdfResponse.text());
+  expect(pdfResponse.status).toBe(200);
+  expect(textOf(pdfMarkup)).toContain("This Document is still uploading.");
+  expect(pdfMarkup).toMatch(/<button[^>]*type="button"[^>]*>Retry<\/button>/);
+
+  const bytesUrl = new URL(
+    viewerBytesUrl(imageLink.slug, pendingImage.id),
+    process.env.BETTER_AUTH_URL,
+  );
+  expect((await visitor.http(bytesUrl, { redirect: "manual" })).status).toBe(409);
+  expect((await visitor.http(bytesUrl, { redirect: "manual" })).status).toBe(409);
+  expect((await visitor.http(bytesUrl, { redirect: "manual" })).status).toBe(409);
+
+  const events = await database
+    .select({ type: visitEvent.type, documentId: visitEvent.documentId })
+    .from(visitEvent)
+    .innerJoin(visit, eq(visit.id, visitEvent.visitId))
+    .where(eq(visit.linkId, imageLink.id));
+
+  expect(events).toEqual([{ type: "document_opened", documentId: pendingImage.id }]);
+});
+
+test("the Download control follows allow_download and never calls the flag protected or secure", async () => {
+  const fixture = await createOrganizationFixture();
+  const [allowed, refused] = await Promise.all([
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "image/png",
+      fileName: "board-deck.png",
+      bytes: readUploadSample("pixel.png"),
+    }),
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "image/png",
+      fileName: "internal.png",
+      bytes: readUploadSample("pixel.png"),
+    }),
+  ]);
+  const [allowedLink, refusedLink] = await Promise.all([
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: allowed.id,
+      allowDownload: true,
+    }),
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      documentId: refused.id,
+      allowDownload: false,
+    }),
+  ]);
+
+  const allowedMarkup = serverRenderedMarkupOf(
+    await (
+      await createCookieClient().http(viewerUrl(allowedLink.slug), { redirect: "manual" })
+    ).text(),
+  );
+  expect(allowedMarkup).toContain(
+    `href="${viewerBytesUrl(allowedLink.slug, allowed.id, { download: true })}"`,
+  );
+  expect(textOf(allowedMarkup)).toContain("Download");
+  expect(textOf(allowedMarkup)).not.toContain("Downloading is disabled for this link");
+  expect(textOf(allowedMarkup).toLowerCase()).not.toMatch(/protected|secure/);
+
+  const refusedMarkup = serverRenderedMarkupOf(
+    await (
+      await createCookieClient().http(viewerUrl(refusedLink.slug), { redirect: "manual" })
+    ).text(),
+  );
+  expect(refusedMarkup).not.toContain("?download=button");
+  expect(textOf(refusedMarkup)).toContain("Downloading is disabled for this link");
+  expect(textOf(refusedMarkup)).not.toMatch(/\bDownload\b/);
+  expect(textOf(refusedMarkup).toLowerCase()).not.toMatch(/protected|secure/);
 });
 
 test("opening a Vault Link writes no document_opened", async () => {

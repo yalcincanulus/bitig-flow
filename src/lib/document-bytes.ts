@@ -19,8 +19,9 @@ export function dashboardResolveImage(readyImageIds: ReadonlySet<string>) {
   };
 }
 
-export function viewerBytesUrl(slug: string, documentId: string) {
-  return `/v/${slug}/bytes/${documentId}`;
+export function viewerBytesUrl(slug: string, documentId: string, options?: { download?: boolean }) {
+  const path = `/v/${slug}/bytes/${documentId}`;
+  return options?.download ? `${path}?download=button` : path;
 }
 
 export function viewerResolveImage(slug: string, referencedDocumentIds: ReadonlySet<string>) {
