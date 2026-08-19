@@ -17,7 +17,10 @@ export type DashboardPlace =
     }>
   | Readonly<{ destination: "vaults"; vault?: Readonly<{ id: string; name?: string }> }>
   | Readonly<{ destination: "links"; link?: Readonly<{ id: string; slug?: string }> }>
-  | Readonly<{ destination: "analytics" }>
+  | Readonly<{
+      destination: "analytics";
+      link?: Readonly<{ id: string; name?: string | null; slug?: string }>;
+    }>
   | Readonly<{ destination: "settings" }>;
 
 export type DashboardCrumb = Readonly<{
@@ -88,6 +91,12 @@ export function dashboardBreadcrumbs(place: DashboardPlace): Array<DashboardCrum
     case "links": {
       if (place.link) {
         crumbs.push(labelledCrumb("link", "Link", place.link.slug));
+      }
+      break;
+    }
+    case "analytics": {
+      if (place.link) {
+        crumbs.push(labelledCrumb("link", "Link", place.link.name || place.link.slug));
       }
       break;
     }

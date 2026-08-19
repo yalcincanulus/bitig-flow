@@ -1,5 +1,7 @@
 import { expect, test } from "vitest";
 
+import { ANALYTICS_VISIT_CAP } from "#/lib/analytics-fold";
+
 import {
   callServerFunction,
   createFixtureDocument,
@@ -193,6 +195,101 @@ test("Analytics applies the last 30 UTC dates when no range is given", async () 
   });
 });
 
+test("a Link's analytics totals match the seeded Visit and Event rows", async () => {
+  const [first, second] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const [{ document, link }, otherOrganization] = await Promise.all([
+    analyticsLinkFixture(first, "Detail Link"),
+    analyticsLinkFixture(second, "Other Organization Link"),
+  ]);
+
+  const [startBoundary, endBoundary, , otherOrganizationVisit] = await Promise.all([
+    fixtureVisit(link.id, "2026-08-01T00:00:00.000Z", { email: "captured@example.com" }),
+    fixtureVisit(link.id, "2026-08-17T23:59:59.999Z"),
+    fixtureVisit(link.id, "2026-07-31T23:59:59.999Z"),
+    fixtureVisit(otherOrganization.link.id, "2026-08-10T12:00:00.000Z"),
+  ]);
+
+  await Promise.all([
+    createFixtureVisitEvent({
+      visitId: startBoundary.id,
+      documentId: document.id,
+      type: "document_opened",
+      payload: null,
+      occurredAt: new Date("2026-08-01T00:00:30.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: startBoundary.id,
+      documentId: document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 1_500 },
+      occurredAt: new Date("2026-08-01T00:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: startBoundary.id,
+      documentId: document.id,
+      type: "page_dwell",
+      payload: { page: 7, ms: 4_000 },
+      occurredAt: new Date("2026-08-01T00:02:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: endBoundary.id,
+      documentId: document.id,
+      type: "download",
+      payload: { via: "button" },
+      occurredAt: new Date("2026-08-18T00:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: otherOrganizationVisit.id,
+      documentId: otherOrganization.document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 8_888 },
+      occurredAt: new Date("2026-08-10T12:01:00.000Z"),
+    }),
+  ]);
+
+  const response = await callServerFunction(first.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsLink",
+    method: "GET",
+    data: { linkId: link.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(200);
+  const payload = await response.json();
+  expect(payload).toEqual({
+    range: { from: "2026-08-01", to: "2026-08-17" },
+    truncated: false,
+    lastSeenAt: endBoundary.lastSeenAt.toISOString(),
+    totals: {
+      visits: 2,
+      viewerIdentities: 2,
+      emails: 1,
+      totalMs: 5_500,
+      downloads: 1,
+    },
+    pages: [
+      { page: 1, ms: 1_500 },
+      { page: 7, ms: 4_000 },
+    ],
+    documents: [
+      {
+        documentId: document.id,
+        views: 1,
+        totalMs: 5_500,
+        downloads: 1,
+        pages: [
+          { page: 1, ms: 1_500 },
+          { page: 7, ms: 4_000 },
+        ],
+      },
+    ],
+  });
+  expect(JSON.stringify(payload)).not.toContain("Detail Link");
+});
+
 test("Analytics distinguishes an Organization that has never received a Visit", async () => {
   const fixture = await createOrganizationFixture();
   const { link } = await analyticsLinkFixture(fixture, "Unvisited Link");
@@ -219,4 +316,74 @@ test("Analytics distinguishes an Organization that has never received a Visit", 
       },
     ],
   });
+});
+
+test("a Link's analytics flags the Visit cap instead of presenting a truncated total", async () => {
+  const fixture = await createOrganizationFixture();
+  const { document, link } = await analyticsLinkFixture(fixture, "Capped Link");
+  const rangeStart = new Date("2026-08-01T00:00:00.000Z");
+  const visits = await Promise.all(
+    Array.from({ length: ANALYTICS_VISIT_CAP + 1 }, (_, index) =>
+      fixtureVisit(link.id, new Date(rangeStart.getTime() + index * 60_000).toISOString(), {
+        visitorId: `capped-visitor-${index}`,
+      }),
+    ),
+  );
+  const oldest = visits[0]!;
+  const newest = visits[ANALYTICS_VISIT_CAP]!;
+
+  await Promise.all([
+    createFixtureVisitEvent({
+      visitId: oldest.id,
+      documentId: document.id,
+      type: "download",
+      payload: { via: "button" },
+      occurredAt: new Date("2026-08-01T00:01:00.000Z"),
+    }),
+    createFixtureVisitEvent({
+      visitId: newest.id,
+      documentId: document.id,
+      type: "page_dwell",
+      payload: { page: 1, ms: 1_000 },
+      occurredAt: new Date("2026-08-01T08:21:00.000Z"),
+    }),
+  ]);
+
+  const response = await callServerFunction(fixture.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsLink",
+    method: "GET",
+    data: { linkId: link.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(
+    expect.objectContaining({
+      truncated: true,
+      totals: {
+        visits: ANALYTICS_VISIT_CAP,
+        viewerIdentities: ANALYTICS_VISIT_CAP,
+        emails: 0,
+        totalMs: 1_000,
+        downloads: 0,
+      },
+    }),
+  );
+});
+
+test("a Link's analytics is not-found for another Organization", async () => {
+  const [viewer, owner] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const { link } = await analyticsLinkFixture(owner, "Secret Link");
+
+  const response = await callServerFunction(viewer.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "getAnalyticsLink",
+    method: "GET",
+    data: { linkId: link.id, from: "2026-08-01", to: "2026-08-17" },
+  });
+
+  expect(response.status).toBe(404);
 });

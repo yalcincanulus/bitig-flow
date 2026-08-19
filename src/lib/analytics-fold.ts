@@ -29,6 +29,8 @@ export type AnalyticsEventRow = {
   occurredAt: Date;
 };
 
+export const ANALYTICS_VISIT_CAP = 500;
+
 export type AnalyticsOverviewLink<LinkKey extends string = string> = Readonly<{
   linkId: LinkKey;
   visits: number;
@@ -36,6 +38,14 @@ export type AnalyticsOverviewLink<LinkKey extends string = string> = Readonly<{
   emails: number;
   totalMs: number;
   downloads: number;
+}>;
+
+export type AnalyticsLinkDocument = Readonly<{
+  documentId: string;
+  views: number;
+  totalMs: number;
+  downloads: number;
+  pages: ReadonlyArray<{ page: number; ms: number }>;
 }>;
 
 function utcDate(value: string) {
@@ -212,5 +222,70 @@ export function foldAnalyticsOverview<LinkKey extends string>(
     range: { from: range.from, to: range.to },
     allTimeVisits: visits.length,
     links,
+  };
+}
+
+function foldLinkDocuments(
+  visits: ReturnType<typeof foldAnalytics>["visits"],
+): Array<AnalyticsLinkDocument> {
+  const documents = new Map<
+    string,
+    { views: number; totalMs: number; downloads: number; pages: Map<number, number> }
+  >();
+
+  for (const visit of visits) {
+    for (const document of visit.documents) {
+      let aggregated = documents.get(document.documentId);
+      if (aggregated === undefined) {
+        aggregated = { views: 0, totalMs: 0, downloads: 0, pages: new Map() };
+        documents.set(document.documentId, aggregated);
+      }
+
+      aggregated.views += document.views;
+      aggregated.totalMs += document.totalMs;
+      aggregated.downloads += document.downloads;
+      for (const dwell of document.pages) addDwell(aggregated.pages, dwell);
+    }
+  }
+
+  return [...documents]
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([documentId, document]) => ({
+      documentId,
+      views: document.views,
+      totalMs: document.totalMs,
+      downloads: document.downloads,
+      pages: pageRows(document.pages),
+    }));
+}
+
+export function dwellPagesWithZeros(
+  pageCount: number | null,
+  pages: ReadonlyArray<{ page: number; ms: number }>,
+) {
+  const dwell = new Map(pages.map((row) => [row.page, row.ms]));
+  const lastPage = Math.max(pageCount ?? 0, ...dwell.keys(), 0);
+
+  return Array.from({ length: lastPage }, (_, index) => {
+    const page = index + 1;
+    return { page, ms: dwell.get(page) ?? 0 };
+  });
+}
+
+export function foldAnalyticsLink(
+  visits: ReadonlyArray<AnalyticsVisitRow>,
+  events: ReadonlyArray<AnalyticsEventRow>,
+  range: ResolvedAnalyticsRange,
+  truncated: boolean,
+) {
+  const folded = foldAnalytics(visits, events, range);
+
+  return {
+    range: folded.range,
+    truncated,
+    lastSeenAt: folded.lastSeenAt,
+    totals: folded.totals,
+    pages: folded.pages,
+    documents: foldLinkDocuments(folded.visits),
   };
 }

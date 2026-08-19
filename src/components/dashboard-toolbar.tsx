@@ -39,6 +39,10 @@ function useDashboardPlace(): DashboardPlace | undefined {
     from: "/_authenticated/dashboard/links/$linkId",
     shouldThrow: false,
   });
+  const analyticsLink = useMatch({
+    from: "/_authenticated/dashboard/analytics/$linkId",
+    shouldThrow: false,
+  });
 
   if (documentEdit) {
     return {
@@ -70,6 +74,17 @@ function useDashboardPlace(): DashboardPlace | undefined {
 
   if (link) {
     return { destination: "links", link: { id: link.params.linkId, slug: link.loaderData?.slug } };
+  }
+
+  if (analyticsLink) {
+    return {
+      destination: "analytics",
+      link: {
+        id: analyticsLink.params.linkId,
+        name: analyticsLink.loaderData?.link.name,
+        slug: analyticsLink.loaderData?.link.slug,
+      },
+    };
   }
 
   return dashboardDestinationIds

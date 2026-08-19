@@ -401,6 +401,7 @@ test("a missing Document, Vault, or Link cold load keeps Chrome around the conte
     `/dashboard/documents/${missingId}/edit`,
     `/dashboard/vaults/${missingId}`,
     `/dashboard/links/${missingId}`,
+    `/dashboard/analytics/${missingId}`,
   ]) {
     const response = await fixture.member.http(new URL(path, process.env.BETTER_AUTH_URL), {
       redirect: "manual",
@@ -446,6 +447,7 @@ test("a Document, Vault, or Link from another Organization is not-found without 
     [`/dashboard/documents/${foreignDocument.id}`, foreignDocument.title],
     [`/dashboard/vaults/${foreignVault.id}`, foreignVault.name],
     [`/dashboard/links/${foreignLink.id}`, foreignLink.slug],
+    [`/dashboard/analytics/${foreignLink.id}`, foreignLink.slug],
   ] as const) {
     const response = await viewer.member.http(new URL(path, process.env.BETTER_AUTH_URL), {
       redirect: "manual",
@@ -458,6 +460,30 @@ test("a Document, Vault, or Link from another Organization is not-found without 
     expect(serverRenderedMarkup, path).toContain('aria-label="Loading Dashboard"');
     expect(html, path).not.toContain(leaked);
   }
+});
+
+test("an analytics Link breadcrumb hangs the Link under a navigable Analytics", async () => {
+  const fixture = await createOrganizationFixture();
+  const fixtureDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+  });
+  const fixtureLink = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: fixtureDocument.id,
+  });
+
+  const response = await fixture.member.http(
+    new URL(`/dashboard/analytics/${fixtureLink.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const trail = breadcrumbTrail(serverRenderedMarkupOf(await response.text()));
+
+  expect(response.status).toBe(200);
+  expect(trail).toContain('href="/dashboard/analytics"');
+  expect(trail).toContain(">Link</span>");
+  expect(trail).not.toContain(fixtureLink.id);
 });
 
 test("a Link detail breadcrumb hangs the Link under a navigable Links", async () => {

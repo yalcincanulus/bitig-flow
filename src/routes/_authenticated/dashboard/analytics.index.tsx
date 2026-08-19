@@ -1,8 +1,9 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import { ChartNoAxesCombinedIcon, ShieldAlertIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 
+import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
@@ -15,8 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "#/components/ui/empty";
-import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
-import { Input } from "#/components/ui/input";
+import { Field, FieldLabel } from "#/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -26,12 +26,13 @@ import {
   SelectValue,
 } from "#/components/ui/select";
 import { getCollections } from "#/db-collections";
+import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { analyticsTrustworthy } from "#/lib/link-trust";
 import { getAnalytics } from "#/server/functions/analytics";
 
-export const Route = createFileRoute("/_authenticated/dashboard/analytics")({
+export const Route = createFileRoute("/_authenticated/dashboard/analytics/")({
   validateSearch: analyticsRangeSchema,
   loaderDeps: ({ search: { from, to } }) => ({ from, to }),
   loader: ({ deps }) => getAnalytics({ data: deps }),
@@ -48,75 +49,8 @@ const sortOptions = [
 
 type SortKey = (typeof sortOptions)[number]["value"];
 
-const numberFormat = new Intl.NumberFormat();
-
 function isSortKey(value: unknown): value is SortKey {
   return sortOptions.some((option) => option.value === value);
-}
-
-function formatTotalTime(milliseconds: number) {
-  if (milliseconds < 1_000) return `${numberFormat.format(milliseconds)} ms`;
-  const totalSeconds = Math.floor(milliseconds / 1_000);
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-}
-
-function RangeControls({ from, to }: Readonly<{ from: string; to: string }>) {
-  const navigate = useNavigate();
-
-  function applyRange(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = new FormData(event.currentTarget);
-    const nextFrom = values.get("from");
-    const nextTo = values.get("to");
-    if (typeof nextFrom !== "string" || typeof nextTo !== "string") return;
-
-    void navigate({
-      to: "/dashboard/analytics",
-      search: { from: nextFrom, to: nextTo },
-    });
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Date range</CardTitle>
-        <CardDescription>
-          Active range: <time dateTime={from}>{from}</time> through <time dateTime={to}>{to}</time>,
-          using the UTC clock.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form key={`${from}:${to}`} onSubmit={applyRange}>
-          <FieldGroup className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,12rem)_auto] sm:items-end">
-            <Field>
-              <FieldLabel htmlFor="analytics-from">From</FieldLabel>
-              <Input id="analytics-from" name="from" type="date" defaultValue={from} required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="analytics-to">To</FieldLabel>
-              <Input id="analytics-to" name="to" type="date" defaultValue={to} required />
-            </Field>
-            <Field orientation="horizontal" className="flex-wrap">
-              <Button type="submit">Apply range</Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void navigate({ to: "/dashboard/analytics", search: {} })}
-              >
-                Last 30 days
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
-  );
 }
 
 function AnalyticsPage() {
@@ -174,7 +108,7 @@ function AnalyticsPage() {
         ) : null}
       </PageHeader>
 
-      <RangeControls {...analytics.range} />
+      <AnalyticsRangeControls {...analytics.range} />
 
       {analytics.allTimeVisits === 0 ? (
         <Empty>
@@ -212,11 +146,14 @@ function AnalyticsPage() {
           {sortedLinks.map((totals) => {
             const link = linkById.get(totals.linkId);
             const metrics = [
-              { label: "Visits", value: numberFormat.format(totals.visits) },
-              { label: "Unique visitors", value: numberFormat.format(totals.viewerIdentities) },
-              { label: "Captured emails", value: numberFormat.format(totals.emails) },
+              { label: "Visits", value: analyticsNumberFormat.format(totals.visits) },
+              {
+                label: "Unique visitors",
+                value: analyticsNumberFormat.format(totals.viewerIdentities),
+              },
+              { label: "Captured emails", value: analyticsNumberFormat.format(totals.emails) },
               { label: "Total time", value: formatTotalTime(totals.totalMs) },
-              { label: "Downloads", value: numberFormat.format(totals.downloads) },
+              { label: "Downloads", value: analyticsNumberFormat.format(totals.downloads) },
             ];
 
             return (
@@ -224,8 +161,9 @@ function AnalyticsPage() {
                 <CardHeader>
                   <CardTitle>
                     <Link
-                      to="/dashboard/links/$linkId"
+                      to="/dashboard/analytics/$linkId"
                       params={{ linkId: totals.linkId }}
+                      search={analytics.range}
                       className="hover:underline"
                     >
                       {link?.name || (link ? `/v/${link.slug}` : "Link")}

@@ -30,6 +30,21 @@ describe("dashboardNotFound", () => {
     });
   });
 
+  test("a missing analytics Link recovers to Analytics", () => {
+    expect(dashboardNotFound("/dashboard/analytics/link-1")).toEqual({
+      title: "This Link isn't here",
+      description: "It may have been removed, or it is not in this Organization.",
+      recovery: { label: "Back to Analytics", link: { to: "/dashboard/analytics" } },
+    });
+  });
+
+  test("the Analytics destination itself is not treated as a missing Link", () => {
+    expect(dashboardNotFound("/dashboard/analytics")).toEqual({
+      title: "This page isn't here",
+      description: "The Dashboard has no destination at this address.",
+    });
+  });
+
   test("an unmatched Dashboard path stays a fuzzy not-found without inventing a list destination", () => {
     expect(dashboardNotFound("/dashboard/does-not-exist")).toEqual({
       title: "This page isn't here",

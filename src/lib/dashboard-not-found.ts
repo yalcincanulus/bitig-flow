@@ -1,11 +1,12 @@
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
-const missingDestinations = ["documents", "vaults", "links"] as const;
+const missingDestinations = ["documents", "vaults", "links", "analytics"] as const;
 
 const kindByDestination = {
   documents: "Document",
   vaults: "Vault",
   links: "Link",
+  analytics: "Link",
 } as const;
 
 export type DashboardNotFound = Readonly<{

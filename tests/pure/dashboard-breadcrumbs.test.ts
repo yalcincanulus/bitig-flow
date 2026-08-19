@@ -85,6 +85,24 @@ describe("dashboardBreadcrumbs", () => {
     expect(labelsOf({ destination: "links", link: { id: "link-1" } })).toEqual(["Links", "Link"]);
   });
 
+  test("an analytics Link hangs its name under Analytics", () => {
+    const trail = dashboardBreadcrumbs({
+      destination: "analytics",
+      link: { id: "link-1", name: "Board pack", slug: "a1b2c3" },
+    });
+
+    expect(trail.map((crumb) => crumb.label)).toEqual(["Analytics", "Board pack"]);
+    expect(trail[0]?.link).toEqual({ to: "/dashboard/analytics" });
+    expect(trail[1]?.link).toBeUndefined();
+  });
+
+  test("an unresolved analytics Link names its kind rather than its identifier", () => {
+    expect(labelsOf({ destination: "analytics", link: { id: "link-1" } })).toEqual([
+      "Analytics",
+      "Link",
+    ]);
+  });
+
   test("only the crumbs carrying a Document, Vault, or Link's own words are the ones the toolbar truncates", () => {
     const trail = dashboardBreadcrumbs({
       destination: "documents",

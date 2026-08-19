@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { foldAnalytics, resolveAnalyticsRange } from "#/lib/analytics-fold";
+import { foldAnalytics, foldAnalyticsLink, resolveAnalyticsRange } from "#/lib/analytics-fold";
 
 test("an absent analytics range resolves to the last 30 UTC dates", () => {
   expect(resolveAnalyticsRange({}, new Date("2026-08-19T23:30:00.000Z"))).toEqual({
@@ -112,6 +112,50 @@ test("a Visit keeps its per-Document views, pages read, Total time, and download
     pages: [
       { page: 1, ms: 1_500 },
       { page: 3, ms: 500 },
+    ],
+  });
+});
+
+test("the per-Link fold flags truncation and rolls Documents up across Visits", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-17" });
+  const visits = [
+    visitRow("first", "2026-08-01T12:00:00.000Z"),
+    visitRow("second", "2026-08-02T12:00:00.000Z"),
+  ];
+  const events = [
+    eventRow("first", "document_opened", null),
+    eventRow("first", "page_dwell", { page: 1, ms: 1_000 }),
+    eventRow("second", "document_opened", null),
+    eventRow("second", "page_dwell", { page: 2, ms: 500 }),
+    eventRow("second", "download", { via: "button" }),
+  ];
+
+  expect(foldAnalyticsLink(visits, events, range, true)).toEqual({
+    range: { from: "2026-08-01", to: "2026-08-17" },
+    truncated: true,
+    lastSeenAt: visits[1]?.lastSeenAt,
+    totals: {
+      visits: 2,
+      viewerIdentities: 2,
+      emails: 0,
+      totalMs: 1_500,
+      downloads: 1,
+    },
+    pages: [
+      { page: 1, ms: 1_000 },
+      { page: 2, ms: 500 },
+    ],
+    documents: [
+      {
+        documentId: "document-1",
+        views: 2,
+        totalMs: 1_500,
+        downloads: 1,
+        pages: [
+          { page: 1, ms: 1_000 },
+          { page: 2, ms: 500 },
+        ],
+      },
     ],
   });
 });

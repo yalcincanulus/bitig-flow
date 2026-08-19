@@ -1,5 +1,5 @@
 import type { DocumentId, LinkId, UserId, VaultId } from "#/server/ids";
-import { readAnalyticsOverview } from "#/server/repositories/analytics";
+import { readAnalyticsLink, readAnalyticsOverview } from "#/server/repositories/analytics";
 import {
   createDocument,
   deleteDocument,
@@ -18,6 +18,9 @@ declare const vaultId: VaultId;
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void readAnalyticsOverview("untrusted-organization-id", {});
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void readAnalyticsLink("untrusted-organization-id", linkId, {});
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void findDocument("untrusted-organization-id", documentId);
