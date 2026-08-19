@@ -1,16 +1,38 @@
 import { notFound } from "@tanstack/react-router";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { viewerResolveImage } from "#/lib/document-bytes";
 import { renderHtml } from "#/lib/render-html";
 import { db } from "#/server/db/client";
-import { document, documentReference, visitEvent } from "#/server/db/schema";
-import { documentIdSchema, type DocumentId, type VisitId } from "#/server/ids";
+import { document, documentReference, visitEvent, vaultItem } from "#/server/db/schema";
+import { documentIdSchema, type DocumentId, type VaultId, type VisitId } from "#/server/ids";
 import {
   senderFields,
   type VisitorContentPage,
   type VisitorLink,
+  type VisitorVaultMember,
 } from "#/server/viewer/visitor-gate";
+
+async function listVaultMembers(vaultId: VaultId): Promise<ReadonlyArray<VisitorVaultMember>> {
+  const rows = await db
+    .select({
+      id: document.id,
+      title: document.title,
+      kind: document.kind,
+      status: document.status,
+    })
+    .from(vaultItem)
+    .innerJoin(document, eq(document.id, vaultItem.documentId))
+    .where(eq(vaultItem.vaultId, vaultId))
+    .orderBy(desc(vaultItem.addedAt), vaultItem.documentId);
+
+  return rows.map((row) => ({
+    documentId: documentIdSchema.parse(row.id),
+    title: row.title,
+    kind: row.kind,
+    status: row.status,
+  }));
+}
 
 async function referencedDocumentIds(sourceDocumentId: DocumentId) {
   const rows = await db
@@ -30,9 +52,20 @@ async function appendDocumentOpened(visitId: VisitId, documentId: DocumentId) {
   });
 }
 
+export async function isVaultMember(vaultId: VaultId, documentId: DocumentId) {
+  const [found] = await db
+    .select({ documentId: vaultItem.documentId })
+    .from(vaultItem)
+    .where(and(eq(vaultItem.vaultId, vaultId), eq(vaultItem.documentId, documentId)))
+    .limit(1);
+
+  return found !== undefined;
+}
+
 export async function loadVisitorContent(
   link: VisitorLink,
   visitId: VisitId,
+  memberDocumentId?: DocumentId,
 ): Promise<VisitorContentPage> {
   const contentFields = {
     status: "content" as const,
@@ -41,12 +74,13 @@ export async function loadVisitorContent(
     slug: link.slug,
   };
 
-  if (!link.documentId) {
+  const documentId = memberDocumentId ?? link.documentId;
+  if (!documentId) {
     return {
       ...contentFields,
-      kind: "vault",
+      kind: "vault_index",
       title: link.targetTitle,
-      emptyVault: link.emptyVault,
+      members: link.vaultId ? await listVaultMembers(link.vaultId) : [],
     };
   }
 
@@ -61,27 +95,33 @@ export async function loadVisitorContent(
       documentStatus: document.status,
     })
     .from(document)
-    .where(eq(document.id, link.documentId))
+    .where(eq(document.id, documentId))
     .limit(1);
 
   if (!found) throw notFound();
 
-  const documentId = documentIdSchema.parse(found.id);
-  await appendDocumentOpened(visitId, documentId);
+  const openedDocumentId = documentIdSchema.parse(found.id);
+  await appendDocumentOpened(visitId, openedDocumentId);
 
   if (found.kind === "markdown") {
     const html = renderHtml(
       found.content ?? "",
-      viewerResolveImage(link.slug, await referencedDocumentIds(documentId)),
+      viewerResolveImage(link.slug, await referencedDocumentIds(openedDocumentId)),
     );
-    return { ...contentFields, kind: "markdown", documentId, title: found.title, html };
+    return {
+      ...contentFields,
+      kind: "markdown",
+      documentId: openedDocumentId,
+      title: found.title,
+      html,
+    };
   }
 
   if (found.kind === "pdf") {
     return {
       ...contentFields,
       kind: "pdf",
-      documentId,
+      documentId: openedDocumentId,
       title: found.title,
       pageCount: found.pageCount,
       fileName: found.fileName,
@@ -92,7 +132,7 @@ export async function loadVisitorContent(
   return {
     ...contentFields,
     kind: "image",
-    documentId,
+    documentId: openedDocumentId,
     title: found.title,
     fileName: found.fileName,
     bytesPending: found.documentStatus === "pending",

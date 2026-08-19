@@ -7,6 +7,7 @@ import { viewerBytesUrl, viewerResolveImage } from "#/lib/document-bytes";
 
 const viewerComponentSources = [
   "../../src/components/viewer-content-page.tsx",
+  "../../src/components/viewer-page.tsx",
   "../../src/components/viewer-pdf.tsx",
   "../../src/components/viewer-pdf-document.tsx",
   "../../src/components/viewer-image.tsx",
@@ -47,7 +48,17 @@ test("a reference this Document does not hold does not resolve", () => {
 
 test("the Viewer slug route never preloads or caches its loader", () => {
   const source = readFileSync(
-    fileURLToPath(new URL("../../src/routes/v/$slug.tsx", import.meta.url)),
+    fileURLToPath(new URL("../../src/routes/v/$slug.index.tsx", import.meta.url)),
+    "utf8",
+  );
+
+  expect(source).toMatch(/preload:\s*false/);
+  expect(source).toMatch(/staleTime:\s*0/);
+});
+
+test("the Viewer member route never preloads or caches its loader", () => {
+  const source = readFileSync(
+    fileURLToPath(new URL("../../src/routes/v/$slug.$documentId.tsx", import.meta.url)),
     "utf8",
   );
 

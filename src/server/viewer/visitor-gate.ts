@@ -1,7 +1,7 @@
-import { count, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
-import { document, link, organization, user, vault, vaultItem } from "#/server/db/schema";
+import { document, link, organization, user, vault } from "#/server/db/schema";
 import {
   documentIdSchema,
   linkIdSchema,
@@ -69,10 +69,17 @@ export type VisitorImageContent = VisitorContentShared &
     bytesPending: boolean;
   }>;
 
+export type VisitorVaultMember = Readonly<{
+  documentId: DocumentId;
+  title: string;
+  kind: "markdown" | "pdf" | "image";
+  status: "pending" | "ready";
+}>;
+
 export type VisitorVaultContent = VisitorContentShared &
   Readonly<{
-    kind: "vault";
-    emptyVault: boolean;
+    kind: "vault_index";
+    members: ReadonlyArray<VisitorVaultMember>;
   }>;
 
 export type VisitorContentPage =
@@ -105,7 +112,6 @@ export type VisitorLink = Readonly<{
   documentId: DocumentId | null;
   vaultId: VaultId | null;
   targetTitle: string;
-  emptyVault: boolean;
 }>;
 
 export function senderFields(link: { senderName: string | null; organizationName: string }) {
@@ -179,15 +185,6 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
   const targetTitle = row.documentTitle ?? row.vaultName;
   if (!targetTitle) return null;
 
-  let emptyVault = false;
-  if (row.vaultId) {
-    const [membership] = await db
-      .select({ total: count() })
-      .from(vaultItem)
-      .where(eq(vaultItem.vaultId, row.vaultId));
-    emptyVault = Number(membership?.total ?? 0) === 0;
-  }
-
   return {
     id: linkIdSchema.parse(row.id),
     slug: row.slug,
@@ -203,6 +200,5 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     documentId: row.documentId ? documentIdSchema.parse(row.documentId) : null,
     vaultId: row.vaultId ? vaultIdSchema.parse(row.vaultId) : null,
     targetTitle,
-    emptyVault,
   };
 }

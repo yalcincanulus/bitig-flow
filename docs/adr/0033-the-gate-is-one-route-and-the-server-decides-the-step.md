@@ -23,8 +23,8 @@ The `content` arm is itself a discriminated union on `kind`:
 - **markdown** — the loader runs the single server-side sanitized render path (ADR-0007) and returns HTML. Fully server-rendered, no client fetch for content.
 - **pdf** — metadata only (`pageCount`, `fileName`); the client buffers the byte route into `getDocument({ data })`. Until the pdf.js island lands, the pane renders a minimal shell (title and page count) behind the dynamic import that island will occupy.
 - **image** — metadata only (`fileName`). This slice's shell is the title; the `<img>` that fetches the byte route as a subresource lands with the image arm.
-- **vault** — title and the empty-state flag only, so `reveal` can retire before the Vault index exists. Opening a Vault Link writes no `document_opened`. The member list and `/v/$slug/$documentId` land in a later ticket.
+- **vault_index** — the Vault's title and a member list of `{ documentId, title, kind, status }`. Opening the index writes no `document_opened`. Each member opens at `/v/$slug/$documentId`.
 
 Because the branch is already in the loader, `pdfjs-dist` sits behind a dynamic import inside the PDF branch: opening a markdown Link downloads no PDF engine.
 
-A Link targeting a Document renders it at `/v/$slug` itself. A Link targeting a Vault will render a list there, and each member will open at `/v/$slug/$documentId`. Document loaders write `document_opened`. The Vault index does not. Document loaders are subject to ADR-0031.
+A Link targeting a Document renders it at `/v/$slug` itself. A Link targeting a Vault renders the Vault index there (`vault_index`), and each member opens at `/v/$slug/$documentId`. Document loaders write `document_opened`. The Vault index does not: it names no Document, and nothing in the Event vocabulary uses `visit_event.document_id`'s nullability (ADR-0023). Document loaders are subject to ADR-0031.

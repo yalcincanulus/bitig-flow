@@ -36,6 +36,10 @@ function viewerUrl(slug: string, search = "") {
   return new URL(`/v/${slug}${search}`, process.env.BETTER_AUTH_URL);
 }
 
+function viewerMemberUrl(slug: string, documentId: string) {
+  return new URL(`/v/${slug}/${documentId}`, process.env.BETTER_AUTH_URL);
+}
+
 function serverRenderedMarkupOf(html: string) {
   return html.replaceAll(/<script[\s\S]*?<\/script>/g, "");
 }
@@ -750,7 +754,7 @@ test("verification-to-follow email GET promises a 6-digit code and writes no Vis
   ).toEqual([]);
 });
 
-test("an empty Vault shows the empty-state line and a non-empty Vault does not list members", async () => {
+test("a Vault index lists members including a pending upload, and an empty Vault says it is empty", async () => {
   const fixture = await createOrganizationFixture();
   const emptyVault = await createFixtureVault({
     organizationId: fixture.organization.id,
@@ -765,7 +769,14 @@ test("an empty Vault shows the empty-state line and a non-empty Vault does not l
     createdBy: fixture.member.user.id,
     title: distinctiveTitle,
   });
+  const pendingMember = await createFixturePendingDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    kind: "image",
+    fileName: "Board portrait.png",
+  });
   await createFixtureVaultItem({ vaultId: filledVault.id, documentId: memberDocument.id });
+  await createFixtureVaultItem({ vaultId: filledVault.id, documentId: pendingMember.id });
   const [emptyLink, filledLink] = await Promise.all([
     createFixtureLink({
       organizationId: fixture.organization.id,
@@ -783,18 +794,137 @@ test("an empty Vault shows the empty-state line and a non-empty Vault does not l
     redirect: "manual",
   });
   const emptyHtml = await emptyResponse.text();
+  const emptyCopy = textOf(serverRenderedMarkupOf(emptyHtml));
   expect(emptyResponse.status).toBe(200);
-  expect(textOf(serverRenderedMarkupOf(emptyHtml))).toContain("There's nothing in here yet.");
+  expect(emptyCopy).toContain("There's nothing in here yet.");
   expect(emptyHtml).toContain(distinctiveVaultName);
+  expect(emptyCopy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
 
-  const filledResponse = await createCookieClient().http(viewerUrl(filledLink.slug), {
+  const filledVisitor = createCookieClient();
+  const filledResponse = await filledVisitor.http(viewerUrl(filledLink.slug), {
     redirect: "manual",
   });
   const filledHtml = await filledResponse.text();
+  const filledMarkup = serverRenderedMarkupOf(filledHtml);
+  const filledCopy = textOf(filledMarkup);
   expect(filledResponse.status).toBe(200);
   expect(filledHtml).toContain("Filled Data Room");
-  expect(filledHtml).not.toContain(distinctiveTitle);
-  expect(textOf(serverRenderedMarkupOf(filledHtml))).not.toContain("There's nothing in here yet.");
+  expect(filledCopy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(filledCopy).toContain(distinctiveTitle);
+  expect(filledCopy).toContain("markdown");
+  expect(filledCopy).toContain("Board portrait.png");
+  expect(filledCopy).toContain("image");
+  expect(filledCopy).toMatch(/upload/i);
+  expect(filledMarkup).toContain(`href="/v/${filledLink.slug}/${memberDocument.id}"`);
+  expect(filledMarkup).toContain(`href="/v/${filledLink.slug}/${pendingMember.id}"`);
+  expect(filledCopy).not.toContain("There's nothing in here yet.");
+  expect(
+    await database
+      .select({ id: visitEvent.id })
+      .from(visitEvent)
+      .innerJoin(visit, eq(visit.id, visitEvent.visitId))
+      .where(eq(visit.linkId, filledLink.id)),
+  ).toEqual([]);
+});
+
+test("opening a Vault member writes document_opened per visit including a revisit, and a pending member shows the uploading state", async () => {
+  const fixture = await createOrganizationFixture();
+  const filledVault = await createFixtureVault({
+    organizationId: fixture.organization.id,
+    name: distinctiveVaultName,
+  });
+  const memberDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const pendingMember = await createFixturePendingDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    kind: "pdf",
+    fileName: "Uploading deck.pdf",
+  });
+  await createFixtureVaultItem({ vaultId: filledVault.id, documentId: memberDocument.id });
+  await createFixtureVaultItem({ vaultId: filledVault.id, documentId: pendingMember.id });
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    vaultId: filledVault.id,
+  });
+  const visitor = createCookieClient();
+
+  expect(
+    (await visitor.http(viewerMemberUrl(published.slug, memberDocument.id), { redirect: "manual" }))
+      .status,
+  ).toBe(200);
+  expect((await visitor.http(viewerUrl(published.slug), { redirect: "manual" })).status).toBe(200);
+  const secondOpen = await visitor.http(viewerMemberUrl(published.slug, memberDocument.id), {
+    redirect: "manual",
+  });
+  expect(secondOpen.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(await secondOpen.text()))).toContain(distinctiveTitle);
+
+  const pendingResponse = await visitor.http(viewerMemberUrl(published.slug, pendingMember.id), {
+    redirect: "manual",
+  });
+  const pendingMarkup = serverRenderedMarkupOf(await pendingResponse.text());
+  expect(pendingResponse.status).toBe(200);
+  expect(textOf(pendingMarkup)).toContain("This Document is still uploading.");
+  expect(pendingMarkup).toMatch(/<button[^>]*type="button"[^>]*>Retry<\/button>/);
+
+  const events = await database
+    .select({ type: visitEvent.type, documentId: visitEvent.documentId })
+    .from(visitEvent)
+    .innerJoin(visit, eq(visit.id, visitEvent.visitId))
+    .where(eq(visit.linkId, published.id));
+
+  expect(events).toEqual([
+    { type: "document_opened", documentId: memberDocument.id },
+    { type: "document_opened", documentId: memberDocument.id },
+    { type: "document_opened", documentId: pendingMember.id },
+  ]);
+});
+
+test("a documentId that is not a Vault member returns the same 404 as an unknown Slug", async () => {
+  const fixture = await createOrganizationFixture();
+  const filledVault = await createFixtureVault({
+    organizationId: fixture.organization.id,
+    name: distinctiveVaultName,
+  });
+  const memberDocument = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const outsider = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: "Outside the Vault",
+  });
+  await createFixtureVaultItem({ vaultId: filledVault.id, documentId: memberDocument.id });
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    vaultId: filledVault.id,
+  });
+  const visitor = createCookieClient();
+  await visitor.http(viewerUrl(published.slug), { redirect: "manual" });
+
+  const unknown = await visitor.http(viewerUrl("unknownslug1"), { redirect: "manual" });
+  const outsiderResponse = await visitor.http(viewerMemberUrl(published.slug, outsider.id), {
+    redirect: "manual",
+  });
+  const unknownMarkup = serverRenderedMarkupOf(await unknown.text());
+  const outsiderMarkup = serverRenderedMarkupOf(await outsiderResponse.text());
+
+  expect(unknown.status).toBe(404);
+  expect(outsiderResponse.status).toBe(404);
+  expect(textOf(outsiderMarkup)).toBe(textOf(unknownMarkup));
+  expect(textOf(outsiderMarkup)).toContain(
+    "This link isn't available. Ask whoever sent it to you for a new one.",
+  );
+  expect(outsiderMarkup).not.toContain(distinctiveTitle);
+  expect(outsiderMarkup).not.toContain("Outside the Vault");
 });
 
 test("visit.ip_hash uses ANALYTICS_SALT, not GATE_RATELIMIT_SALT", async () => {

@@ -25,6 +25,8 @@ import { Route as AuthAcceptInvitationInvitationIdRouteImport } from './routes/_
 import { Route as AuthenticatedDashboardAnalyticsRouteImport } from './routes/_authenticated/dashboard/analytics'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as VSlugIndexRouteImport } from './routes/v/$slug.index'
+import { Route as VSlugDocumentIdRouteImport } from './routes/v/$slug.$documentId'
 import { Route as AuthenticatedDashboardDocumentsIndexRouteImport } from './routes/_authenticated/dashboard/documents/index'
 import { Route as AuthenticatedDashboardLinksIndexRouteImport } from './routes/_authenticated/dashboard/links/index'
 import { Route as AuthenticatedDashboardLinksLinkIdRouteImport } from './routes/_authenticated/dashboard/links/$linkId'
@@ -116,6 +118,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VSlugIndexRoute = VSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => VSlugRoute,
+} as any)
+const VSlugDocumentIdRoute = VSlugDocumentIdRouteImport.update({
+  id: '/$documentId',
+  path: '/$documentId',
+  getParentRoute: () => VSlugRoute,
+} as any)
 const AuthenticatedDashboardDocumentsIndexRoute =
   AuthenticatedDashboardDocumentsIndexRouteImport.update({
     id: '/documents/',
@@ -185,6 +197,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/analytics': typeof AuthenticatedDashboardAnalyticsRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
+  '/v/$slug/': typeof VSlugIndexRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
@@ -205,11 +219,12 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
-  '/v/$slug': typeof VSlugRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
   '/dashboard/analytics': typeof AuthenticatedDashboardAnalyticsRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
+  '/v/$slug': typeof VSlugIndexRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
@@ -238,6 +253,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/analytics': typeof AuthenticatedDashboardAnalyticsRoute
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
+  '/v/$slug/': typeof VSlugIndexRoute
   '/_authenticated/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/_authenticated/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
@@ -265,6 +282,8 @@ export interface FileRouteTypes {
     | '/dashboard/analytics'
     | '/dashboard/settings'
     | '/api/auth/$'
+    | '/v/$slug/$documentId'
+    | '/v/$slug/'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
     | '/api/documents/$documentId/bytes'
@@ -285,11 +304,12 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/dashboard'
-    | '/v/$slug'
     | '/accept-invitation/$invitationId'
     | '/dashboard/analytics'
     | '/dashboard/settings'
     | '/api/auth/$'
+    | '/v/$slug/$documentId'
+    | '/v/$slug'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
     | '/api/documents/$documentId/bytes'
@@ -317,6 +337,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/analytics'
     | '/_authenticated/dashboard/settings'
     | '/api/auth/$'
+    | '/v/$slug/$documentId'
+    | '/v/$slug/'
     | '/_authenticated/dashboard/links/$linkId'
     | '/_authenticated/dashboard/vaults/$vaultId'
     | '/api/documents/$documentId/bytes'
@@ -453,6 +475,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v/$slug/': {
+      id: '/v/$slug/'
+      path: '/'
+      fullPath: '/v/$slug/'
+      preLoaderRoute: typeof VSlugIndexRouteImport
+      parentRoute: typeof VSlugRoute
+    }
+    '/v/$slug/$documentId': {
+      id: '/v/$slug/$documentId'
+      path: '/$documentId'
+      fullPath: '/v/$slug/$documentId'
+      preLoaderRoute: typeof VSlugDocumentIdRouteImport
+      parentRoute: typeof VSlugRoute
+    }
     '/_authenticated/dashboard/documents/': {
       id: '/_authenticated/dashboard/documents/'
       path: '/documents'
@@ -587,10 +623,14 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 )
 
 interface VSlugRouteChildren {
+  VSlugDocumentIdRoute: typeof VSlugDocumentIdRoute
+  VSlugIndexRoute: typeof VSlugIndexRoute
   VSlugBytesDocumentIdRoute: typeof VSlugBytesDocumentIdRoute
 }
 
 const VSlugRouteChildren: VSlugRouteChildren = {
+  VSlugDocumentIdRoute: VSlugDocumentIdRoute,
+  VSlugIndexRoute: VSlugIndexRoute,
   VSlugBytesDocumentIdRoute: VSlugBytesDocumentIdRoute,
 }
 
