@@ -8,6 +8,6 @@ The accumulator itself is DOM-free. Timers, `visibilitychange`, and `navigator.s
 
 The instance lives on the `/v` layout, one per page load, spanning Documents. A Vault navigation does not unmount it and does not flush; the document-keyed body (ADR-0027) already carries every Document the window collected. `currentDocument: null` on the Vault index and on the Gate, so those screens bank nothing.
 
-## What this leaves open
+The PDF island names that page through a visible-page reporter. Capture still does not import the island, and the island still does not import capture. Markdown and images keep passing `() => 1`. A page source of `0` means no page is intersecting, and the hook then passes `currentDocument: null` so Dwell does not bank an off-screen page.
 
-The PDF island's IntersectionObserver is a later ticket. Until it exists, every arm passes `() => 1`, including PDF, and that is correct rather than incomplete: a PDF without pages is page 1 of 1 for capture purposes, the same way markdown is.
+A production Viewer build emits `pdf.worker.min-*.mjs` under `/assets/` and sets `workerSrc` to that same-origin URL. `default-src 'self'` already allows that worker, so the Viewer's CSP was not amended.
