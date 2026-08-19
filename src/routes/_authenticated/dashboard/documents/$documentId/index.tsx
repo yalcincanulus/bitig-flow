@@ -1,15 +1,15 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { LinkIcon, ShieldAlertIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import { useState } from "react";
 
+import { AnalyticsLinkTotalsCard } from "#/components/analytics-link-totals-card";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { LinkWriteDialog } from "#/components/link-write-dialog";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { PreviewPdfDocument } from "#/components/preview-pdf-document";
-import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
+import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -23,8 +23,6 @@ import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { documentBytesUrl } from "#/lib/document-bytes";
 import { previewQueryKey } from "#/lib/document-preview";
-import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
-import { analyticsTrustworthy } from "#/lib/link-trust";
 import { getAnalyticsDocument } from "#/server/functions/analytics";
 import { renderMarkdown } from "#/server/functions/documents";
 
@@ -168,44 +166,14 @@ function DocumentPage() {
             ];
 
             return (
-              <Card key={totals.linkId} size="sm">
-                <CardHeader>
-                  <CardTitle>
-                    <Link
-                      to="/dashboard/analytics/$linkId"
-                      params={{ linkId: totals.linkId }}
-                      search={analytics.range}
-                      className="hover:underline"
-                    >
-                      {link?.name ||
-                        (link && isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
-                    </Link>
-                  </CardTitle>
-                  <CardDescription>
-                    {link?.isActive === false ? "Inactive" : "Active"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  {link && !analyticsTrustworthy(link) ? (
-                    <Alert>
-                      <ShieldAlertIcon />
-                      <AlertTitle>Public Link</AlertTitle>
-                      <AlertDescription>
-                        This Link has no Requirements. Add a password or email Requirement to make
-                        its analytics more trustworthy.
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
-                  <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {metrics.map((metric) => (
-                      <div key={metric.label} className="flex flex-col gap-1">
-                        <dt className="text-xs text-muted-foreground">{metric.label}</dt>
-                        <dd className="text-lg font-semibold tabular-nums">{metric.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </CardContent>
-              </Card>
+              <AnalyticsLinkTotalsCard
+                key={totals.linkId}
+                linkId={totals.linkId}
+                range={analytics.range}
+                link={link}
+                metrics={metrics}
+                metricsClassName="sm:grid-cols-4"
+              />
             );
           })}
         </div>

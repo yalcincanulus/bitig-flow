@@ -9,9 +9,12 @@ import { Input } from "#/components/ui/input";
 type AnalyticsRangeControlsProps = Readonly<{
   from: string;
   to: string;
-  linkId?: string;
-  documentId?: string;
-}>;
+}> &
+  (
+    | { linkId: string; documentId?: never }
+    | { documentId: string; linkId?: never }
+    | { linkId?: never; documentId?: never }
+  );
 
 export function AnalyticsRangeControls({
   from,

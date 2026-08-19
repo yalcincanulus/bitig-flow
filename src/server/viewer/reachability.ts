@@ -8,7 +8,7 @@ import type { DocumentId, LinkId } from "#/server/ids";
  * A Document is reachable from a Link when it is the target, a member of the
  * target Vault, or referenced by one of those Documents. One hop, never further.
  */
-export function documentReachableFromLink(documentId: DocumentId) {
+export function linkReachesDocument(documentId: DocumentId) {
   return or(
     eq(link.documentId, documentId),
     exists(
@@ -48,7 +48,7 @@ export async function isDocumentReachableFromLink(linkId: LinkId, documentId: Do
   const [found] = await db
     .select({ id: link.id })
     .from(link)
-    .where(and(eq(link.id, linkId), documentReachableFromLink(documentId)))
+    .where(and(eq(link.id, linkId), linkReachesDocument(documentId)))
     .limit(1);
 
   return found !== undefined;
