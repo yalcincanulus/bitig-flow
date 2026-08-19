@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { LinkWriteDialog } from "#/components/link-write-dialog";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { PreviewPdfDocument } from "#/components/preview-pdf-document";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
 import { getCollections } from "#/db-collections";
@@ -103,6 +104,8 @@ function DocumentPage() {
         <p>Uploading…</p>
       ) : document.kind === "image" ? (
         <img src={documentBytesUrl(document.id)} alt="" className="max-w-full" />
+      ) : document.kind === "pdf" ? (
+        <PreviewPdfDocument documentId={document.id} pageCount={document.pageCount} />
       ) : document.kind === "markdown" && html !== undefined ? (
         <article
           className="max-w-prose [&_a]:underline [&_img]:max-w-full [&_pre]:overflow-x-auto"

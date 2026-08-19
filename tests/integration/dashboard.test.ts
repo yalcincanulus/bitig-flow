@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { expect } from "vitest";
 
-import { member as membershipTable } from "#/server/db/schema";
+import { member as membershipTable, visit, visitEvent } from "#/server/db/schema";
 
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
@@ -9,10 +9,12 @@ import {
   createFixtureDocument,
   createFixtureLink,
   createFixtureVault,
+  createFixtureUploadedDocument,
   createFixtureUser,
   createOrganizationForFixtureUser,
   createOrganizationFixture,
   database,
+  readUploadSample,
 } from "../fixtures";
 import { callServerFunction } from "../fixtures/http";
 import { test } from "./http";
@@ -480,4 +482,31 @@ test("a Link detail breadcrumb hangs the Link under a navigable Links", async ()
   expect(trail).toContain('href="/dashboard/links"');
   expect(trail).toContain(">Link</span>");
   expect(trail).not.toContain(fixtureLink.id);
+});
+
+test("an owner opening a PDF Preview appends no visit_event of any type", async () => {
+  const fixture = await createOrganizationFixture();
+  const uploaded = await createFixtureUploadedDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    contentType: "application/pdf",
+    fileName: "term-sheet.pdf",
+    bytes: readUploadSample("two-page.pdf"),
+  });
+
+  // The Preview is the detail route plus the bytes its island fetches. An owner checking their own
+  // Document is not a Visitor, so neither request may leave anything in the analytics stream.
+  const page = await fixture.member.http(
+    new URL(`/dashboard/documents/${uploaded.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const bytes = await fixture.member.http(
+    new URL(`/api/documents/${uploaded.id}/bytes`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+
+  expect(page.status).toBe(200);
+  expect(bytes.status).toBe(200);
+  expect(await database.select({ id: visitEvent.id }).from(visitEvent)).toEqual([]);
+  expect(await database.select({ id: visit.id }).from(visit)).toEqual([]);
 });
