@@ -32,7 +32,7 @@ test("one Visitor id stays split after an email is captured", () => {
     }),
   ];
 
-  expect(foldAnalytics(visits, [], range).totals.identities).toBe(2);
+  expect(foldAnalytics(visits, [], range).totals.viewerIdentities).toBe(2);
 });
 
 test("two Visitor ids stay separate when only one Visit captured their shared email", () => {
@@ -47,7 +47,7 @@ test("two Visitor ids stay separate when only one Visit captured their shared em
     }),
   ];
 
-  expect(foldAnalytics(visits, [], range).totals.identities).toBe(2);
+  expect(foldAnalytics(visits, [], range).totals.viewerIdentities).toBe(2);
 });
 
 test("totals count Visits, Viewer identities, captured emails, Dwell, and every download", () => {
@@ -68,7 +68,7 @@ test("totals count Visits, Viewer identities, captured emails, Dwell, and every 
 
   expect(foldAnalytics(visits, events, range).totals).toEqual({
     visits: 2,
-    identities: 1,
+    viewerIdentities: 1,
     emails: 1,
     totalMs: 3_500,
     downloads: 2,

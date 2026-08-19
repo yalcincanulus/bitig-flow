@@ -49,6 +49,10 @@ function pageRows(pages: ReadonlyMap<number, number>) {
   return [...pages].sort(([first], [second]) => first - second).map(([page, ms]) => ({ page, ms }));
 }
 
+function addDwell(pages: Map<number, number>, dwell: { page: number; ms: number }) {
+  pages.set(dwell.page, (pages.get(dwell.page) ?? 0) + dwell.ms);
+}
+
 export function resolveAnalyticsRange(
   range: AnalyticsRangeInput,
   now = new Date(),
@@ -78,7 +82,7 @@ export function foldAnalytics(
   const scopedVisits = visits.filter(
     (visit) => visit.startedAt >= range.startInclusive && visit.startedAt < range.endExclusive,
   );
-  const identities = new Set(scopedVisits.map((visit) => visit.email ?? visit.visitorId));
+  const viewerIdentities = new Set(scopedVisits.map((visit) => visit.email ?? visit.visitorId));
   const emails = new Set(
     scopedVisits.flatMap((visit) => (visit.email === null ? [] : [visit.email])),
   );
@@ -105,7 +109,7 @@ export function foldAnalytics(
     const dwell = event.type === "page_dwell" ? pageDwell(event.payload) : null;
     if (dwell !== null) {
       totalMs += dwell.ms;
-      pages.set(dwell.page, (pages.get(dwell.page) ?? 0) + dwell.ms);
+      addDwell(pages, dwell);
     }
 
     if (event.documentId === null) continue;
@@ -121,7 +125,7 @@ export function foldAnalytics(
     if (event.type === "download") document.downloads += 1;
     if (dwell !== null) {
       document.totalMs += dwell.ms;
-      document.pages.set(dwell.page, (document.pages.get(dwell.page) ?? 0) + dwell.ms);
+      addDwell(document.pages, dwell);
     }
   }
 
@@ -140,7 +144,7 @@ export function foldAnalytics(
       linkId: visit.linkId,
       startedAt: visit.startedAt,
       lastSeenAt: visit.lastSeenAt,
-      identity: { email: visit.email, visitorId: visit.visitorId },
+      viewerIdentity: { email: visit.email, visitorId: visit.visitorId },
       documents: [...(documentsByVisit.get(visit.id) ?? [])]
         .sort(([first], [second]) => first.localeCompare(second))
         .map(([documentId, document]) => ({
@@ -157,7 +161,7 @@ export function foldAnalytics(
     range: { from: range.from, to: range.to },
     totals: {
       visits: scopedVisits.length,
-      identities: identities.size,
+      viewerIdentities: viewerIdentities.size,
       emails: emails.size,
       totalMs,
       downloads,
