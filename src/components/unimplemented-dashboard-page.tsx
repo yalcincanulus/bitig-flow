@@ -1,4 +1,4 @@
-import { ChartNoAxesCombinedIcon, SettingsIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
@@ -14,7 +14,6 @@ import {
 } from "#/lib/dashboard-unimplemented";
 
 const icons = {
-  analytics: ChartNoAxesCombinedIcon,
   settings: SettingsIcon,
 } as const;
 

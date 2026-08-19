@@ -3,6 +3,7 @@ export {
   createOrganizationFixture,
   createOrganizationForFixtureUser,
 } from "./auth";
+export { createFixtureVisit, createFixtureVisitEvent } from "./analytics";
 export {
   createFixtureDocument,
   createFixturePendingDocument,

@@ -16,3 +16,7 @@ The alternative was moving the write out of the loader into a component effect, 
 ## Amendment: nothing in the content pane may re-run a loader
 
 The two named hazards were preloading and caching. A third arrives once the loader returns real content: **nothing in the content pane may re-run a loader**, because every re-run appends an open. Retrying a pending Document, refreshing the PDF island, or any other in-pane affordance that called `router.invalidate()` would fabricate `document_opened` rows. Ticket 3's retry is the first thing that would violate it. The write stays in the loader; the pane must not ask the loader to run again.
+
+## Amendment: analytics reads keep the router defaults
+
+The Dashboard analytics overview only reads Visits and Events. Its date range belongs in `loaderDeps`, but the route does not set `preload: false` or override `staleTime`: preloading and the router's default stale-while-revalidate behavior are safe for a read and make return navigation faster. The Viewer-only rule above must not spread to analytics screens merely because they display Events.

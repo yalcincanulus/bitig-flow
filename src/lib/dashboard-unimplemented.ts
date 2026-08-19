@@ -1,6 +1,6 @@
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
-const unimplementedDestinations = ["analytics", "settings"] as const;
+const unimplementedDestinations = ["settings"] as const;
 
 export type UnimplementedDashboardDestination = (typeof unimplementedDestinations)[number];
 
@@ -12,7 +12,6 @@ export type DashboardUnimplemented = Readonly<{
 }>;
 
 const descriptions = {
-  analytics: "The analytics stream each Link produces.",
   settings:
     "Organization administration will live here. Membership is Better Auth's surface today.",
 } as const satisfies Record<UnimplementedDashboardDestination, string>;
