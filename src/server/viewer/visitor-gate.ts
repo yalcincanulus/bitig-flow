@@ -2,6 +2,7 @@ import { count, eq } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
 import { document, link, organization, user, vault, vaultItem } from "#/server/db/schema";
+import { linkIdSchema, type LinkId } from "#/server/ids";
 import { gateCodeResendAfterSeconds } from "#/server/viewer/gate-code";
 import type { GateProgressRecord } from "#/server/viewer/gate-progress";
 import {
@@ -46,7 +47,7 @@ export type VisitorRateLimitedPage = Readonly<{
 export type VisitorPage = VisitorGatePage | VisitorRevealPage | VisitorRateLimitedPage;
 
 export type VisitorLink = Readonly<{
-  id: string;
+  id: LinkId;
   slug: string;
   senderName: string | null;
   organizationName: string;
@@ -56,6 +57,7 @@ export type VisitorLink = Readonly<{
   requiresVerification: boolean;
   isPublic: boolean;
   gateVersion: number;
+  allowDownload: boolean;
   targetTitle: string;
   emptyVault: boolean;
 }>;
@@ -122,6 +124,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
       requiresEmail: link.requiresEmail,
       requiresVerification: link.requiresVerification,
       gateVersion: link.gateVersion,
+      allowDownload: link.allowDownload,
       expiresAt: link.expiresAt,
       isActive: link.isActive,
       documentTitle: document.title,
@@ -153,7 +156,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
   }
 
   return {
-    id: row.id,
+    id: linkIdSchema.parse(row.id),
     slug: row.slug,
     senderName: row.senderName,
     organizationName: row.organizationName,
@@ -163,6 +166,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     requiresVerification: row.requiresVerification,
     isPublic: row.passwordHash === null && !row.requiresEmail && !row.requiresVerification,
     gateVersion: row.gateVersion,
+    allowDownload: row.allowDownload,
     targetTitle,
     emptyVault,
   };
