@@ -3,16 +3,21 @@ import { count, eq } from "drizzle-orm";
 import { db } from "#/server/db/client";
 import { document, link, organization, user, vault, vaultItem } from "#/server/db/schema";
 import type { GateProgressRecord } from "#/server/viewer/gate-progress";
-import { gateReceipt, type GateRequirement } from "#/server/viewer/gate-requirement";
+import {
+  gateReceipt,
+  type GateReceiptItem,
+  type GateRequirement,
+} from "#/server/viewer/gate-requirement";
 
-export type { GateRequirement };
+export type { GateReceiptItem, GateRequirement };
 
 export type VisitorGatePage = Readonly<{
   status: "gate";
   senderName: string | null;
   organizationName: string;
   currentRequirement: GateRequirement;
-  receipt: ReadonlyArray<"password">;
+  requiresVerification: boolean;
+  receipt: ReadonlyArray<GateReceiptItem>;
   error?: "wrong_password";
   retryAfterSeconds?: number;
 }>;
@@ -70,15 +75,16 @@ export function revealPage(link: {
 export { currentGateRequirement, gateReceipt } from "#/server/viewer/gate-requirement";
 
 export function gatePage(
-  link: Pick<VisitorLink, "senderName" | "organizationName">,
+  link: Pick<VisitorLink, "senderName" | "organizationName" | "requiresVerification">,
   currentRequirement: GateRequirement,
-  progress: Pick<GateProgressRecord, "password"> | null,
+  progress: Pick<GateProgressRecord, "password" | "email"> | null,
   extras: Pick<VisitorGatePage, "error" | "retryAfterSeconds"> = {},
 ): VisitorGatePage {
   return {
     status: "gate",
     ...senderFields(link),
     currentRequirement,
+    requiresVerification: link.requiresVerification,
     receipt: gateReceipt(progress),
     ...extras,
   };

@@ -9,12 +9,14 @@ import {
   clearCredentialGuessLimit,
   consumeCredentialGuessLimit,
 } from "#/server/viewer/credential-guess-limit";
+import { consumeFormSubmissionLimit } from "#/server/viewer/form-submission-limit";
 import { currentGateRequirement } from "#/server/viewer/gate-requirement";
 import {
   clearGateProgress,
   matchingGateProgress,
   readGateProgress,
   writeGateProgress,
+  type GateProgressRecord,
 } from "#/server/viewer/gate-progress";
 import { liveVisitForLink, mintVisitorVisit, visitorRequestIp } from "#/server/viewer/mint-visit";
 import {
@@ -52,12 +54,46 @@ function renderGate(
   return { status, retryAfterSeconds } as const;
 }
 
-export type VisitorPasswordSsr = Readonly<{
+function normalizeCapturedEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+async function persistGateProgress(
+  redis: Awaited<ReturnType<typeof getRedis>>,
+  link: VisitorLink,
+  record: Omit<GateProgressRecord, "linkId" | "gateVersion">,
+) {
+  const opaqueId = getCookie(gateProgressCookieName) ?? randomBytes(32).toString("base64url");
+  await writeGateProgress(
+    redis,
+    opaqueId,
+    { linkId: link.id, gateVersion: link.gateVersion, ...record },
+    gateProgressTtlSeconds,
+  );
+  setCookie(
+    gateProgressCookieName,
+    opaqueId,
+    cookieOptions(visitCookiePath(link.slug), gateProgressTtlSeconds),
+  );
+}
+
+async function mintSatisfiedVisit(link: VisitorLink, email: string | null) {
+  const minted = await mintVisitorVisit(link, { limitVisitCreation: false, email });
+  if (minted.status === "rate_limited") {
+    stashVisitorPage(minted);
+    return { status: 429, retryAfterSeconds: minted.retryAfterSeconds } as const;
+  }
+  const gateOpaqueId = getCookie(gateProgressCookieName);
+  if (gateOpaqueId) await clearGateProgress(await getRedis(), gateOpaqueId);
+  return redirectToSlug(link.slug);
+}
+
+export type VisitorGateSsr = Readonly<{
   status: number;
   retryAfterSeconds?: number;
 }>;
 
-export async function submitVisitorPassword(slug: string): Promise<Response | VisitorPasswordSsr> {
+export async function submitVisitorGate(slug: string): Promise<Response | VisitorGateSsr> {
   const link = await findVisitorLink(slug);
   if (!link) throw notFound();
 
@@ -77,6 +113,34 @@ export async function submitVisitorPassword(slug: string): Promise<Response | Vi
 
   if (current === "satisfied") return redirectToSlug(link.slug);
 
+  if (step === "email" && current === "email") {
+    const ip = visitorRequestIp();
+    const limit = await consumeFormSubmissionLimit(redis, link.id, ip);
+    if (!limit.allowed) {
+      return renderGate(
+        link,
+        "email",
+        progress,
+        { retryAfterSeconds: limit.retryAfterSeconds },
+        429,
+        limit.retryAfterSeconds,
+      );
+    }
+
+    const email = normalizeCapturedEmail(formValue(form, "email"));
+    if (!email) return renderGate(link, "email", progress);
+
+    if (link.requiresVerification) {
+      await persistGateProgress(redis, link, {
+        password: progress?.password === true,
+        email,
+      });
+      return redirectToSlug(link.slug);
+    }
+
+    return mintSatisfiedVisit(link, email);
+  }
+
   if (step !== "password" || current !== "password") {
     return renderGate(link, current, progress);
   }
@@ -86,27 +150,13 @@ export async function submitVisitorPassword(slug: string): Promise<Response | Vi
   const accepted = hash !== null && (await verifySharePassword(hash, password));
   if (accepted) {
     await clearCredentialGuessLimit(redis, link.id, ip);
-    const remaining = currentGateRequirement(link, { password: true });
+    const remaining = currentGateRequirement(link, { password: true, email: null });
     if (remaining !== "satisfied") {
-      const opaqueId = getCookie(gateProgressCookieName) ?? randomBytes(32).toString("base64url");
-      await writeGateProgress(
-        redis,
-        opaqueId,
-        { linkId: link.id, gateVersion: link.gateVersion, password: true },
-        gateProgressTtlSeconds,
-      );
-      setCookie(
-        gateProgressCookieName,
-        opaqueId,
-        cookieOptions(visitCookiePath(link.slug), gateProgressTtlSeconds),
-      );
+      await persistGateProgress(redis, link, { password: true, email: null });
       return redirectToSlug(link.slug);
     }
 
-    const gateOpaqueId = getCookie(gateProgressCookieName);
-    if (gateOpaqueId) await clearGateProgress(redis, gateOpaqueId);
-    await mintVisitorVisit(link, { limitVisitCreation: false });
-    return redirectToSlug(link.slug);
+    return mintSatisfiedVisit(link, null);
   }
 
   const limit = await consumeCredentialGuessLimit(redis, link.id, ip);

@@ -27,7 +27,7 @@ test("Gate progress stores the Link id, gate version, and password Receipt", asy
   await writeGateProgress(
     redis,
     "opaque-id",
-    { linkId: "link-1", gateVersion: 2, password: true },
+    { linkId: "link-1", gateVersion: 2, password: true, email: "visitor@example.com" },
     900,
   );
 
@@ -35,10 +35,12 @@ test("Gate progress stores the Link id, gate version, and password Receipt", asy
     link_id: "link-1",
     gate_version: 2,
     password: true,
+    email: "visitor@example.com",
   });
   expect(await readGateProgress(redis, "opaque-id")).toEqual({
     linkId: "link-1",
     gateVersion: 2,
     password: true,
+    email: "visitor@example.com",
   });
 });

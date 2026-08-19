@@ -6,6 +6,7 @@ import { expect } from "vitest";
 import { document, link, visit } from "#/server/db/schema";
 import { hashSharePassword } from "#/server/share-password-hash";
 import { credentialGuessLimitKey } from "#/server/viewer/credential-guess-limit";
+import { formSubmissionLimitKey } from "#/server/viewer/form-submission-limit";
 import { gateProgressRecordKey } from "#/server/viewer/gate-progress";
 import { liveVisitRecordKey } from "#/server/viewer/live-visit-record";
 
@@ -385,6 +386,80 @@ test("visitor_id does not skip an email Requirement", async () => {
   ).toEqual([]);
 });
 
+function emailStepCopy(html: string) {
+  return textOf(serverRenderedMarkupOf(html));
+}
+
+test("capture-only email GET names the sender, promises no mail, and writes no Visit", async ({
+  http,
+}) => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    name: distinctiveLinkName,
+    requiresEmail: true,
+  });
+
+  const response = await getViewer(http, gated.slug);
+  const html = await response.text();
+  const copy = emailStepCopy(html);
+
+  expect(response.status).toBe(200);
+  expect(copy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(copy).toMatch(/wants to know who opened this/i);
+  expect(copy).toMatch(/no account/i);
+  expect(copy).toMatch(/no password/i);
+  expect(copy).toMatch(/won'?t email you|will not email you/i);
+  expect(html).not.toMatch(/type="password"/i);
+  expect(copy).not.toMatch(/sign in/i);
+  expect(html).not.toContain(distinctiveTitle);
+  expect(html).not.toContain(distinctiveLinkName);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+});
+
+test("verification-to-follow email GET promises a 6-digit code and writes no Visit", async ({
+  http,
+}) => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+
+  const response = await getViewer(http, gated.slug);
+  const html = await response.text();
+  const copy = emailStepCopy(html);
+
+  expect(response.status).toBe(200);
+  expect(copy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(copy).toMatch(/wants to know who opened this/i);
+  expect(copy).toMatch(/6-digit code/i);
+  expect(copy).not.toMatch(/won'?t email you|will not email you/i);
+  expect(html).not.toMatch(/type="password"/i);
+  expect(copy).not.toMatch(/sign in/i);
+  expect(html).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+});
+
 test("an empty Vault shows the empty-state line and a non-empty Vault does not list members", async () => {
   const fixture = await createOrganizationFixture();
   const emptyVault = await createFixtureVault({
@@ -628,6 +703,7 @@ test("a right password on a Link that still has Requirements sets Gate progress 
     link_id: gated.id,
     gate_version: gated.gateVersion,
     password: true,
+    email: null,
   });
 
   const next = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
@@ -710,4 +786,192 @@ test("ten wrong guesses in 15 minutes return 429 with Retry-After; a correct pas
   expect(
     await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
   ).toHaveLength(1);
+});
+
+async function postEmail(
+  http: typeof fetch,
+  slug: string,
+  email: string,
+  extra: { step?: string; ip?: string } = {},
+) {
+  return http(viewerUrl(slug), {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      ...(extra.ip ? { "x-forwarded-for": extra.ip } : {}),
+    },
+    body: new URLSearchParams({ step: extra.step ?? "email", email }),
+  });
+}
+
+test("the email form POSTs to the Slug, not to a server-function URL", async ({ http }) => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+  });
+
+  const html = await (await getViewer(http, gated.slug)).text();
+  const markup = serverRenderedMarkupOf(html);
+  expect(markup).toMatch(/<form[^>]*method="post"/i);
+  expect(markup).toMatch(/name="email"/i);
+  expect(markup).not.toMatch(/\/_serverFn/);
+});
+
+test("capture-only submit mints a Visit with the normalized address and email_verified false", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+  });
+  const client = createCookieClient();
+
+  const posted = await postEmail(client.http, gated.slug, "  Alex.Visitor@Example.COM  ");
+  expect(posted.status).toBe(303);
+  expect(new URL(posted.headers.get("location") ?? "", process.env.BETTER_AUTH_URL).pathname).toBe(
+    `/v/${gated.slug}`,
+  );
+
+  const visitCookies = cookiesNamed(posted, "visit");
+  expect(visitCookies).toHaveLength(1);
+
+  const revealed = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  expect(revealed.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(await revealed.text()))).toContain(distinctiveTitle);
+
+  const visits = await database.select().from(visit).where(eq(visit.linkId, gated.id));
+  expect(visits).toHaveLength(1);
+  expect(visits[0]?.email).toBe("alex.visitor@example.com");
+  expect(visits[0]?.emailVerified).toBe(false);
+});
+
+test("a password Receipt is listed on the email step, and capture-only still mints the Visit", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    passwordHash: await hashSharePassword("launch-gate"),
+    requiresEmail: true,
+  });
+  const client = createCookieClient();
+
+  expect((await postPassword(client.http, gated.slug, "launch-gate")).status).toBe(303);
+  const emailStep = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const emailHtml = await emailStep.text();
+  expect(textOf(serverRenderedMarkupOf(emailHtml))).toContain("Password accepted");
+  expect(emailHtml).toMatch(/wants to know who opened this/i);
+  expect(emailHtml).not.toContain(distinctiveTitle);
+
+  expect((await postEmail(client.http, gated.slug, "visitor@example.com")).status).toBe(303);
+  const visits = await database.select().from(visit).where(eq(visit.linkId, gated.id));
+  expect(visits).toHaveLength(1);
+  expect(visits[0]?.email).toBe("visitor@example.com");
+  expect(visits[0]?.emailVerified).toBe(false);
+});
+
+test("verification-to-follow submit stores the address on Gate progress and writes no Visit", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+  const client = createCookieClient();
+
+  const posted = await postEmail(client.http, gated.slug, "  Visitor@Example.COM ");
+  expect(posted.status).toBe(303);
+
+  const gateCookies = cookiesNamed(posted, "gate");
+  expect(gateCookies).toHaveLength(1);
+  const opaqueId = decodeURIComponent((gateCookies[0] ?? "").split("=")[1]?.split(";")[0] ?? "");
+  expect(JSON.parse((await redis.get(gateProgressRecordKey(opaqueId))) ?? "null")).toEqual({
+    link_id: gated.id,
+    gate_version: gated.gateVersion,
+    password: false,
+    email: "visitor@example.com",
+  });
+
+  const next = await client.http(viewerUrl(gated.slug), { redirect: "manual" });
+  const html = await next.text();
+  expect(next.status).toBe(200);
+  expect(textOf(serverRenderedMarkupOf(html))).toContain("visitor@example.com");
+  expect(html).not.toContain(distinctiveTitle);
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
+});
+
+test("twenty email submissions in 15 minutes return 429; success does not reset that key", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    title: distinctiveTitle,
+  });
+  const gated = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    documentId: documentRow.id,
+    requiresEmail: true,
+    requiresVerification: true,
+  });
+  const attackerIp = "203.0.113.82";
+  const salt = process.env.GATE_RATELIMIT_SALT!;
+
+  const first = await postEmail(createCookieClient().http, gated.slug, "one@example.com", {
+    ip: attackerIp,
+  });
+  expect(first.status).toBe(303);
+  expect(await redis.get(formSubmissionLimitKey(gated.id, attackerIp, salt))).not.toBeNull();
+
+  for (let attempt = 1; attempt < 20; attempt++) {
+    const submitted = await postEmail(
+      createCookieClient().http,
+      gated.slug,
+      `visitor-${attempt}@example.com`,
+      { ip: attackerIp },
+    );
+    expect(submitted.status).toBe(303);
+  }
+
+  const limited = await postEmail(createCookieClient().http, gated.slug, "too-many@example.com", {
+    ip: attackerIp,
+  });
+  const limitedHtml = await limited.text();
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get("retry-after")).toEqual(expect.any(String));
+  expect(textOf(serverRenderedMarkupOf(limitedHtml))).toMatch(/too many attempts/i);
+  expect(limitedHtml).not.toContain(distinctiveTitle);
+  expect(await redis.get(formSubmissionLimitKey(gated.id, attackerIp, salt))).not.toBeNull();
+  expect(
+    await database.select({ id: visit.id }).from(visit).where(eq(visit.linkId, gated.id)),
+  ).toEqual([]);
 });

@@ -4,6 +4,7 @@ export type GateProgressRecord = Readonly<{
   linkId: string;
   gateVersion: number;
   password: boolean;
+  email: string | null;
 }>;
 
 type RedisKeyValue = {
@@ -39,6 +40,7 @@ export async function readGateProgress(
       link_id?: unknown;
       gate_version?: unknown;
       password?: unknown;
+      email?: unknown;
     };
     if (typeof parsed.link_id !== "string" || typeof parsed.gate_version !== "number") {
       return null;
@@ -47,6 +49,7 @@ export async function readGateProgress(
       linkId: parsed.link_id,
       gateVersion: parsed.gate_version,
       password: parsed.password === true,
+      email: typeof parsed.email === "string" ? parsed.email : null,
     };
   } catch {
     return null;
@@ -66,6 +69,7 @@ export async function writeGateProgress(
         link_id: record.linkId,
         gate_version: record.gateVersion,
         password: record.password,
+        email: record.email,
       }),
       { EX: ttlSeconds },
     ),

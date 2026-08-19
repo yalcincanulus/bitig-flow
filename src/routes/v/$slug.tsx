@@ -4,7 +4,7 @@ import type {} from "@tanstack/react-start";
 import { ViewerGatePage } from "#/components/viewer-gate-page";
 import { gateCredential } from "#/server/viewer/gate-credential";
 import { loadVisitorPage } from "#/server/viewer/load-visitor-page";
-import { submitVisitorPassword } from "#/server/viewer/submit-password";
+import { submitVisitorGate } from "#/server/viewer/submit-gate";
 
 function responseFromDeferred(deferred: unknown) {
   if (deferred instanceof Response) return deferred;
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/v/$slug")({
     middleware: [gateCredential],
     handlers: {
       POST: async ({ params, next }) => {
-        const outcome = await submitVisitorPassword(params.slug);
+        const outcome = await submitVisitorGate(params.slug);
         if (outcome instanceof Response) return outcome;
         const deferred = await Promise.resolve(next());
         if (outcome.status === 200) return deferred;

@@ -2,7 +2,7 @@ import { buttonVariants } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { viewerSenderFirstName, viewerSenderLine } from "#/lib/viewer-sender";
 import { cn } from "#/lib/utils";
-import type { VisitorPage } from "#/server/viewer/visitor-gate";
+import type { GateReceiptItem, VisitorPage } from "#/server/viewer/visitor-gate";
 
 function SenderLine({
   senderName,
@@ -24,11 +24,17 @@ function SenderLine({
   );
 }
 
-function Receipt({ receipt }: { receipt: ReadonlyArray<"password"> }) {
+function Receipt({ receipt }: { receipt: ReadonlyArray<GateReceiptItem> }) {
   if (receipt.length === 0) return null;
   return (
     <ul className="mb-6 list-none space-y-1 text-sm text-muted-foreground">
-      {receipt.includes("password") ? <li>Password accepted</li> : null}
+      {receipt.map((item) =>
+        item.kind === "password" ? (
+          <li key="password">Password accepted</li>
+        ) : (
+          <li key="email">{item.address}</li>
+        ),
+      )}
     </ul>
   );
 }
@@ -100,6 +106,41 @@ export function ViewerGatePage({ page }: { page: VisitorPage }) {
           {page.error === "wrong_password" ? (
             <p className="mt-3 text-sm text-destructive">Wrong password.</p>
           ) : null}
+          {limited ? (
+            <p className="mt-3 text-sm text-muted-foreground">{retryCopy(retryAfterSeconds)}</p>
+          ) : null}
+          <button
+            type="submit"
+            disabled={disabled}
+            className={cn(
+              buttonVariants({ variant: "default" }),
+              "mt-4 h-14 w-full rounded-lg text-base",
+            )}
+          >
+            Continue
+          </button>
+        </form>
+      ) : null}
+      {page.currentRequirement === "email" ? (
+        <form method="post">
+          <input type="hidden" name="step" value="email" />
+          <h1 className="text-2xl leading-snug font-medium tracking-tight text-balance">
+            {firstName} wants to know who opened this.
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground">
+            {page.requiresVerification
+              ? "We'll send a 6-digit code here to check it's you."
+              : "No account, no password, and we won't email you."}
+          </p>
+          <Input
+            type="email"
+            name="email"
+            autoFocus={!disabled}
+            disabled={disabled}
+            aria-label="Email"
+            autoComplete="email"
+            className="mt-7 h-14 rounded-lg text-base"
+          />
           {limited ? (
             <p className="mt-3 text-sm text-muted-foreground">{retryCopy(retryAfterSeconds)}</p>
           ) : null}
