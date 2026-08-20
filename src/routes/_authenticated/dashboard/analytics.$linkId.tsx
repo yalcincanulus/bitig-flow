@@ -1,12 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { ShieldAlertIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 
 import { AnalyticsDwellChart } from "#/components/analytics-dwell-chart";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { AnalyticsVisitTimeline } from "#/components/analytics-visit-timeline";
-import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { DocumentKindIcon } from "#/components/document-kind";
+import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { StatList } from "#/components/stat-list";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
+import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
 import {
   Table,
@@ -94,6 +98,19 @@ function AnalyticsLinkPage() {
             "This Link has not been active in the range."
           )}
         </PageDescription>
+        <PageActions>
+          <GateBadges link={link} />
+          <LinkStatusBadge isActive={link.isActive} />
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={<Link to="/dashboard/links/$linkId" params={{ linkId: link.id }} />}
+          >
+            <SettingsIcon data-icon="inline-start" />
+            Link settings
+          </Button>
+        </PageActions>
       </PageHeader>
 
       <AnalyticsRangeControls {...analytics.range} linkId={link.id} />
@@ -108,37 +125,19 @@ function AnalyticsLinkPage() {
         </Alert>
       ) : null}
 
-      {!analyticsTrustworthy(link) ? (
-        <Alert>
-          <ShieldAlertIcon />
-          <AlertTitle>Public Link</AlertTitle>
-          <AlertDescription>
-            This Link has no Requirements. Add a password or email Requirement to make its analytics
-            more trustworthy.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <Card>
         <CardHeader>
           <CardTitle>
             {analytics.truncated ? <>Most recent {ANALYTICS_VISIT_CAP} Visits</> : "Totals"}
           </CardTitle>
           <CardDescription>
-            {analytics.truncated
-              ? `These numbers cover the most recent ${ANALYTICS_VISIT_CAP} Visits in the range, not a total.`
-              : "Visits, unique visitors, captured emails, Total time, and downloads for the active range."}
+            {analyticsTrustworthy(link)
+              ? "Visits, unique visitors, captured emails, Total time, and downloads for the active range."
+              : "This Link has no Requirements, so anyone with the URL can create Visits. Add a password or an email Requirement to make these numbers trustworthy."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-            {metrics.map((metric) => (
-              <div key={metric.label} className="flex flex-col gap-1">
-                <dt className="text-xs text-muted-foreground">{metric.label}</dt>
-                <dd className="text-lg font-semibold tabular-nums">{metric.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <StatList stats={metrics} />
         </CardContent>
       </Card>
 
@@ -151,27 +150,26 @@ function AnalyticsLinkPage() {
         return (
           <Card key={row.documentId}>
             <CardHeader>
-              <CardTitle>{document?.title || "Document"}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                {kind ? (
+                  <DocumentKindIcon kind={kind} className="size-3.5 text-muted-foreground" />
+                ) : null}
+                {document?.title || "Document"}
+              </CardTitle>
               <CardDescription>
-                {kind === "pdf"
-                  ? `${analyticsNumberFormat.format(row.views)} Views`
-                  : `Total time ${formatTotalTime(row.totalMs)}`}
+                {analyticsNumberFormat.format(row.views)} Views · Total time{" "}
+                {formatTotalTime(row.totalMs)}
+                {kind === "markdown"
+                  ? " · Reading position is not recorded, so this is the finding for the whole Document."
+                  : ""}
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {kind === "markdown" ? (
-                <p>
-                  Reading position is not recorded, so this Total time is the finding for the whole
-                  Document.
-                </p>
-              ) : null}
-              {showPages ? (
-                <>
-                  <AnalyticsDwellChart pages={pages} />
-                  <DwellTable pages={pages} views={row.views} />
-                </>
-              ) : null}
-            </CardContent>
+            {showPages ? (
+              <CardContent className="flex flex-col gap-4">
+                <AnalyticsDwellChart pages={pages} />
+                <DwellTable pages={pages} views={row.views} />
+              </CardContent>
+            ) : null}
           </Card>
         );
       })}
@@ -216,14 +214,14 @@ function DwellTable({
       <TableHeader>
         <TableRow>
           <TableHead>Page</TableHead>
-          <TableHead>Total time</TableHead>
+          <TableHead className="text-right">Total time</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {pages.map((row) => (
           <TableRow key={row.page}>
             <TableCell>Page {row.page}</TableCell>
-            <TableCell className="tabular-nums">{formatTotalTime(row.ms)}</TableCell>
+            <TableCell className="text-right tabular-nums">{formatTotalTime(row.ms)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

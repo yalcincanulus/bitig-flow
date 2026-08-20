@@ -1,9 +1,24 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { eq, ilike, useLiveQuery } from "@tanstack/react-db";
-import { FileTextIcon, PlusIcon, TrashIcon, UploadIcon } from "lucide-react";
+import {
+  ChartNoAxesCombinedIcon,
+  DownloadIcon,
+  EllipsisIcon,
+  FileTextIcon,
+  LinkIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+  UploadIcon,
+  XIcon,
+} from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
+import { FilterBar, FilterBarLabel, FilterBarSpacer } from "#/components/dashboard-filter-bar";
+import { DocumentThumbnail, documentKindLabel } from "#/components/document-kind";
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,18 +28,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "#/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "#/components/ui/alert";
+import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "#/components/ui/card";
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +42,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "#/components/ui/dialog";
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyContent,
@@ -45,6 +60,13 @@ import {
 } from "#/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "#/components/ui/input-group";
+import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { documentsSearchSchema } from "#/lib/dashboard-search";
@@ -78,6 +100,13 @@ type WatchPersistence = (
   message: string,
 ) => void;
 
+const kindFilters = [
+  { value: "all", label: "All" },
+  { value: "markdown", label: "Markdown" },
+  { value: "pdf", label: "PDF" },
+  { value: "image", label: "Images" },
+] as const;
+
 async function putThenConfirm(
   uploadUrl: string,
   file: File,
@@ -102,8 +131,9 @@ async function putThenConfirm(
 
 function DocumentsPage() {
   const search = Route.useSearch();
+  const navigate = useNavigate();
   const { organization, queryClient, session } = Route.useRouteContext();
-  const { documents, vaultItems } = getCollections(queryClient, organization.id);
+  const { documents, vaults, vaultItems } = getCollections(queryClient, organization.id);
   const { data } = useLiveQuery(
     (query) => {
       let filtered = query.from({ document: documents });
@@ -127,8 +157,15 @@ function DocumentsPage() {
     },
     [documents, search.kind, search.q, search.vault, vaultItems],
   );
+  const { data: vaultRows } = useLiveQuery(
+    (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
+    [vaults],
+  );
   const [mutationError, setMutationError] = useState<string | null>(null);
   const isFiltered = Boolean(search.kind || search.q || search.vault);
+  const filteredVault = search.vault
+    ? vaultRows.find((vault) => vault.id === search.vault)
+    : undefined;
 
   function watchPersistence(
     transaction: ReturnType<DocumentCollection["insert"]>,
@@ -136,6 +173,16 @@ function DocumentsPage() {
   ) {
     setMutationError(null);
     void transaction.isPersisted.promise.catch(() => setMutationError(message));
+  }
+
+  function setSearch(next: Partial<typeof search>) {
+    void navigate({ to: "/dashboard/documents", search: { ...search, ...next } });
+  }
+
+  function submitTitleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = new FormData(event.currentTarget).get("q");
+    setSearch({ q: typeof value === "string" && value.trim() ? value.trim() : undefined });
   }
 
   return (
@@ -161,6 +208,73 @@ function DocumentsPage() {
         </PageActions>
       </PageHeader>
 
+      <FilterBar>
+        <ToggleGroup
+          variant="outline"
+          spacing={0}
+          value={[search.kind ?? "all"]}
+          onValueChange={(value) => {
+            const next = value[0];
+            if (!next) return;
+            setSearch({ kind: next === "all" ? undefined : (next as typeof search.kind) });
+          }}
+          aria-label="Filter by kind"
+        >
+          {kindFilters.map((filter) => (
+            <ToggleGroupItem key={filter.value} value={filter.value}>
+              {filter.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+
+        {filteredVault ? (
+          <Badge variant="secondary">
+            In {filteredVault.name}
+            <button
+              type="button"
+              aria-label="Clear the Vault filter"
+              className="-mr-1 rounded-full p-0.5 hover:bg-foreground/10"
+              onClick={() => setSearch({ vault: undefined })}
+            >
+              <XIcon className="size-2.5" />
+            </button>
+          </Badge>
+        ) : null}
+
+        <FilterBarSpacer />
+
+        <form onSubmit={submitTitleSearch} key={search.q ?? ""}>
+          <InputGroup className="w-full sm:w-56">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              name="q"
+              defaultValue={search.q ?? ""}
+              placeholder="Search titles"
+              aria-label="Search Document titles"
+            />
+            {search.q ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Clear the title search"
+                  onClick={() => setSearch({ q: undefined })}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
+        </form>
+
+        <FilterBarLabel>
+          {data.length} {data.length === 1 ? "Document" : "Documents"}
+        </FilterBarLabel>
+      </FilterBar>
+
       {mutationError && (
         <Alert variant="destructive" aria-live="polite">
           <AlertDescription>{mutationError}</AlertDescription>
@@ -179,6 +293,14 @@ function DocumentsPage() {
                 Nothing matches the current kind, Vault, or title filter.
               </EmptyDescription>
             </EmptyHeader>
+            <EmptyContent>
+              <Button
+                variant="outline"
+                onClick={() => void navigate({ to: "/dashboard/documents", search: {} })}
+              >
+                Clear filters
+              </Button>
+            </EmptyContent>
           </Empty>
         ) : (
           <Empty>
@@ -203,41 +325,85 @@ function DocumentsPage() {
           </Empty>
         )
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {data.map((document) => (
-            <Card key={document.id}>
-              {document.kind === "image" && document.status === "ready" ? (
-                <img
-                  src={documentBytesUrl(document.id)}
-                  alt=""
-                  className="aspect-video w-full object-cover"
-                />
-              ) : null}
-              <CardHeader>
-                <CardTitle>
-                  <Link
-                    to="/dashboard/documents/$documentId"
-                    params={{ documentId: document.id }}
-                    className="hover:underline"
-                  >
-                    {document.title || "Untitled"}
-                  </Link>
-                </CardTitle>
-                <CardDescription>{document.kind}</CardDescription>
-                <CardAction>
-                  {document.status === "pending"
-                    ? "Uploading…"
-                    : document.$synced
-                      ? null
-                      : "Saving…"}
-                </CardAction>
-              </CardHeader>
-              <CardFooter className="gap-2">
+            <DocumentTile
+              key={document.id}
+              document={document}
+              documents={documents}
+              watchPersistence={watchPersistence}
+            />
+          ))}
+        </div>
+      )}
+    </Page>
+  );
+}
+
+/**
+ * One Document in the grid.
+ *
+ * Every tile is the same height whatever the Document is, and carries one control rather than a
+ * row of them: the whole tile is the way in, and the verbs an owner uses rarely sit behind the
+ * menu instead of competing with the Document's own name.
+ */
+function DocumentTile({
+  document,
+  documents,
+  watchPersistence,
+}: Readonly<{
+  document: DocumentRow;
+  documents: DocumentCollection;
+  watchPersistence: WatchPersistence;
+}>) {
+  const [deleting, setDeleting] = useState(false);
+  const pending = document.status === "pending";
+
+  return (
+    <Card className="group gap-0 overflow-hidden py-0 transition-shadow hover:ring-foreground/20">
+      <Link
+        to="/dashboard/documents/$documentId"
+        params={{ documentId: document.id }}
+        aria-label={document.title || "Untitled"}
+        className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <DocumentThumbnail document={document} />
+      </Link>
+      <CardHeader className="gap-1 border-t border-border py-3">
+        <CardTitle className="min-w-0">
+          <Link
+            to="/dashboard/documents/$documentId"
+            params={{ documentId: document.id }}
+            className="block truncate hover:underline"
+          >
+            {document.title || "Untitled"}
+          </Link>
+        </CardTitle>
+        <CardDescription>
+          {pending ? "Uploading…" : document.$synced ? documentKindLabel(document.kind) : "Saving…"}
+        </CardDescription>
+        <CardAction>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon-sm" aria-label="Document actions" />}
+            >
+              <EllipsisIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  render={
+                    <Link
+                      to="/dashboard/documents/$documentId"
+                      params={{ documentId: document.id }}
+                    />
+                  }
+                >
+                  <ChartNoAxesCombinedIcon />
+                  Preview and activity
+                </DropdownMenuItem>
                 {document.kind === "markdown" ? (
-                  <Button
-                    nativeButton={false}
-                    variant="outline"
-                    size="sm"
+                  <DropdownMenuItem
                     render={
                       <Link
                         to="/dashboard/documents/$documentId/edit"
@@ -245,20 +411,47 @@ function DocumentsPage() {
                       />
                     }
                   >
+                    <PencilIcon />
                     Edit
-                  </Button>
+                  </DropdownMenuItem>
                 ) : null}
-                <DeleteDocumentDialog
-                  document={document}
-                  documents={documents}
-                  watchPersistence={watchPersistence}
-                />
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
-    </Page>
+                {document.kind !== "markdown" && !pending ? (
+                  <DropdownMenuItem
+                    render={<a href={documentBytesUrl(document.id, { download: true })} />}
+                  >
+                    <DownloadIcon />
+                    Download
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem
+                  disabled={pending}
+                  render={
+                    <Link to="/dashboard/links" search={pending ? {} : { target: document.id }} />
+                  }
+                >
+                  <LinkIcon />
+                  Links to it
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
+                  <TrashIcon />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardAction>
+      </CardHeader>
+      <DeleteDocumentDialog
+        document={document}
+        documents={documents}
+        watchPersistence={watchPersistence}
+        open={deleting}
+        onOpenChange={setDeleting}
+      />
+    </Card>
   );
 }
 
@@ -439,28 +632,26 @@ function DeleteDocumentDialog({
   document,
   documents,
   watchPersistence,
+  open,
+  onOpenChange,
 }: {
   document: DocumentRow;
   documents: DocumentCollection;
   watchPersistence: WatchPersistence;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   function handleDelete() {
     const transaction = documents.delete(document.id);
     watchPersistence(
       transaction,
       `Could not delete “${document.title}”. Your change was rolled back.`,
     );
-    setOpen(false);
+    onOpenChange(false);
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
-        <TrashIcon data-icon="inline-start" />
-        Delete
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete “{document.title}”?</AlertDialogTitle>

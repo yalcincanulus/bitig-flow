@@ -10,15 +10,15 @@ function sourceOf(relativePath: string) {
 const documentPage = sourceOf(
   "../../src/routes/_authenticated/dashboard/documents/$documentId/index.tsx",
 );
-const linkTotalsCard = sourceOf("../../src/components/analytics-link-totals-card.tsx");
+const linkBadges = sourceOf("../../src/components/link-badges.tsx");
 
 test("a Document in no Links says so", () => {
   expect(documentPage).toMatch(/This Document is in no Links/);
 });
 
 test("the Document analytics panel uses the shared trust module", () => {
-  expect(documentPage).toMatch(/AnalyticsLinkTotalsCard/);
-  expect(linkTotalsCard).toMatch(/analyticsTrustworthy/);
-  expect(linkTotalsCard).toMatch(/Public Link/);
-  expect(linkTotalsCard).toMatch(/password or email Requirement/);
+  expect(documentPage).toMatch(/AnalyticsTrustMark/);
+  expect(linkBadges).toMatch(/analyticsTrustworthy/);
+  expect(linkBadges).toMatch(/no Requirements/);
+  expect(linkBadges).toMatch(/password or\s+an email Requirement/);
 });

@@ -1,10 +1,11 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { LinkIcon } from "lucide-react";
+import { DownloadIcon, LinkIcon, PencilIcon } from "lucide-react";
 import { useState } from "react";
 
-import { AnalyticsLinkTotalsCard } from "#/components/analytics-link-totals-card";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
+import { DocumentKindBadge } from "#/components/document-kind";
+import { AnalyticsTrustMark, GateBadges } from "#/components/link-badges";
 import { LinkWriteDialog } from "#/components/link-write-dialog";
 import { MarkdownBody } from "#/components/markdown-body";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
@@ -18,12 +19,22 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "#/components/ui/empty";
+import { Spinner } from "#/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "#/components/ui/table";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { documentBytesUrl } from "#/lib/document-bytes";
 import { previewQueryKey } from "#/lib/document-preview";
+import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
 import { getAnalyticsDocument } from "#/server/functions/analytics";
 import { renderMarkdown } from "#/server/functions/documents";
 
@@ -74,8 +85,36 @@ function DocumentPage() {
     <Page>
       <PageHeader>
         <PageTitle>{document.title}</PageTitle>
-        <PageDescription>What a Visitor gets for this Document.</PageDescription>
+        <PageDescription className="flex flex-wrap items-center gap-2">
+          <DocumentKindBadge kind={document.kind} />
+          <span>What a Visitor gets for this Document.</span>
+        </PageDescription>
         <PageActions>
+          {document.kind === "markdown" ? (
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={
+                <Link
+                  to="/dashboard/documents/$documentId/edit"
+                  params={{ documentId: document.id }}
+                />
+              }
+            >
+              <PencilIcon data-icon="inline-start" />
+              Edit
+            </Button>
+          ) : null}
+          {document.kind !== "markdown" && document.status === "ready" ? (
+            <Button
+              nativeButton={false}
+              variant="outline"
+              render={<a href={documentBytesUrl(document.id, { download: true })} />}
+            >
+              <DownloadIcon data-icon="inline-start" />
+              Download
+            </Button>
+          ) : null}
           {document.status === "ready" ? (
             <LinkWriteDialog
               organizationId={organization.id}
@@ -92,90 +131,115 @@ function DocumentPage() {
               triggerLabel="Create Link"
             />
           ) : null}
-          {document.kind === "markdown" ? (
-            <Button
-              nativeButton={false}
-              variant="outline"
-              size="sm"
-              render={
-                <Link
-                  to="/dashboard/documents/$documentId/edit"
-                  params={{ documentId: document.id }}
-                />
-              }
-            >
-              Edit
-            </Button>
-          ) : null}
-          {document.kind !== "markdown" && document.status === "ready" ? (
-            <Button
-              nativeButton={false}
-              variant="outline"
-              size="sm"
-              render={<a href={documentBytesUrl(document.id, { download: true })} />}
-            >
-              Download
-            </Button>
-          ) : null}
         </PageActions>
       </PageHeader>
+
       {mutationError && (
         <Alert variant="destructive" aria-live="polite">
           <AlertDescription>{mutationError}</AlertDescription>
         </Alert>
       )}
-      {document.status === "pending" ? (
-        <p>Uploading…</p>
-      ) : document.kind === "image" ? (
-        <img src={documentBytesUrl(document.id)} alt="" className="max-w-full" />
-      ) : document.kind === "pdf" ? (
-        <PreviewPdfDocument documentId={document.id} pageCount={document.pageCount} />
-      ) : document.kind === "markdown" && html !== undefined ? (
-        <MarkdownBody html={html} className="max-w-[51rem]" />
-      ) : null}
 
-      <AnalyticsRangeControls {...analytics.range} documentId={document.id} />
-
-      {analytics.links.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <LinkIcon />
-            </EmptyMedia>
-            <EmptyTitle>This Document is in no Links</EmptyTitle>
-            <EmptyDescription>
-              Create a Link that reaches this Document to collect Visits, Viewer identities, Total
-              time, and downloads for it.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {analytics.links.map((totals) => {
-            const link = linkById.get(totals.linkId);
-            const metrics = [
-              { label: "Visits", value: analyticsNumberFormat.format(totals.visits) },
-              {
-                label: "Unique visitors",
-                value: analyticsNumberFormat.format(totals.viewerIdentities),
-              },
-              { label: "Total time", value: formatTotalTime(totals.totalMs) },
-              { label: "Downloads", value: analyticsNumberFormat.format(totals.downloads) },
-            ];
-
-            return (
-              <AnalyticsLinkTotalsCard
-                key={totals.linkId}
-                linkId={totals.linkId}
-                range={analytics.range}
-                link={link}
-                metrics={metrics}
-                metricsClassName="sm:grid-cols-4"
-              />
-            );
-          })}
+      {/* The Preview goes through the render module the Viewer uses, so it is laid out the way the
+          Viewer lays it out: a sheet of paper on a desk. */}
+      <section className="rounded-lg bg-viewer-desk px-4 py-6 ring-1 ring-foreground/10 md:px-8 md:py-10">
+        <div className="mx-auto w-full max-w-[51rem]">
+          {document.status === "pending" ? (
+            <p className="flex items-center justify-center gap-2 py-12 text-xs text-muted-foreground">
+              <Spinner className="size-4" />
+              Uploading…
+            </p>
+          ) : document.kind === "image" ? (
+            <img
+              src={documentBytesUrl(document.id)}
+              alt=""
+              className="mx-auto max-w-full rounded-sm shadow-md ring-1 ring-foreground/10"
+            />
+          ) : document.kind === "pdf" ? (
+            <PreviewPdfDocument documentId={document.id} pageCount={document.pageCount} />
+          ) : document.kind === "markdown" && html !== undefined ? (
+            <MarkdownBody
+              html={html}
+              className="rounded-sm bg-viewer-paper px-6 py-8 shadow-md ring-1 ring-foreground/10 md:px-10"
+            />
+          ) : null}
         </div>
-      )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <header className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium">Activity through its Links</h2>
+        </header>
+
+        <AnalyticsRangeControls {...analytics.range} documentId={document.id} />
+
+        {analytics.links.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <LinkIcon />
+              </EmptyMedia>
+              <EmptyTitle>This Document is in no Links</EmptyTitle>
+              <EmptyDescription>
+                Create a Link that reaches this Document to collect Visits, Viewer identities, Total
+                time, and downloads for it.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="overflow-hidden rounded-lg ring-1 ring-foreground/10">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="pl-3">Link</TableHead>
+                  <TableHead>Gate</TableHead>
+                  <TableHead className="text-right">Visits</TableHead>
+                  <TableHead className="text-right">Unique</TableHead>
+                  <TableHead className="text-right">Total time</TableHead>
+                  <TableHead className="pr-3 text-right">Downloads</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analytics.links.map((totals) => {
+                  const link = linkById.get(totals.linkId);
+
+                  return (
+                    <TableRow key={totals.linkId}>
+                      <TableCell className="max-w-64 pl-3 font-medium">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Link
+                            to="/dashboard/analytics/$linkId"
+                            params={{ linkId: totals.linkId }}
+                            search={analytics.range}
+                            className="truncate hover:underline"
+                          >
+                            {link?.name ||
+                              (link && isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
+                          </Link>
+                          <AnalyticsTrustMark link={link} />
+                        </span>
+                      </TableCell>
+                      <TableCell>{link ? <GateBadges link={link} /> : null}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {analyticsNumberFormat.format(totals.visits)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {analyticsNumberFormat.format(totals.viewerIdentities)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatTotalTime(totals.totalMs)}
+                      </TableCell>
+                      <TableCell className="pr-3 text-right tabular-nums">
+                        {analyticsNumberFormat.format(totals.downloads)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
     </Page>
   );
 }

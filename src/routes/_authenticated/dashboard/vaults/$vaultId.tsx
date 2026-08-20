@@ -1,20 +1,14 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { FileTextIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { FileTextIcon, LinkIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { LinkWriteDialog } from "#/components/link-write-dialog";
+import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
+import { CopyLinkSlugButton, LinkWriteDialog } from "#/components/link-write-dialog";
+import { DocumentThumbnail, documentKindLabel } from "#/components/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "#/components/ui/card";
 import { Checkbox } from "#/components/ui/checkbox";
 import {
   Dialog,
@@ -42,8 +36,20 @@ import {
   FieldSet,
   FieldTitle,
 } from "#/components/ui/field";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "#/components/ui/item";
+import { Separator } from "#/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
+import { isLinkSlug } from "#/lib/link-slug";
 
 export const Route = createFileRoute("/_authenticated/dashboard/vaults/$vaultId")({
   loader: ({ context: { organization, queryClient }, params: { vaultId } }) => {
@@ -89,6 +95,14 @@ function VaultPage() {
         .select(({ vault }) => vault),
     [vaults],
   );
+  const { data: vaultLinks } = useLiveQuery(
+    (query) =>
+      query
+        .from({ link: links })
+        .where(({ link }) => eq(link.vaultId, vault.id))
+        .select(({ link }) => link),
+    [links, vault.id],
+  );
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   function watchPersistence(
@@ -107,6 +121,14 @@ function VaultPage() {
           {vault.description || "Documents in this Vault are shared together."}
         </PageDescription>
         <PageActions>
+          <AddDocumentsDialog
+            documents={organizationDocuments}
+            documentsInVault={documentsInVault}
+            vaultId={vault.id}
+            vaultItems={vaultItems}
+            watchPersistence={watchPersistence}
+            triggerVariant="outline"
+          />
           <LinkWriteDialog
             organizationId={organization.id}
             organizationName={organization.name}
@@ -121,13 +143,6 @@ function VaultPage() {
             lockedTarget={{ vaultId: vault.id }}
             triggerLabel="Create Link"
           />
-          <AddDocumentsDialog
-            documents={organizationDocuments}
-            documentsInVault={documentsInVault}
-            vaultId={vault.id}
-            vaultItems={vaultItems}
-            watchPersistence={watchPersistence}
-          />
         </PageActions>
       </PageHeader>
 
@@ -137,63 +152,131 @@ function VaultPage() {
         </Alert>
       )}
 
-      {documentsInVault.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileTextIcon />
-            </EmptyMedia>
-            <EmptyTitle>No Documents in this Vault</EmptyTitle>
-            <EmptyDescription>Add Documents to share them as one unit.</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <AddDocumentsDialog
-              documents={organizationDocuments}
-              documentsInVault={documentsInVault}
-              vaultId={vault.id}
-              vaultItems={vaultItems}
-              watchPersistence={watchPersistence}
-              triggerLabel="Add Documents"
-            />
-          </EmptyContent>
-        </Empty>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {documentsInVault.map((document) => (
-            <Card key={document.id}>
-              <CardHeader>
-                <CardTitle>
-                  <Link
-                    to="/dashboard/documents/$documentId"
-                    params={{ documentId: document.id }}
-                    className="hover:underline"
-                  >
-                    {document.title}
-                  </Link>
-                </CardTitle>
-                <CardDescription>{document.kind}</CardDescription>
-                <CardAction>{document.$synced ? null : "Saving…"}</CardAction>
-              </CardHeader>
-              <CardFooter>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const transaction = vaultItems.delete(`${vault.id}:${document.id}` as const);
-                    watchPersistence(
-                      transaction,
-                      `Could not remove “${document.title}”. Your change was rolled back.`,
-                    );
-                  }}
-                >
-                  <TrashIcon data-icon="inline-start" />
-                  Remove from Vault
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
+      <section className="flex flex-col gap-3">
+        <header className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium">Documents</h2>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {documentsInVault.length} in this Vault
+          </span>
+        </header>
+
+        {documentsInVault.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileTextIcon />
+              </EmptyMedia>
+              <EmptyTitle>No Documents in this Vault</EmptyTitle>
+              <EmptyDescription>Add Documents to share them as one unit.</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <AddDocumentsDialog
+                documents={organizationDocuments}
+                documentsInVault={documentsInVault}
+                vaultId={vault.id}
+                vaultItems={vaultItems}
+                watchPersistence={watchPersistence}
+              />
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <ItemGroup className="gap-2">
+            {documentsInVault.map((document) => (
+              <Item key={document.id} variant="outline" className="hover:bg-muted/40">
+                <ItemMedia variant="image" className="size-9 rounded-md">
+                  <DocumentThumbnail document={document} compact />
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle>
+                    <Link
+                      to="/dashboard/documents/$documentId"
+                      params={{ documentId: document.id }}
+                      className="hover:underline"
+                    >
+                      {document.title || "Untitled"}
+                    </Link>
+                  </ItemTitle>
+                  <ItemDescription>
+                    {document.$synced ? documentKindLabel(document.kind) : "Saving…"}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove ${document.title} from this Vault`}
+                          onClick={() => {
+                            const transaction = vaultItems.delete(
+                              `${vault.id}:${document.id}` as const,
+                            );
+                            watchPersistence(
+                              transaction,
+                              `Could not remove “${document.title}”. Your change was rolled back.`,
+                            );
+                          }}
+                        >
+                          <XIcon />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Remove from Vault</TooltipContent>
+                  </Tooltip>
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
+      </section>
+
+      <Separator />
+
+      <section className="flex flex-col gap-3">
+        <header className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium">Links to this Vault</h2>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {vaultLinks.length} {vaultLinks.length === 1 ? "Link" : "Links"}
+          </span>
+        </header>
+
+        {vaultLinks.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Nothing publishes this Vault yet. A Vault nothing points at is unreachable.
+          </p>
+        ) : (
+          <ItemGroup className="gap-2">
+            {vaultLinks.map((link) => (
+              <Item key={link.id} variant="outline" className="hover:bg-muted/40">
+                <ItemMedia variant="icon">
+                  <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <LinkIcon />
+                  </span>
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle>
+                    <Link
+                      to="/dashboard/links/$linkId"
+                      params={{ linkId: link.id }}
+                      className="hover:underline"
+                    >
+                      {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
+                    </Link>
+                  </ItemTitle>
+                  <ItemDescription className="flex flex-wrap items-center gap-1.5">
+                    <GateBadges link={link} />
+                    <LinkStatusBadge isActive={link.isActive} />
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <CopyLinkSlugButton slug={link.slug} />
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
+      </section>
     </Page>
   );
 }
@@ -210,6 +293,7 @@ function AddDocumentsDialog({
   vaultItems,
   watchPersistence,
   triggerLabel = "Add Documents",
+  triggerVariant = "default",
 }: {
   documents: DocumentRow[];
   documentsInVault: DocumentRow[];
@@ -217,6 +301,7 @@ function AddDocumentsDialog({
   vaultItems: VaultItemCollection;
   watchPersistence: WatchPersistence;
   triggerLabel?: string;
+  triggerVariant?: "default" | "outline";
 }) {
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
@@ -254,7 +339,7 @@ function AddDocumentsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button />}>
+      <DialogTrigger render={<Button variant={triggerVariant} />}>
         <PlusIcon data-icon="inline-start" />
         {triggerLabel}
       </DialogTrigger>
@@ -267,11 +352,11 @@ function AddDocumentsDialog({
             </DialogDescription>
           </DialogHeader>
           {documents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No Documents in this Organization yet.</p>
+            <p className="text-xs text-muted-foreground">No Documents in this Organization yet.</p>
           ) : (
             <FieldSet>
               <FieldLegend>Documents</FieldLegend>
-              <FieldGroup>
+              <FieldGroup className="max-h-72 overflow-y-auto">
                 {documents.map((document) => {
                   const alreadyInVault = documentIdsInVault.has(document.id);
                   const checkboxId = `vault-${vaultId}-document-${document.id}`;
@@ -299,9 +384,11 @@ function AddDocumentsDialog({
                         <FieldTitle>
                           <label htmlFor={checkboxId}>{document.title}</label>
                         </FieldTitle>
-                        {alreadyInVault ? (
-                          <FieldDescription>Already in this Vault</FieldDescription>
-                        ) : null}
+                        <FieldDescription>
+                          {alreadyInVault
+                            ? "Already in this Vault"
+                            : documentKindLabel(document.kind)}
+                        </FieldDescription>
                       </FieldContent>
                     </Field>
                   );

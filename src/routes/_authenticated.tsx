@@ -34,7 +34,9 @@ function DashboardChrome() {
           organizations={organizations}
           user={session.user}
         />
-        <SidebarInset>
+        {/* `min-w-0` is what lets a wide Page — the Links table, say — scroll inside the Chrome
+            instead of pushing the whole window sideways. */}
+        <SidebarInset className="min-w-0">
           <DashboardToolbar />
           <Outlet />
         </SidebarInset>

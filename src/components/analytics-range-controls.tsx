@@ -1,9 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
+import { CalendarIcon } from "lucide-react";
 import type { FormEvent } from "react";
 
 import { Button } from "#/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
+import { Field, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 
 type AnalyticsRangeControlsProps = Readonly<{
@@ -16,6 +16,13 @@ type AnalyticsRangeControlsProps = Readonly<{
     | { linkId?: never; documentId?: never }
   );
 
+/**
+ * The active analytics window, and the two dates that move it.
+ *
+ * It is a bar rather than a Card. Every analytics screen opened with a box titled "Date range"
+ * above the numbers it framed, which gave a control the same weight as a finding. Here the range
+ * reads as a caption on the page and the inputs sit beside it.
+ */
 export function AnalyticsRangeControls({
   from,
   to,
@@ -47,39 +54,36 @@ export function AnalyticsRangeControls({
     goToRange({ from: nextFrom, to: nextTo });
   }
 
-  function lastThirtyDays() {
-    goToRange({});
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Date range</CardTitle>
-        <CardDescription>
-          Active range: <time dateTime={from}>{from}</time> through <time dateTime={to}>{to}</time>,
-          using the UTC clock.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form key={`${from}:${to}`} onSubmit={applyRange}>
-          <FieldGroup className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,12rem)_auto] sm:items-end">
-            <Field>
-              <FieldLabel htmlFor="analytics-from">From</FieldLabel>
-              <Input id="analytics-from" name="from" type="date" defaultValue={from} required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="analytics-to">To</FieldLabel>
-              <Input id="analytics-to" name="to" type="date" defaultValue={to} required />
-            </Field>
-            <Field orientation="horizontal" className="flex-wrap">
-              <Button type="submit">Apply range</Button>
-              <Button type="button" variant="outline" onClick={lastThirtyDays}>
-                Last 30 days
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+    <form
+      key={`${from}:${to}`}
+      onSubmit={applyRange}
+      className="flex flex-wrap items-end gap-x-3 gap-y-2 border-b border-border pb-3"
+    >
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <CalendarIcon className="size-3.5" />
+        <time dateTime={from}>{from}</time> to <time dateTime={to}>{to}</time>, UTC
+      </p>
+      <div className="ml-auto flex flex-wrap items-end gap-2">
+        <Field className="w-36">
+          <FieldLabel htmlFor="analytics-from" className="text-[0.625rem] text-muted-foreground">
+            From
+          </FieldLabel>
+          <Input id="analytics-from" name="from" type="date" defaultValue={from} required />
+        </Field>
+        <Field className="w-36">
+          <FieldLabel htmlFor="analytics-to" className="text-[0.625rem] text-muted-foreground">
+            To
+          </FieldLabel>
+          <Input id="analytics-to" name="to" type="date" defaultValue={to} required />
+        </Field>
+        <Button type="submit" variant="outline">
+          Apply
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => goToRange({})}>
+          Last 30 days
+        </Button>
+      </div>
+    </form>
   );
 }

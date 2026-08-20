@@ -1,9 +1,19 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { FolderClosedIcon, PencilIcon, PlusIcon, TrashIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  EllipsisIcon,
+  FileTextIcon,
+  FolderClosedIcon,
+  LinkIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,19 +23,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "#/components/ui/alert-dialog";
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "#/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,14 @@ import {
   DialogTrigger,
 } from "#/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -45,6 +53,15 @@ import {
 } from "#/components/ui/empty";
 import { Field, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "#/components/ui/item";
 import { Textarea } from "#/components/ui/textarea";
 import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
@@ -74,9 +91,18 @@ function vaultFormValues(form: HTMLFormElement) {
   };
 }
 
+function countPer(rows: ReadonlyArray<{ vaultId: string | null }>) {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.vaultId === null) continue;
+    counts.set(row.vaultId, (counts.get(row.vaultId) ?? 0) + 1);
+  }
+  return counts;
+}
+
 function VaultsPage() {
   const { organization, queryClient } = Route.useRouteContext();
-  const { vaults } = getCollections(queryClient, organization.id);
+  const { vaults, vaultItems, links } = getCollections(queryClient, organization.id);
   const { data } = useLiveQuery(
     (query) =>
       query
@@ -85,7 +111,17 @@ function VaultsPage() {
         .select(({ vault }) => vault),
     [vaults],
   );
+  const { data: itemRows } = useLiveQuery(
+    (query) => query.from({ vaultItem: vaultItems }).select(({ vaultItem }) => vaultItem),
+    [vaultItems],
+  );
+  const { data: linkRows } = useLiveQuery(
+    (query) => query.from({ link: links }).select(({ link }) => link),
+    [links],
+  );
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const documentCounts = countPer(itemRows);
+  const linkCounts = countPer(linkRows);
 
   function watchPersistence(transaction: ReturnType<VaultCollection["insert"]>, message: string) {
     setMutationError(null);
@@ -131,39 +167,131 @@ function VaultsPage() {
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ItemGroup className="gap-2">
           {data.map((vault) => (
-            <Card key={vault.id}>
-              <CardHeader>
-                <CardTitle>
-                  <Link
-                    to="/dashboard/vaults/$vaultId"
-                    params={{ vaultId: vault.id }}
-                    className="hover:underline"
-                  >
-                    {vault.name}
-                  </Link>
-                </CardTitle>
-                <CardDescription>{vault.description || "No description"}</CardDescription>
-                <CardAction>{vault.$synced ? null : "Saving…"}</CardAction>
-              </CardHeader>
-              <CardFooter className="gap-2">
-                <EditVaultDialog
-                  vault={vault}
-                  vaults={vaults}
-                  watchPersistence={watchPersistence}
-                />
-                <DeleteVaultDialog
-                  vault={vault}
-                  vaults={vaults}
-                  watchPersistence={watchPersistence}
-                />
-              </CardFooter>
-            </Card>
+            <VaultRowItem
+              key={vault.id}
+              vault={vault}
+              documentCount={documentCounts.get(vault.id) ?? 0}
+              linkCount={linkCounts.get(vault.id) ?? 0}
+              vaults={vaults}
+              watchPersistence={watchPersistence}
+            />
           ))}
-        </div>
+        </ItemGroup>
       )}
     </Page>
+  );
+}
+
+/**
+ * One Vault as a row rather than a card.
+ *
+ * A Vault is a name, a sentence, and two counts — there is no picture to show and nothing to fill
+ * a tile with, which is why a grid of them read as a grid of empty boxes.
+ */
+function VaultRowItem({
+  vault,
+  documentCount,
+  linkCount,
+  vaults,
+  watchPersistence,
+}: Readonly<{
+  vault: VaultRow;
+  documentCount: number;
+  linkCount: number;
+  vaults: VaultCollection;
+  watchPersistence: WatchPersistence;
+}>) {
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  return (
+    <Item variant="outline" className="hover:bg-muted/40">
+      <ItemMedia variant="icon">
+        <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <FolderClosedIcon />
+        </span>
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>
+          <Link
+            to="/dashboard/vaults/$vaultId"
+            params={{ vaultId: vault.id }}
+            className="hover:underline"
+          >
+            {vault.name}
+          </Link>
+          {vault.$synced ? null : (
+            <span className="text-xs font-normal text-muted-foreground">Saving…</span>
+          )}
+        </ItemTitle>
+        <ItemDescription>{vault.description || "No description"}</ItemDescription>
+      </ItemContent>
+      <ItemActions className="gap-1">
+        <span className="hidden items-center gap-3 pr-2 text-xs text-muted-foreground tabular-nums sm:flex">
+          <span className="inline-flex items-center gap-1">
+            <FileTextIcon className="size-3.5" />
+            {documentCount}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <LinkIcon className="size-3.5" />
+            {linkCount}
+          </span>
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon-sm" aria-label="Vault actions" />}
+          >
+            <EllipsisIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                render={<Link to="/dashboard/vaults/$vaultId" params={{ vaultId: vault.id }} />}
+              >
+                <FolderClosedIcon />
+                Open Vault
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setEditing(true)}>
+                <PencilIcon />
+                Edit Vault
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
+                <TrashIcon />
+                Delete Vault
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          nativeButton={false}
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Open ${vault.name}`}
+          render={<Link to="/dashboard/vaults/$vaultId" params={{ vaultId: vault.id }} />}
+        >
+          <ChevronRightIcon />
+        </Button>
+      </ItemActions>
+      <EditVaultDialog
+        vault={vault}
+        vaults={vaults}
+        watchPersistence={watchPersistence}
+        open={editing}
+        onOpenChange={setEditing}
+      />
+      <DeleteVaultDialog
+        vault={vault}
+        vaults={vaults}
+        watchPersistence={watchPersistence}
+        open={deleting}
+        onOpenChange={setDeleting}
+      />
+    </Item>
   );
 }
 
@@ -234,12 +362,15 @@ function EditVaultDialog({
   vault,
   vaults,
   watchPersistence,
+  open,
+  onOpenChange,
 }: {
   vault: VaultRow;
   vaults: VaultCollection;
   watchPersistence: WatchPersistence;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -256,15 +387,11 @@ function EditVaultDialog({
     });
     watchPersistence(transaction, `Could not update “${vault.name}”. Your change was rolled back.`);
     setNameError(null);
-    setOpen(false);
+    onOpenChange(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        <PencilIcon data-icon="inline-start" />
-        Edit
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
@@ -326,25 +453,23 @@ function DeleteVaultDialog({
   vault,
   vaults,
   watchPersistence,
+  open,
+  onOpenChange,
 }: {
   vault: VaultRow;
   vaults: VaultCollection;
   watchPersistence: WatchPersistence;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   function handleDelete() {
     const transaction = vaults.delete(vault.id);
     watchPersistence(transaction, `Could not delete “${vault.name}”. Your change was rolled back.`);
-    setOpen(false);
+    onOpenChange(false);
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
-        <TrashIcon data-icon="inline-start" />
-        Delete
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete “{vault.name}”?</AlertDialogTitle>

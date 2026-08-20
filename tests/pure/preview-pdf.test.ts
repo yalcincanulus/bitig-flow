@@ -49,7 +49,9 @@ test("a Document that is not a PDF renders the uploading state or its own pane, 
   expect(detailRoute.indexOf('status === "pending"')).toBeLessThan(
     detailRoute.indexOf("<PreviewPdfDocument"),
   );
-  expect(detailRoute).toMatch(/status === "pending" \? \(\s*<p>Uploading…<\/p>/);
+  // The pending branch's markup is the Preview's business; that it is the branch a pending
+  // Document lands in, and that only the PDF branch reaches the island, is not.
+  expect(detailRoute).toMatch(/status === "pending" \? \([^)]*Uploading…/);
   expect(detailRoute).toMatch(/document\.kind === "pdf" \? \(\s*<PreviewPdfDocument/);
 });
 
