@@ -1,8 +1,8 @@
 import { ChartNoAxesCombinedIcon, ChevronRightIcon } from "lucide-react";
+import { useId, useState } from "react";
 
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "#/components/ui/collapsible";
 import {
   Empty,
   EmptyDescription,
@@ -170,59 +170,62 @@ function DocumentViewRow({
   row: TimelineDocument;
   document: DocumentRecord | undefined;
 }>) {
+  const [open, setOpen] = useState(false);
+  const pagesId = useId();
   const showPages = document?.kind === "pdf";
   const pages = showPages ? dwellPagesWithZeros(document.pageCount ?? null, row.pages) : [];
-  const summary = (
-    <>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          {showPages ? (
-            <CollapsibleTrigger
-              render={<Button variant="ghost" size="icon-xs" />}
-              aria-label="Per-page Dwell"
-            >
-              <ChevronRightIcon
-                data-icon="inline-start"
-                className="transition-transform group-data-panel-open/button:rotate-90"
-              />
-            </CollapsibleTrigger>
-          ) : null}
-          {document?.title || "Document"}
-        </div>
-      </TableCell>
-      <TableCell className="tabular-nums">{formatTotalTime(row.totalMs)}</TableCell>
-      <TableCell className="tabular-nums">{analyticsNumberFormat.format(row.pagesRead)}</TableCell>
-      <TableCell className="tabular-nums">{formatDownloadCount(row.downloads)}</TableCell>
-    </>
-  );
-
-  if (!showPages) {
-    return <TableRow>{summary}</TableRow>;
-  }
 
   return (
-    <Collapsible className="contents">
-      <TableRow>{summary}</TableRow>
-      <CollapsibleContent render={<TableRow />}>
-        <TableCell colSpan={4}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Page</TableHead>
-                <TableHead>Total time</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pages.map((page) => (
-                <TableRow key={page.page}>
-                  <TableCell>Page {page.page}</TableCell>
-                  <TableCell className="tabular-nums">{formatTotalTime(page.ms)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+    <>
+      <TableRow>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            {showPages ? (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Per-page Dwell"
+                aria-expanded={open}
+                aria-controls={pagesId}
+                onClick={() => setOpen((current) => !current)}
+              >
+                <ChevronRightIcon
+                  data-icon="inline-start"
+                  className="transition-transform group-aria-expanded/button:rotate-90"
+                />
+              </Button>
+            ) : null}
+            {document?.title || "Document"}
+          </div>
         </TableCell>
-      </CollapsibleContent>
-    </Collapsible>
+        <TableCell className="tabular-nums">{formatTotalTime(row.totalMs)}</TableCell>
+        <TableCell className="tabular-nums">
+          {analyticsNumberFormat.format(row.pagesRead)}
+        </TableCell>
+        <TableCell className="tabular-nums">{formatDownloadCount(row.downloads)}</TableCell>
+      </TableRow>
+      {showPages && open ? (
+        <TableRow id={pagesId}>
+          <TableCell colSpan={4}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Page</TableHead>
+                  <TableHead>Total time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pages.map((page) => (
+                  <TableRow key={page.page}>
+                    <TableCell>Page {page.page}</TableCell>
+                    <TableCell className="tabular-nums">{formatTotalTime(page.ms)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </>
   );
 }
