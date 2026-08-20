@@ -78,14 +78,19 @@ export function OrganizationSwitcher({
             render={
               <SidebarMenuButton
                 size="lg"
+                tooltip={activeOrganization.name}
                 aria-label="Switch Organization"
                 disabled={switchingTo !== undefined}
               />
             }
           >
-            <Building2Icon />
-            <span>{activeOrganization.name}</span>
-            <ChevronsUpDownIcon className="ml-auto" />
+            <div className="flex size-8 shrink-0 items-center justify-center">
+              <Building2Icon />
+            </div>
+            <span className="truncate group-data-[collapsible=icon]:hidden">
+              {activeOrganization.name}
+            </span>
+            <ChevronsUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="bottom">
             <DropdownMenuGroup>
