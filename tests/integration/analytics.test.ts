@@ -750,3 +750,59 @@ test("a Document's analytics is not-found for another Organization", async () =>
 
   expect(response.status).toBe(404);
 });
+
+test("counting a Link's Visits is all-time and not-found for another Organization", async () => {
+  const [first, second] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const { link } = await analyticsLinkFixture(first, "Counted Link");
+  const other = await analyticsLinkFixture(second, "Other Organization Link");
+  await Promise.all([
+    createFixtureVisit({
+      linkId: link.id,
+      visitorId: "visitor-a",
+      gateVersion: 1,
+      ...visitTimestamps("2025-01-01T12:00:00.000Z"),
+    }),
+    createFixtureVisit({
+      linkId: link.id,
+      visitorId: "visitor-b",
+      gateVersion: 1,
+      ...visitTimestamps("2026-08-10T12:00:00.000Z"),
+    }),
+    createFixtureVisit({
+      linkId: other.link.id,
+      visitorId: "visitor-other",
+      gateVersion: 1,
+      ...visitTimestamps("2026-08-10T12:00:00.000Z"),
+    }),
+  ]);
+
+  const counted = await callServerFunction(first.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "countLinkVisits",
+    method: "GET",
+    data: { linkId: link.id },
+  });
+  expect(counted.status).toBe(200);
+  expect(await counted.json()).toBe(2);
+
+  const empty = await analyticsLinkFixture(first, "Empty Link");
+  const zero = await callServerFunction(first.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "countLinkVisits",
+    method: "GET",
+    data: { linkId: empty.link.id },
+  });
+  expect(zero.status).toBe(200);
+  expect(await zero.json()).toBe(0);
+
+  const foreign = await callServerFunction(first.member.http, {
+    modulePath: analyticsModulePath,
+    exportName: "countLinkVisits",
+    method: "GET",
+    data: { linkId: other.link.id },
+  });
+  expect(foreign.status).toBe(404);
+});

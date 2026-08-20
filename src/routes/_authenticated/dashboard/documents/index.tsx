@@ -465,7 +465,8 @@ function DeleteDocumentDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete “{document.title}”?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the Document, its Vault memberships, and its Links.
+            This removes the Document, its Vault memberships, and its Links. Its analytics history
+            goes, and Links including it will show less activity.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

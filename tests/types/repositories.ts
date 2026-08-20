@@ -1,5 +1,6 @@
 import type { DocumentId, LinkId, UserId, VaultId } from "#/server/ids";
 import {
+  countLinkVisits,
   readAnalyticsDocument,
   readAnalyticsLink,
   readAnalyticsOverview,
@@ -28,6 +29,9 @@ void readAnalyticsLink("untrusted-organization-id", linkId, {});
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void readAnalyticsDocument("untrusted-organization-id", documentId, {});
+
+// @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
+void countLinkVisits("untrusted-organization-id", linkId);
 
 // @ts-expect-error A bare request string is not an OrganizationId minted by orgMiddleware.
 void findDocument("untrusted-organization-id", documentId);

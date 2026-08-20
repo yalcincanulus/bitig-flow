@@ -37,9 +37,11 @@ import {
 } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { getCollections } from "#/db-collections";
+import { linkDeleteWarning } from "#/lib/cascade-delete-copy";
 import { pendingLinkSlug, isLinkSlug, linkViewerPath } from "#/lib/link-slug";
 import { queueSharePassword } from "#/lib/pending-share-password";
 import { sharePasswordRefusal } from "#/lib/share-password";
+import { countLinkVisits } from "#/server/functions/analytics";
 
 type LinkCollection = ReturnType<typeof getCollections>["links"];
 type DocumentCollection = ReturnType<typeof getCollections>["documents"];
@@ -499,6 +501,16 @@ export function DeleteLinkDialog({
   watchPersistence: WatchLinkPersistence;
 }) {
   const [open, setOpen] = useState(false);
+  const [visitCount, setVisitCount] = useState<number | null>(null);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setVisitCount(null);
+      return;
+    }
+    void countLinkVisits({ data: { linkId: link.id } }).then(setVisitCount, () => {});
+  }
 
   function handleDelete() {
     const transaction = links.delete(link.id);
@@ -507,7 +519,7 @@ export function DeleteLinkDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
         <TrashIcon data-icon="inline-start" />
         Delete
@@ -515,9 +527,7 @@ export function DeleteLinkDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this Link?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This removes the Link and its Visits. The old Slug can be used again.
-          </AlertDialogDescription>
+          <AlertDialogDescription>{linkDeleteWarning(visitCount)}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>

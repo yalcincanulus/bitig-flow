@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lt } from "drizzle-orm";
 
 import {
   ANALYTICS_VISIT_CAP,
@@ -116,4 +116,18 @@ export async function readAnalyticsDocument(
   const eventRows = await eventsForVisits(visitRows.map(({ id }) => id));
 
   return foldAnalyticsDocument(documentId, linkIds, visitRows, eventRows, range);
+}
+
+export async function countLinkVisits(orgId: OrganizationId, linkId: LinkId) {
+  const [owned] = await db
+    .select({ id: link.id })
+    .from(link)
+    .where(and(eq(link.organizationId, orgId), eq(link.id, linkId)))
+    .limit(1);
+
+  if (!owned) return null;
+
+  const [row] = await db.select({ visits: count() }).from(visit).where(eq(visit.linkId, linkId));
+
+  return row?.visits ?? 0;
 }

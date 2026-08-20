@@ -6,6 +6,7 @@ import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { orgMiddleware } from "#/server/auth-middleware";
 import { documentIdSchema, linkIdSchema } from "#/server/ids";
 import {
+  countLinkVisits as countLinkVisitsInRepository,
   readAnalyticsDocument,
   readAnalyticsLink,
   readAnalyticsOverview,
@@ -32,4 +33,13 @@ export const getAnalyticsDocument = createServerFn({ method: "GET" })
     const found = await readAnalyticsDocument(context.orgId, data.documentId, data);
     if (!found) throw notFound();
     return found;
+  });
+
+export const countLinkVisits = createServerFn({ method: "GET" })
+  .middleware([orgMiddleware])
+  .validator(z.object({ linkId: linkIdSchema }))
+  .handler(async ({ context, data }) => {
+    const visits = await countLinkVisitsInRepository(context.orgId, data.linkId);
+    if (visits === null) throw notFound();
+    return visits;
   });
