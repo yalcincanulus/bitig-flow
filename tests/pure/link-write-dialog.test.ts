@@ -8,6 +8,16 @@ const source = readFileSync(
   "utf8",
 );
 
+test("the Select popup stacks above a Dialog so Target can be chosen in Create Link", () => {
+  const select = readFileSync(
+    fileURLToPath(new URL("../../src/components/ui/select.tsx", import.meta.url)),
+    "utf8",
+  );
+
+  expect(select).toMatch(/className="isolate z-50"/);
+  expect(select).toMatch(/"isolate z-50 max-h-\(--available-height\)/);
+});
+
 test("the Dashboard allow_download toggle says it discourages rather than prevents downloading", () => {
   expect(source).toMatch(/discourages rather than prevents/);
   expect(source.toLowerCase()).not.toMatch(/protected|secure/);
