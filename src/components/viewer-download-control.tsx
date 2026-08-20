@@ -1,3 +1,5 @@
+import { DownloadIcon } from "lucide-react";
+
 import { Button } from "#/components/ui/button";
 import { viewerBytesUrl } from "#/lib/document-bytes";
 import type { DocumentId } from "#/server/ids";
@@ -22,8 +24,8 @@ export function ViewerDownloadControl({
   return (
     <Button
       nativeButton={false}
-      variant="outline"
-      className="mt-4 h-14 rounded-lg px-4 text-base"
+      size="lg"
+      className="mt-5"
       render={
         <a
           href={viewerBytesUrl(slug, documentId, { download: true })}
@@ -31,6 +33,7 @@ export function ViewerDownloadControl({
         />
       }
     >
+      <DownloadIcon data-icon="inline-start" />
       Download
     </Button>
   );
