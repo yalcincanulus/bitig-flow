@@ -58,3 +58,22 @@ test("cmaps are loaded from a same-origin static path", () => {
 test("the dwell accumulator module is unchanged by the PDF island", () => {
   expect(dwellAccumulator).not.toMatch(/pdfjs|IntersectionObserver|viewer-pdf/);
 });
+
+// Clearing canvas.width blanks the page. The visible-page flag is for Dwell, not for paint, so
+// it must not appear in the render effect's deps — otherwise every page crossing repaints the
+// pages still on screen, which is the flash the Viewer and the Preview share.
+test("painting a page does not restart when the visible page changes", () => {
+  const paintEffect = sourceOf("../../src/components/viewer-pdf.tsx").match(
+    /pageProxy\.render\([\s\S]*?\}, \[([^\]]*)\]\)/,
+  );
+  expect(paintEffect?.[1]).toBeDefined();
+  expect(paintEffect?.[1]).not.toMatch(/showText/);
+});
+
+test("the Viewer PDF breaks out of the Gate column the way an image does", () => {
+  expect(sourceOf("../../src/components/viewer-column.tsx")).toMatch(/max-w-\[26rem\]/);
+  expect(sourceOf("../../src/components/viewer-image.tsx")).toMatch(/w-screen/);
+  expect(viewerPdfDocument).toMatch(/w-screen/);
+  expect(viewerPdfDocument).toMatch(/left-1\/2/);
+  expect(viewerPdfDocument).toMatch(/-translate-x-1\/2/);
+});

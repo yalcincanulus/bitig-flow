@@ -144,7 +144,6 @@ export default function ViewerPdf({
             width={width}
             height={pageHeight}
             inWindow={windowPages.has(page)}
-            showText={page === currentPage}
           />
         );
       })}
@@ -159,7 +158,6 @@ function PdfPageSlot({
   width,
   height,
   inWindow,
-  showText,
 }: {
   page: number;
   pdf: PDFDocumentProxy | null;
@@ -167,7 +165,6 @@ function PdfPageSlot({
   width: number;
   height: number;
   inWindow: boolean;
-  showText: boolean;
 }) {
   if (width === 0 || height === 0) return null;
 
@@ -181,13 +178,7 @@ function PdfPageSlot({
       aria-label={`Page ${page}`}
     >
       {inWindow && pdf && engine ? (
-        <PdfPageCanvas
-          pageNumber={page}
-          pdf={pdf}
-          engine={engine}
-          width={width}
-          showText={showText}
-        />
+        <PdfPageCanvas pageNumber={page} pdf={pdf} engine={engine} width={width} />
       ) : null}
     </article>
   );
@@ -198,13 +189,11 @@ function PdfPageCanvas({
   pdf,
   engine,
   width,
-  showText,
 }: {
   pageNumber: number;
   pdf: PDFDocumentProxy;
   engine: PdfEngine;
   width: number;
-  showText: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
@@ -244,7 +233,7 @@ function PdfPageCanvas({
           transform,
         });
         await renderTask.promise;
-        if (cancelled || !showText) return;
+        if (cancelled) return;
         textLayerDiv.replaceChildren();
         textLayerDiv.style.setProperty("--total-scale-factor", String(scale));
         textLayer = new engine.TextLayer({
@@ -266,7 +255,7 @@ function PdfPageCanvas({
       textLayer?.cancel();
       pageProxy?.cleanup();
     };
-  }, [engine, pageNumber, pdf, showText, width]);
+  }, [engine, pageNumber, pdf, width]);
 
   if (renderFailed) {
     return <p className="p-4 text-base text-muted-foreground">This page couldn't be shown.</p>;

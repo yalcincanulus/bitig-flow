@@ -14,7 +14,9 @@ export function ViewerPdfDocument({ page }: { page: VisitorPdfContent }) {
   return (
     <ViewerByteDocument page={page}>
       <Suspense fallback={null}>
-        <ViewerPdf bytesUrl={bytesUrl} pageCount={page.pageCount} />
+        <div className="relative left-1/2 w-screen max-w-none -translate-x-1/2">
+          <ViewerPdf bytesUrl={bytesUrl} pageCount={page.pageCount} />
+        </div>
       </Suspense>
     </ViewerByteDocument>
   );
