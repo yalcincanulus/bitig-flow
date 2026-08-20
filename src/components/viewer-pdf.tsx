@@ -9,8 +9,10 @@ import type {
 } from "pdfjs-dist";
 
 import { Skeleton } from "#/components/ui/skeleton";
+import { viewerPaperSurface } from "#/components/viewer-paper";
 import { useReportPdfVisiblePage } from "#/components/viewer-pdf-visible-page";
 import { currentPageFromIntersections, renderWindowPages } from "#/lib/pdf-page-window";
+import { cn } from "#/lib/utils";
 
 import "./viewer-pdf.css";
 
@@ -131,8 +133,10 @@ export default function ViewerPdf({
   }
 
   return (
-    <div ref={containerRef} className="mt-6 flex flex-col gap-4">
-      {totalPages === 0 || width === 0 ? <Skeleton className="h-[32rem] w-full" /> : null}
+    <div ref={containerRef} className="mt-6 flex flex-col items-center gap-6">
+      {totalPages === 0 || width === 0 ? (
+        <Skeleton className="h-[32rem] w-full rounded-lg" />
+      ) : null}
       {Array.from({ length: totalPages }, (_, index) => {
         const page = index + 1;
         return (
@@ -173,7 +177,7 @@ function PdfPageSlot({
   return (
     <article
       data-page={page}
-      className="relative overflow-hidden bg-muted"
+      className={cn(viewerPaperSurface, "relative overflow-hidden")}
       style={style}
       aria-label={`Page ${page}`}
     >

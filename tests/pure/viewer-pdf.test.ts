@@ -70,10 +70,26 @@ test("painting a page does not restart when the visible page changes", () => {
   expect(paintEffect?.[1]).not.toMatch(/showText/);
 });
 
-test("the Viewer PDF breaks out of the Gate column the way an image does", () => {
+test("Viewer documents lay out as paper on the desk, not edge to edge", () => {
+  const paper = sourceOf("../../src/components/viewer-paper.ts");
+  expect(paper).toMatch(/max-w-\[51rem\]/);
+  // The Gate keeps its own narrow measure; only the document takes the page width.
   expect(sourceOf("../../src/components/viewer-column.tsx")).toMatch(/max-w-\[26rem\]/);
-  expect(sourceOf("../../src/components/viewer-image.tsx")).toMatch(/w-screen/);
-  expect(viewerPdfDocument).toMatch(/w-screen/);
-  expect(viewerPdfDocument).toMatch(/left-1\/2/);
-  expect(viewerPdfDocument).toMatch(/-translate-x-1\/2/);
+  expect(sourceOf("../../src/components/viewer-shell.tsx")).toMatch(/bg-viewer-desk/);
+  for (const pane of [
+    viewerPdfDocument,
+    viewerContentPage,
+    sourceOf("../../src/components/viewer-image.tsx"),
+  ]) {
+    expect(pane).not.toMatch(/w-screen/);
+    expect(pane).not.toMatch(/-translate-x-1\/2/);
+  }
+  expect(sourceOf("../../src/components/viewer-pdf.tsx")).toMatch(/viewerPaperSurface/);
+});
+
+test("rendered Markdown reaches the page through one styled body", () => {
+  expect(viewerContentPage).toMatch(/MarkdownBody/);
+  expect(viewerContentPage).not.toMatch(/dangerouslySetInnerHTML/);
+  const markdownBody = sourceOf("../../src/components/markdown-body.tsx");
+  expect(markdownBody).toMatch(/markdown-body\.css/);
 });

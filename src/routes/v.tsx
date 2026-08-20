@@ -1,6 +1,7 @@
 import { notFound, Outlet, createFileRoute } from "@tanstack/react-router";
 
 import { ViewerColumn } from "#/components/viewer-column";
+import { ViewerShell } from "#/components/viewer-shell";
 import { ViewerTerminalPage } from "#/components/viewer-terminal-page";
 import { ViewerDwell } from "#/hooks/use-viewer-dwell";
 import { viewerContentSecurityPolicy } from "#/lib/content-security-policy";
@@ -24,17 +25,19 @@ export const Route = createFileRoute("/v")({
 function ViewerLayout() {
   return (
     <ViewerDwell>
-      <ViewerColumn>
+      <ViewerShell>
         <Outlet />
-      </ViewerColumn>
+      </ViewerShell>
     </ViewerDwell>
   );
 }
 
 function ViewerTerminal() {
   return (
-    <ViewerColumn>
-      <ViewerTerminalPage />
-    </ViewerColumn>
+    <ViewerShell>
+      <ViewerColumn>
+        <ViewerTerminalPage />
+      </ViewerColumn>
+    </ViewerShell>
   );
 }

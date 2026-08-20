@@ -1,0 +1,133 @@
+/* Rendered Markdown carries no classes of its own (ADR-0007), so the element names are the API. */
+.markdown-body {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body blockquote,
+.markdown-body pre,
+.markdown-body table {
+  margin: 0 0 1.15em;
+}
+
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.9em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.markdown-body h1 {
+  font-size: 1.75em;
+}
+
+.markdown-body h2 {
+  font-size: 1.4em;
+}
+
+.markdown-body h3 {
+  font-size: 1.2em;
+}
+
+.markdown-body :is(h4, h5, h6) {
+  font-size: 1em;
+}
+
+.markdown-body a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-body :is(ul, ol) {
+  padding-left: 1.4em;
+}
+
+.markdown-body ul {
+  list-style: disc;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+}
+
+.markdown-body li {
+  margin: 0.35em 0;
+}
+
+.markdown-body li > :is(ul, ol) {
+  margin: 0.35em 0;
+}
+
+.markdown-body blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 1em;
+  color: var(--muted-foreground);
+}
+
+.markdown-body code {
+  font-size: 0.875em;
+  background: var(--muted);
+  border-radius: calc(var(--radius) * 0.6);
+  padding: 0.15em 0.35em;
+}
+
+.markdown-body pre {
+  background: var(--muted);
+  border-radius: calc(var(--radius) * 0.8);
+  padding: 1em;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.markdown-body pre code {
+  background: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.markdown-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: calc(var(--radius) * 0.8);
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+
+/* A wide table scrolls inside the sheet instead of pushing the page sideways. */
+.markdown-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.markdown-body :is(th, td) {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.markdown-body th {
+  font-weight: 600;
+}

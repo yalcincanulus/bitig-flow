@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AnalyticsLinkTotalsCard } from "#/components/analytics-link-totals-card";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { LinkWriteDialog } from "#/components/link-write-dialog";
+import { MarkdownBody } from "#/components/markdown-body";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { PreviewPdfDocument } from "#/components/preview-pdf-document";
 import { Alert, AlertDescription } from "#/components/ui/alert";
@@ -130,10 +131,7 @@ function DocumentPage() {
       ) : document.kind === "pdf" ? (
         <PreviewPdfDocument documentId={document.id} pageCount={document.pageCount} />
       ) : document.kind === "markdown" && html !== undefined ? (
-        <article
-          className="max-w-prose [&_a]:underline [&_img]:max-w-full [&_pre]:overflow-x-auto"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <MarkdownBody html={html} className="max-w-[51rem]" />
       ) : null}
 
       <AnalyticsRangeControls {...analytics.range} documentId={document.id} />
