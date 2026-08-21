@@ -65,10 +65,9 @@ function AnalyticsLinkPage() {
   const { organization, queryClient } = Route.useRouteContext();
   const { links, documents } = getCollections(queryClient, organization.id);
   const link = links.get(loaded.link.id) ?? loaded.link;
-  const { data: documentRows } = useLiveQuery(
-    (query) => query.from({ document: documents }).select(({ document }) => document),
-    [documents],
-  );
+  const { data: documentRows } = useLiveQuery({
+    query: (query) => query.from({ document: documents }).select(({ document }) => document),
+  });
   const documentById = new Map(documentRows.map((document) => [document.id, document]));
   const analytics = loaded.analytics;
   const lastActive = lastActiveIso(analytics.lastSeenAt);

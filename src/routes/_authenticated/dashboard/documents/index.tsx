@@ -135,8 +135,8 @@ function DocumentsPage() {
   const navigate = useNavigate();
   const { organization, queryClient, session } = Route.useRouteContext();
   const { documents, vaults, vaultItems } = getCollections(queryClient, organization.id);
-  const { data } = useLiveQuery(
-    (query) => {
+  const { data } = useLiveQuery({
+    query: (query) => {
       let filtered = query.from({ document: documents });
       const { kind, q, vault } = search;
 
@@ -156,12 +156,10 @@ function DocumentsPage() {
         .where(({ vaultItem }) => eq(vaultItem.vaultId, vault))
         .select(({ document }) => document);
     },
-    [documents, search.kind, search.q, search.vault, vaultItems],
-  );
-  const { data: vaultRows } = useLiveQuery(
-    (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
-    [vaults],
-  );
+  });
+  const { data: vaultRows } = useLiveQuery({
+    query: (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
+  });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const isFiltered = Boolean(search.kind || search.q || search.vault);
   const filteredVault = search.vault

@@ -55,8 +55,8 @@ function LinksPage() {
   const navigate = useNavigate();
   const { organization, queryClient, session } = Route.useRouteContext();
   const { links, documents, vaults } = getCollections(queryClient, organization.id);
-  const { data } = useLiveQuery(
-    (query) => {
+  const { data } = useLiveQuery({
+    query: (query) => {
       let filtered = query.from({ link: links });
       const { status, target } = search;
 
@@ -71,16 +71,13 @@ function LinksPage() {
 
       return filtered.select(({ link }) => link);
     },
-    [links, search.status, search.target],
-  );
-  const { data: documentRows } = useLiveQuery(
-    (query) => query.from({ document: documents }).select(({ document }) => document),
-    [documents],
-  );
-  const { data: vaultRows } = useLiveQuery(
-    (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
-    [vaults],
-  );
+  });
+  const { data: documentRows } = useLiveQuery({
+    query: (query) => query.from({ document: documents }).select(({ document }) => document),
+  });
+  const { data: vaultRows } = useLiveQuery({
+    query: (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
+  });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const isFiltered = Boolean(search.status || search.target);
 

@@ -71,8 +71,8 @@ function VaultPage() {
   const vault = Route.useLoaderData();
   const { organization, queryClient, session } = Route.useRouteContext();
   const { documents, vaultItems, links, vaults } = getCollections(queryClient, organization.id);
-  const { data: documentsInVault } = useLiveQuery(
-    (query) =>
+  const { data: documentsInVault } = useLiveQuery({
+    query: (query) =>
       query
         .from({ vaultItem: vaultItems })
         .innerJoin({ document: documents }, ({ vaultItem, document }) =>
@@ -82,32 +82,28 @@ function VaultPage() {
         .orderBy(({ document }) => document.title)
         // Visibility lives on the membership, so the row carries it beside the Document.
         .select(({ document, vaultItem }) => ({ ...document, isVisible: vaultItem.isVisible })),
-    [documents, vault.id, vaultItems],
-  );
-  const { data: organizationDocuments } = useLiveQuery(
-    (query) =>
+  });
+  const { data: organizationDocuments } = useLiveQuery({
+    query: (query) =>
       query
         .from({ document: documents })
         .orderBy(({ document }) => document.title)
         .select(({ document }) => document),
-    [documents],
-  );
-  const { data: organizationVaults } = useLiveQuery(
-    (query) =>
+  });
+  const { data: organizationVaults } = useLiveQuery({
+    query: (query) =>
       query
         .from({ vault: vaults })
         .orderBy(({ vault }) => vault.name)
         .select(({ vault }) => vault),
-    [vaults],
-  );
-  const { data: vaultLinks } = useLiveQuery(
-    (query) =>
+  });
+  const { data: vaultLinks } = useLiveQuery({
+    query: (query) =>
       query
         .from({ link: links })
         .where(({ link }) => eq(link.vaultId, vault.id))
         .select(({ link }) => link),
-    [links, vault.id],
-  );
+  });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const hiddenCount = documentsInVault.filter((document) => !document.isVisible).length;
 

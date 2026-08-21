@@ -66,18 +66,15 @@ function DocumentPage() {
   const { document, html, analytics } = Route.useLoaderData();
   const { organization, queryClient, session } = Route.useRouteContext();
   const { links, documents, vaults } = getCollections(queryClient, organization.id);
-  const { data: documentRows } = useLiveQuery(
-    (query) => query.from({ document: documents }).select(({ document }) => document),
-    [documents],
-  );
-  const { data: vaultRows } = useLiveQuery(
-    (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
-    [vaults],
-  );
-  const { data: linkRows } = useLiveQuery(
-    (query) => query.from({ link: links }).select(({ link }) => link),
-    [links],
-  );
+  const { data: documentRows } = useLiveQuery({
+    query: (query) => query.from({ document: documents }).select(({ document }) => document),
+  });
+  const { data: vaultRows } = useLiveQuery({
+    query: (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
+  });
+  const { data: linkRows } = useLiveQuery({
+    query: (query) => query.from({ link: links }).select(({ link }) => link),
+  });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const linkById = new Map(linkRows.map((link) => [link.id, link]));
 

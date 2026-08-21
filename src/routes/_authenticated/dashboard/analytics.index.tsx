@@ -60,10 +60,9 @@ function AnalyticsPage() {
   const analytics = Route.useLoaderData();
   const { organization, queryClient } = Route.useRouteContext();
   const { links } = getCollections(queryClient, organization.id);
-  const { data: linkRows } = useLiveQuery(
-    (query) => query.from({ link: links }).select(({ link }) => link),
-    [links],
-  );
+  const { data: linkRows } = useLiveQuery({
+    query: (query) => query.from({ link: links }).select(({ link }) => link),
+  });
   const [sortBy, setSortBy] = useState<SortKey>("visits");
   const linkById = new Map(linkRows.map((link) => [link.id, link]));
   const sortedLinks = [...analytics.links].sort((first, second) => {

@@ -35,14 +35,12 @@ function LinkPage() {
   const { organization, queryClient, session } = Route.useRouteContext();
   const { links, documents, vaults } = getCollections(queryClient, organization.id);
   const link = links.get(loaded.id) ?? loaded;
-  const { data: documentRows } = useLiveQuery(
-    (query) => query.from({ document: documents }).select(({ document }) => document),
-    [documents],
-  );
-  const { data: vaultRows } = useLiveQuery(
-    (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
-    [vaults],
-  );
+  const { data: documentRows } = useLiveQuery({
+    query: (query) => query.from({ document: documents }).select(({ document }) => document),
+  });
+  const { data: vaultRows } = useLiveQuery({
+    query: (query) => query.from({ vault: vaults }).select(({ vault }) => vault),
+  });
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   function watchPersistence(transaction: ReturnType<LinkCollection["insert"]>, message: string) {

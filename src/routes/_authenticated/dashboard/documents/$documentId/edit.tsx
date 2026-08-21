@@ -65,15 +65,14 @@ function DocumentEditorPage() {
   const loaded = Route.useLoaderData();
   const { organization, queryClient } = Route.useRouteContext();
   const { documents } = getCollections(queryClient, organization.id);
-  const { data: readyImages } = useLiveQuery(
-    (query) =>
+  const { data: readyImages } = useLiveQuery({
+    query: (query) =>
       query
         .from({ document: documents })
         .where(({ document }) => and(eq(document.kind, "image"), eq(document.status, "ready")))
         .orderBy(({ document }) => document.title)
         .select(({ document }) => document),
-    [documents],
-  );
+  });
   const [title, setTitle] = useState(loaded.title);
   const [content, setContent] = useState(loaded.content ?? "");
   const [status, setStatus] = useState<SaveStatus>("idle");

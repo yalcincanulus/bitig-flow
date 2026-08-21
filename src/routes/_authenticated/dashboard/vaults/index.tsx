@@ -103,22 +103,19 @@ function countPer(rows: ReadonlyArray<{ vaultId: string | null }>) {
 function VaultsPage() {
   const { organization, queryClient } = Route.useRouteContext();
   const { vaults, vaultItems, links } = getCollections(queryClient, organization.id);
-  const { data } = useLiveQuery(
-    (query) =>
+  const { data } = useLiveQuery({
+    query: (query) =>
       query
         .from({ vault: vaults })
         .orderBy(({ vault }) => vault.createdAt, "desc")
         .select(({ vault }) => vault),
-    [vaults],
-  );
-  const { data: itemRows } = useLiveQuery(
-    (query) => query.from({ vaultItem: vaultItems }).select(({ vaultItem }) => vaultItem),
-    [vaultItems],
-  );
-  const { data: linkRows } = useLiveQuery(
-    (query) => query.from({ link: links }).select(({ link }) => link),
-    [links],
-  );
+  });
+  const { data: itemRows } = useLiveQuery({
+    query: (query) => query.from({ vaultItem: vaultItems }).select(({ vaultItem }) => vaultItem),
+  });
+  const { data: linkRows } = useLiveQuery({
+    query: (query) => query.from({ link: links }).select(({ link }) => link),
+  });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const documentCounts = countPer(itemRows);
   const linkCounts = countPer(linkRows);
