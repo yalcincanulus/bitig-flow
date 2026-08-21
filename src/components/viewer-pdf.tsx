@@ -10,7 +10,7 @@ import type {
 
 import { Skeleton } from "#/components/ui/skeleton";
 import { viewerPaperSurface } from "#/components/viewer-paper";
-import { useReportPdfVisiblePage } from "#/components/viewer-pdf-visible-page";
+import { useReportPdfVisiblePage } from "#/components/viewer-pdf-visible-page-context";
 import { currentPageFromIntersections, renderWindowPages } from "#/lib/pdf-page-window";
 import { cn } from "#/lib/utils";
 

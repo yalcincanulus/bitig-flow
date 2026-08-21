@@ -1,4 +1,4 @@
-import { buttonVariants } from "#/components/ui/button";
+import { buttonVariants } from "#/components/ui/button-variants";
 import { Input } from "#/components/ui/input";
 import { ViewerSenderLine } from "#/components/viewer-sender-line";
 import { cn } from "#/lib/utils";

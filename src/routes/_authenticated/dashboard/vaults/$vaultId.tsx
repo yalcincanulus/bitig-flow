@@ -5,7 +5,8 @@ import { useState, type FormEvent } from "react";
 
 import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
 import { CopyLinkSlugButton, LinkWriteDialog } from "#/components/link-write-dialog";
-import { DocumentThumbnail, documentKindLabel } from "#/components/document-kind";
+import { DocumentThumbnail } from "#/components/document-kind";
+import { documentKindLabel } from "#/lib/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";

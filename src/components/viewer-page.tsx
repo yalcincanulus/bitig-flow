@@ -5,7 +5,7 @@ import { ViewerContentPage } from "#/components/viewer-content-page";
 import { ViewerGatePage } from "#/components/viewer-gate-page";
 import { PdfVisiblePageProvider } from "#/components/viewer-pdf-visible-page";
 import { ViewerShell } from "#/components/viewer-shell";
-import { useDwellPage } from "#/hooks/use-viewer-dwell";
+import { useDwellPage } from "#/hooks/viewer-dwell-context";
 import type { VisitorPage } from "#/server/viewer/visitor-gate";
 
 export function ViewerPage({ page }: { page: VisitorPage }) {

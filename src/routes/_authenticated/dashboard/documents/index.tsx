@@ -17,7 +17,8 @@ import { useRef, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import { FilterBar, FilterBarLabel, FilterBarSpacer } from "#/components/dashboard-filter-bar";
-import { DocumentThumbnail, documentKindLabel } from "#/components/document-kind";
+import { DocumentThumbnail } from "#/components/document-kind";
+import { documentKindLabel } from "#/lib/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
   AlertDialog,

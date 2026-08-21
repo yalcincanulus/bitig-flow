@@ -19,8 +19,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "#/components/ui/sidebar";
+import { useSidebar } from "#/components/ui/sidebar-context";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
 // Every Role sees the same destinations, so the list is a constant rather than a computed one.

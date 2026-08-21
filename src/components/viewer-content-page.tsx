@@ -2,10 +2,11 @@ import { Fragment } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftIcon, ChevronRightIcon, FolderOpenIcon } from "lucide-react";
 
-import { documentKindLabel, DocumentKindIcon } from "#/components/document-kind";
+import { DocumentKindIcon } from "#/components/document-kind";
+import { documentKindLabel } from "#/lib/document-kind";
 import { MarkdownBody } from "#/components/markdown-body";
 import { Badge } from "#/components/ui/badge";
-import { buttonVariants } from "#/components/ui/button";
+import { buttonVariants } from "#/components/ui/button-variants";
 import { Card } from "#/components/ui/card";
 import {
   Empty,

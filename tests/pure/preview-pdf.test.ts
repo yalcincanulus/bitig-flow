@@ -12,7 +12,7 @@ function sourceOf(relativePath: string) {
 }
 
 const previewPdf = sourceOf("../../src/components/preview-pdf-document.tsx");
-const visiblePage = sourceOf("../../src/components/viewer-pdf-visible-page.tsx");
+const visiblePage = sourceOf("../../src/components/viewer-pdf-visible-page-context.ts");
 const detailRoute = sourceOf(
   "../../src/routes/_authenticated/dashboard/documents/$documentId/index.tsx",
 );
@@ -30,7 +30,7 @@ test("the Preview passes the Dashboard byte route's URL and no Viewer credential
 test("the Preview mounts no Dwell accumulator", () => {
   for (const source of [previewPdf, detailRoute]) {
     expect(source).not.toMatch(
-      /from "#\/hooks\/use-viewer-dwell"|from "#\/lib\/dwell-accumulator"/,
+      /from "#\/components\/viewer-dwell"|from "#\/lib\/dwell-accumulator"/,
     );
     expect(source).not.toMatch(/ViewerDwell|useDwellPage|sendBeacon/);
   }

@@ -1,6 +1,6 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-const PdfVisiblePageContext = createContext<(page: number) => void>(() => {});
+import { PdfVisiblePageContext } from "#/components/viewer-pdf-visible-page-context";
 
 export function PdfVisiblePageProvider({
   onPage,
@@ -10,8 +10,4 @@ export function PdfVisiblePageProvider({
   children: ReactNode;
 }) {
   return <PdfVisiblePageContext.Provider value={onPage}>{children}</PdfVisiblePageContext.Provider>;
-}
-
-export function useReportPdfVisiblePage() {
-  return useContext(PdfVisiblePageContext);
 }

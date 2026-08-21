@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useParams } from "@tanstack/react-router";
 
 import { viewerBeaconUrl } from "#/lib/document-bytes";
@@ -8,12 +8,7 @@ import {
   type DwellBeaconBody,
   type DwellAccumulator,
 } from "#/lib/dwell-accumulator";
-
-type DwellPageSource = () => number;
-
-const ViewerDwellContext = createContext<
-  (documentId: string | null, pageSource: DwellPageSource) => void
->(() => {});
+import { ViewerDwellContext, type DwellPageSource } from "#/hooks/viewer-dwell-context";
 
 function sendViewerBeacon(slug: string, body: DwellBeaconBody, keepalive: boolean) {
   const url = viewerBeaconUrl(slug);
@@ -72,14 +67,4 @@ export function ViewerDwell({ children }: { children: ReactNode }) {
   }, [slug]);
 
   return <ViewerDwellContext.Provider value={setCurrent}>{children}</ViewerDwellContext.Provider>;
-}
-
-export function useDwellPage(documentId: string | null, pageSource: DwellPageSource) {
-  const setCurrent = useContext(ViewerDwellContext);
-  const pageSourceRef = useRef(pageSource);
-  pageSourceRef.current = pageSource;
-
-  useEffect(() => {
-    setCurrent(documentId, () => pageSourceRef.current());
-  }, [documentId, setCurrent]);
 }

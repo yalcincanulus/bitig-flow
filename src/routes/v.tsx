@@ -3,7 +3,7 @@ import { notFound, Outlet, createFileRoute } from "@tanstack/react-router";
 import { ViewerColumn } from "#/components/viewer-column";
 import { ViewerShell } from "#/components/viewer-shell";
 import { ViewerTerminalPage } from "#/components/viewer-terminal-page";
-import { ViewerDwell } from "#/hooks/use-viewer-dwell";
+import { ViewerDwell } from "#/components/viewer-dwell";
 import { viewerContentSecurityPolicy } from "#/lib/content-security-policy";
 
 export const Route = createFileRoute("/v")({
