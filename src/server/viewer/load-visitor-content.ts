@@ -23,7 +23,8 @@ async function listVaultMembers(vaultId: VaultId): Promise<ReadonlyArray<Visitor
     })
     .from(vaultItem)
     .innerJoin(document, eq(document.id, vaultItem.documentId))
-    .where(eq(vaultItem.vaultId, vaultId))
+    // A hidden membership is withheld from the Viewer entirely — it is not listed and not opened.
+    .where(and(eq(vaultItem.vaultId, vaultId), eq(vaultItem.isVisible, true)))
     .orderBy(desc(vaultItem.addedAt), vaultItem.documentId);
 
   return rows.map((row) => ({
@@ -56,7 +57,13 @@ export async function isVaultMember(vaultId: VaultId, documentId: DocumentId) {
   const [found] = await db
     .select({ documentId: vaultItem.documentId })
     .from(vaultItem)
-    .where(and(eq(vaultItem.vaultId, vaultId), eq(vaultItem.documentId, documentId)))
+    .where(
+      and(
+        eq(vaultItem.vaultId, vaultId),
+        eq(vaultItem.documentId, documentId),
+        eq(vaultItem.isVisible, true),
+      ),
+    )
     .limit(1);
 
   return found !== undefined;

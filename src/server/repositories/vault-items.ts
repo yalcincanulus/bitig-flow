@@ -13,6 +13,10 @@ type NewVaultItem = MembershipPair & {
   addedAt: Date;
 };
 
+type VaultItemVisibility = MembershipPair & {
+  isVisible: boolean;
+};
+
 // Vault membership carries no Organization of its own, so it is scoped through its Vault.
 export function listVaultItems(orgId: OrganizationId) {
   return (
@@ -64,6 +68,22 @@ export async function addVaultItem(orgId: OrganizationId, membership: NewVaultIt
     .limit(1);
 
   return existing;
+}
+
+export async function setVaultItemVisibility(
+  orgId: OrganizationId,
+  membership: VaultItemVisibility,
+) {
+  const owned = await ownedMembershipPair(orgId, membership);
+  if (!owned) return undefined;
+
+  const [updated] = await db
+    .update(vaultItem)
+    .set({ isVisible: membership.isVisible })
+    .where(and(eq(vaultItem.vaultId, owned.vaultId), eq(vaultItem.documentId, owned.documentId)))
+    .returning();
+
+  return updated;
 }
 
 export async function removeVaultItem(orgId: OrganizationId, membership: MembershipPair) {

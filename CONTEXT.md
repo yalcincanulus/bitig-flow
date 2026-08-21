@@ -32,6 +32,10 @@ _Avoid_: file, asset, doc
 A flat, unordered set of documents, shared as one unit.
 _Avoid_: folder, collection, dataroom, group
 
+**Visibility**:
+Whether a **Vault**'s member Document is served through that Vault's **Links**. It belongs to the membership, so the same Document may be hidden in one Vault and shown in another. Hiding withdraws the Document from the index and from **Reachable**, and never removes it from the Vault.
+_Avoid_: published, enabled, active, draft
+
 **Reference**:
 A markdown **Document**'s use of an image Document inside its text. The referenced Document is an ordinary Document that happens to be embedded — it is not a lesser kind of thing, and it holds no bytes of its own beyond the ones it already had.
 _Avoid_: attachment, embed, inline image

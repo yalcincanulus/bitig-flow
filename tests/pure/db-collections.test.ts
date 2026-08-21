@@ -19,6 +19,7 @@ vi.mock("#/server/functions/vault-items", () => ({
   addVaultItem: vi.fn(),
   listVaultItems: vi.fn(),
   removeVaultItem: vi.fn(),
+  setVaultItemVisibility: vi.fn(),
 }));
 
 vi.mock("#/server/functions/links", () => ({
@@ -44,7 +45,12 @@ import {
   rotateLinkSlug,
   updateLink,
 } from "#/server/functions/links";
-import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
+import {
+  addVaultItem,
+  listVaultItems,
+  removeVaultItem,
+  setVaultItemVisibility,
+} from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const organizationId = "9f989366-f25a-4a0a-bb3c-03d1d2ef62ab";
@@ -176,6 +182,7 @@ describe("getCollections", () => {
       vaultItems.config.getKey({
         vaultId: "vault-1",
         documentId: "document-1",
+        isVisible: true,
         addedAt: new Date(),
       }),
     ).toBe("vault-1:document-1");
@@ -268,11 +275,13 @@ describe("getCollections", () => {
     const deletedMembership = {
       vaultId: deletedVault.id,
       documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     const retainedMembership = {
       vaultId: retainedVault.id,
       documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10404",
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     const deletedLink = {
@@ -319,10 +328,12 @@ describe("getCollections", () => {
     const membership = {
       vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
       documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     const confirmed = {
       ...membership,
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     vi.mocked(listVaultItems).mockResolvedValue([]);
@@ -355,6 +366,7 @@ describe("getCollections", () => {
     const membership = {
       vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
       documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     vi.mocked(listVaultItems).mockResolvedValue([membership]);
@@ -376,6 +388,40 @@ describe("getCollections", () => {
       },
     });
     expect(vaultItems.get(key)).toBeUndefined();
+    expect(listVaultItems).toHaveBeenCalledTimes(1);
+  });
+
+  test("optimistically hides Vault membership and direct-writes the confirmed row without refetching", async () => {
+    const membership = {
+      vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
+      documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10303",
+      isVisible: true,
+      addedAt: new Date("2026-08-17T12:00:00.000Z"),
+    };
+    const confirmed = { ...membership, isVisible: false };
+    vi.mocked(listVaultItems).mockResolvedValue([membership]);
+    vi.mocked(setVaultItemVisibility).mockResolvedValue(confirmed);
+    const { vaultItems } = getCollections(new QueryClient(), organizationId);
+    await vaultItems.preload();
+
+    const key = `${membership.vaultId}:${membership.documentId}` as const;
+    const transaction = vaultItems.update(key, (draft) => {
+      draft.isVisible = false;
+    });
+
+    expect(vaultItems.get(key)).toMatchObject({ isVisible: false });
+
+    await transaction.isPersisted.promise;
+
+    expect(setVaultItemVisibility).toHaveBeenCalledWith({
+      data: {
+        vaultId: membership.vaultId,
+        documentId: membership.documentId,
+        isVisible: false,
+      },
+    });
+    // The membership survives hiding — only the Viewer stops seeing it.
+    expect(vaultItems.get(key)).toMatchObject(confirmed);
     expect(listVaultItems).toHaveBeenCalledTimes(1);
   });
 
@@ -450,11 +496,13 @@ describe("getCollections", () => {
     const deletedMembership = {
       vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
       documentId: deletedDocument.id,
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     const retainedMembership = {
       vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10101",
       documentId: retainedDocument.id,
+      isVisible: true,
       addedAt: new Date("2026-08-17T12:00:00.000Z"),
     };
     const deletedLink = {

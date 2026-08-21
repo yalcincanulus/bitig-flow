@@ -1899,3 +1899,57 @@ test("a deactivated or expired Link with a live Visit cookie is the terminal 404
     "This link isn't available. Ask whoever sent it to you for a new one.",
   );
 });
+
+test("a hidden Vault member is neither listed nor openable", async () => {
+  const fixture = await createOrganizationFixture();
+  const vault = await createFixtureVault({
+    organizationId: fixture.organization.id,
+    name: distinctiveVaultName,
+  });
+  const [shownDocument, hiddenDocument] = await Promise.all([
+    createFixtureDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      title: distinctiveTitle,
+    }),
+    createFixtureDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      title: "Hidden Term Sheet",
+    }),
+  ]);
+  await Promise.all([
+    createFixtureVaultItem({ vaultId: vault.id, documentId: shownDocument.id }),
+    createFixtureVaultItem({
+      vaultId: vault.id,
+      documentId: hiddenDocument.id,
+      isVisible: false,
+    }),
+  ]);
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    vaultId: vault.id,
+  });
+
+  const visitor = createCookieClient();
+  const indexResponse = await visitor.http(viewerUrl(published.slug), { redirect: "manual" });
+  const indexMarkup = serverRenderedMarkupOf(await indexResponse.text());
+
+  expect(indexResponse.status).toBe(200);
+  expect(textOf(indexMarkup)).toContain(distinctiveTitle);
+  expect(indexMarkup).not.toContain("Hidden Term Sheet");
+  expect(indexMarkup).not.toContain(`href="/v/${published.slug}/${hiddenDocument.id}"`);
+
+  const hiddenResponse = await visitor.http(viewerMemberUrl(published.slug, hiddenDocument.id), {
+    redirect: "manual",
+  });
+  const hiddenMarkup = serverRenderedMarkupOf(await hiddenResponse.text());
+
+  // Hiding is not a listing trick: the direct URL is the same 404 as an unknown Slug.
+  expect(hiddenResponse.status).toBe(404);
+  expect(textOf(hiddenMarkup)).toContain(
+    "This link isn't available. Ask whoever sent it to you for a new one.",
+  );
+  expect(hiddenMarkup).not.toContain("Hidden Term Sheet");
+});

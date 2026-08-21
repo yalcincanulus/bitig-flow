@@ -104,7 +104,12 @@ test("the Vault membership and Link payloads carry no joined or secret columns",
   ]);
 
   // The Vault join must contribute no columns of its own, and no Document title is denormalised.
-  expect(Object.keys(vaultItems[0]!).sort()).toEqual(["addedAt", "documentId", "vaultId"]);
+  expect(Object.keys(vaultItems[0]!).sort()).toEqual([
+    "addedAt",
+    "documentId",
+    "isVisible",
+    "vaultId",
+  ]);
   expect(links[0]).not.toHaveProperty("passwordHash");
   expect(links[0]).toHaveProperty("passwordSet");
   expect(links[0]).not.toHaveProperty("title");

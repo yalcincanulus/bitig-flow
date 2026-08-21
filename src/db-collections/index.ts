@@ -23,7 +23,12 @@ import {
   rotateLinkSlug,
   updateLink,
 } from "#/server/functions/links";
-import { addVaultItem, listVaultItems, removeVaultItem } from "#/server/functions/vault-items";
+import {
+  addVaultItem,
+  listVaultItems,
+  removeVaultItem,
+  setVaultItemVisibility,
+} from "#/server/functions/vault-items";
 import { createVault, deleteVault, listVaults, updateVault } from "#/server/functions/vaults";
 
 const timestampSchema = z
@@ -83,6 +88,22 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
           ),
         );
         collection.utils.writeInsert(created);
+        return { refetch: false };
+      },
+      // Visibility is the only mutable field on a membership; the pair itself is its key.
+      onUpdate: async ({ transaction, collection }) => {
+        const updated = await Promise.all(
+          transaction.mutations.map(({ modified }) =>
+            setVaultItemVisibility({
+              data: {
+                vaultId: modified.vaultId,
+                documentId: modified.documentId,
+                isVisible: modified.isVisible,
+              },
+            }),
+          ),
+        );
+        collection.utils.writeUpdate(updated);
         return { refetch: false };
       },
       onDelete: async ({ transaction, collection }) => {

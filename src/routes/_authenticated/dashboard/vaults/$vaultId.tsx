@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { FileTextIcon, LinkIcon, PlusIcon, XIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, FileTextIcon, LinkIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
@@ -9,6 +9,7 @@ import { DocumentThumbnail } from "#/components/document-kind";
 import { documentKindLabel } from "#/lib/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
+import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import { Checkbox } from "#/components/ui/checkbox";
 import {
@@ -51,6 +52,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 import { isLinkSlug } from "#/lib/link-slug";
+import { cn } from "#/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard/vaults/$vaultId")({
   loader: ({ context: { organization, queryClient }, params: { vaultId } }) => {
@@ -63,6 +65,7 @@ export const Route = createFileRoute("/_authenticated/dashboard/vaults/$vaultId"
 
 type VaultItemCollection = ReturnType<typeof getCollections>["vaultItems"];
 type DocumentRow = NonNullable<ReturnType<ReturnType<typeof getCollections>["documents"]["get"]>>;
+type VaultDocumentRow = DocumentRow & { isVisible: boolean };
 
 function VaultPage() {
   const vault = Route.useLoaderData();
@@ -77,7 +80,8 @@ function VaultPage() {
         )
         .where(({ vaultItem }) => eq(vaultItem.vaultId, vault.id))
         .orderBy(({ document }) => document.title)
-        .select(({ document }) => document),
+        // Visibility lives on the membership, so the row carries it beside the Document.
+        .select(({ document, vaultItem }) => ({ ...document, isVisible: vaultItem.isVisible })),
     [documents, vault.id, vaultItems],
   );
   const { data: organizationDocuments } = useLiveQuery(
@@ -105,6 +109,7 @@ function VaultPage() {
     [links, vault.id],
   );
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const hiddenCount = documentsInVault.filter((document) => !document.isVisible).length;
 
   function watchPersistence(
     transaction: ReturnType<VaultItemCollection["insert"]>,
@@ -157,7 +162,9 @@ function VaultPage() {
         <header className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-medium">Documents</h2>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {documentsInVault.length} in this Vault
+            {hiddenCount > 0
+              ? `${documentsInVault.length - hiddenCount} of ${documentsInVault.length} shared`
+              : `${documentsInVault.length} in this Vault`}
           </span>
         </header>
 
@@ -183,8 +190,15 @@ function VaultPage() {
         ) : (
           <ItemGroup className="gap-2">
             {documentsInVault.map((document) => (
-              <Item key={document.id} variant="outline" className="hover:bg-muted/40">
-                <ItemMedia variant="image" className="size-9 rounded-md">
+              <Item
+                key={document.id}
+                variant="outline"
+                className={cn("hover:bg-muted/40", !document.isVisible && "bg-muted/20")}
+              >
+                <ItemMedia
+                  variant="image"
+                  className={cn("size-9 rounded-md", !document.isVisible && "opacity-50")}
+                >
                   <DocumentThumbnail document={document} compact />
                 </ItemMedia>
                 <ItemContent>
@@ -192,16 +206,60 @@ function VaultPage() {
                     <Link
                       to="/dashboard/documents/$documentId"
                       params={{ documentId: document.id }}
-                      className="hover:underline"
+                      className={cn(
+                        "hover:underline",
+                        !document.isVisible && "text-muted-foreground",
+                      )}
                     >
                       {document.title || "Untitled"}
                     </Link>
                   </ItemTitle>
-                  <ItemDescription>
+                  <ItemDescription className="flex flex-wrap items-center gap-1.5">
                     {document.$synced ? documentKindLabel(document.kind) : "Saving…"}
+                    {!document.isVisible && (
+                      <Badge variant="outline">
+                        <EyeOffIcon data-icon="inline-start" />
+                        Hidden
+                      </Badge>
+                    )}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-pressed={!document.isVisible}
+                          aria-label={
+                            document.isVisible
+                              ? `Hide ${document.title} from Links to this Vault`
+                              : `Show ${document.title} in Links to this Vault`
+                          }
+                          onClick={() => {
+                            const transaction = vaultItems.update(
+                              `${vault.id}:${document.id}` as const,
+                              (draft) => {
+                                draft.isVisible = !document.isVisible;
+                              },
+                            );
+                            watchPersistence(
+                              transaction,
+                              document.isVisible
+                                ? `Could not hide “${document.title}”. Your change was rolled back.`
+                                : `Could not show “${document.title}”. Your change was rolled back.`,
+                            );
+                          }}
+                        >
+                          {document.isVisible ? <EyeIcon /> : <EyeOffIcon />}
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>
+                      {document.isVisible ? "Hide from Links" : "Show in Links"}
+                    </TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -297,7 +355,7 @@ function AddDocumentsDialog({
   triggerVariant = "default",
 }: {
   documents: DocumentRow[];
-  documentsInVault: DocumentRow[];
+  documentsInVault: VaultDocumentRow[];
   vaultId: string;
   vaultItems: VaultItemCollection;
   watchPersistence: WatchPersistence;
@@ -328,6 +386,7 @@ function AddDocumentsDialog({
       additions.map((document) => ({
         vaultId,
         documentId: document.id,
+        isVisible: true,
         addedAt,
       })),
     );

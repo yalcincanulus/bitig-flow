@@ -2,7 +2,8 @@ import { vaultItem } from "#/server/db/schema";
 
 import { database } from "./services";
 
-type VaultItemFixtureOptions = Pick<typeof vaultItem.$inferInsert, "vaultId" | "documentId">;
+type VaultItemFixtureOptions = Pick<typeof vaultItem.$inferInsert, "vaultId" | "documentId"> &
+  Partial<Pick<typeof vaultItem.$inferInsert, "isVisible">>;
 
 export async function createFixtureVaultItem(options: VaultItemFixtureOptions) {
   // Repositories are under test, so this independent fixture deliberately writes the table directly.
@@ -11,6 +12,7 @@ export async function createFixtureVaultItem(options: VaultItemFixtureOptions) {
     .values({
       vaultId: options.vaultId,
       documentId: options.documentId,
+      isVisible: options.isVisible ?? true,
       addedAt: new Date(),
     })
     .returning();

@@ -39,6 +39,7 @@ test("a User adds a Document to a Vault", async () => {
   expect(await addResponse.json()).toEqual({
     vaultId: vault.id,
     documentId: document.id,
+    isVisible: true,
     addedAt,
   });
 
@@ -50,7 +51,7 @@ test("a User adds a Document to a Vault", async () => {
 
   expect(listResponse.ok).toBe(true);
   expect(await listResponse.json()).toEqual([
-    { vaultId: vault.id, documentId: document.id, addedAt },
+    { vaultId: vault.id, documentId: document.id, isVisible: true, addedAt },
   ]);
 });
 
@@ -134,8 +135,55 @@ test("adding a Document already in the Vault is a no-op", async () => {
   });
 
   expect(await listResponse.json()).toEqual([
-    { vaultId: vault.id, documentId: document.id, addedAt: firstAddedAt },
+    { vaultId: vault.id, documentId: document.id, isVisible: true, addedAt: firstAddedAt },
   ]);
+});
+
+test("a User hides a Document in a Vault and shows it again", async () => {
+  const fixture = await createOrganizationFixture();
+  const [vault, document] = await Promise.all([
+    createFixtureVault({ organizationId: fixture.organization.id }),
+    createFixtureDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+    }),
+  ]);
+  await createFixtureVaultItem({ vaultId: vault.id, documentId: document.id });
+
+  const hideResponse = await callServerFunction(fixture.member.http, {
+    modulePath: vaultItemsModulePath,
+    exportName: "setVaultItemVisibility",
+    method: "POST",
+    data: { vaultId: vault.id, documentId: document.id, isVisible: false },
+  });
+
+  expect(hideResponse.ok).toBe(true);
+  expect(await hideResponse.json()).toMatchObject({
+    vaultId: vault.id,
+    documentId: document.id,
+    isVisible: false,
+  });
+
+  const hiddenList = await callServerFunction(fixture.member.http, {
+    modulePath: vaultItemsModulePath,
+    exportName: "listVaultItems",
+    method: "GET",
+  });
+
+  // Hiding withdraws the Document from Links, and never from the Vault.
+  expect(await hiddenList.json()).toEqual([
+    expect.objectContaining({ documentId: document.id, isVisible: false }),
+  ]);
+
+  const showResponse = await callServerFunction(fixture.member.http, {
+    modulePath: vaultItemsModulePath,
+    exportName: "setVaultItemVisibility",
+    method: "POST",
+    data: { vaultId: vault.id, documentId: document.id, isVisible: true },
+  });
+
+  expect(showResponse.ok).toBe(true);
+  expect(await showResponse.json()).toMatchObject({ isVisible: true });
 });
 
 const writeCalls = [
@@ -152,6 +200,14 @@ const writeCalls = [
     data: {
       vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10201",
       documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10202",
+    },
+  },
+  {
+    exportName: "setVaultItemVisibility",
+    data: {
+      vaultId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10201",
+      documentId: "0198b8f1-6ae4-7c39-9c3d-3cfd7af10202",
+      isVisible: false,
     },
   },
 ] as const;

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
@@ -89,6 +90,9 @@ export const vaultItem = snakeCase.table(
     documentId: uuid()
       .notNull()
       .references(() => document.id, { onDelete: "cascade" }),
+    // Visibility belongs to the membership, not the Document: the same Document may be
+    // shown by one Vault and hidden by another.
+    isVisible: boolean().notNull().default(true),
     addedAt: timestampWithTimezone().notNull(),
   },
   (table) => [

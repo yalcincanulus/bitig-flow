@@ -146,3 +146,51 @@ test("a Vault Link reaches Vault members and their References, not a second hop"
   expect(await reachable(link.id, secondHop.id)).toBe(false);
   expect(await reachable(link.id, outsider.id)).toBe(false);
 });
+
+test("a hidden Vault member and its References are out of reach", async () => {
+  const fixture = await createOrganizationFixture();
+  const vault = await createFixtureVault({ organizationId: fixture.organization.id });
+  const [hiddenDocument, image] = await Promise.all([
+    createFixtureDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      content: "notes",
+    }),
+    createFixtureUploadedDocument({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.member.user.id,
+      contentType: "image/png",
+      fileName: "logo.png",
+      bytes: readUploadSample("pixel.png"),
+    }),
+  ]);
+
+  await Promise.all([
+    createFixtureVaultItem({
+      vaultId: vault.id,
+      documentId: hiddenDocument.id,
+      isVisible: false,
+    }),
+    callServerFunction(fixture.member.http, {
+      modulePath: documentsModulePath,
+      exportName: "updateDocument",
+      method: "POST",
+      data: {
+        documentId: hiddenDocument.id,
+        title: hiddenDocument.title,
+        content: `![logo](doc/${image.id})`,
+        updatedAt: hiddenDocument.updatedAt.toISOString(),
+      },
+    }),
+  ]);
+
+  const link = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    vaultId: vault.id,
+  });
+
+  // Hiding withdraws bytes, not just the listing — otherwise the URL alone would still serve them.
+  expect(await reachable(link.id, hiddenDocument.id)).toBe(false);
+  expect(await reachable(link.id, image.id)).toBe(false);
+});

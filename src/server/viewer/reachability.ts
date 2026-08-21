@@ -5,8 +5,9 @@ import { documentReference, link, vaultItem } from "#/server/db/schema";
 import type { DocumentId, LinkId } from "#/server/ids";
 
 /**
- * A Document is reachable from a Link when it is the target, a member of the
+ * A Document is reachable from a Link when it is the target, a visible member of the
  * target Vault, or referenced by one of those Documents. One hop, never further.
+ * A hidden membership is not a member here, so hiding withdraws bytes as well as listing.
  */
 export function linkReachesDocument(documentId: DocumentId) {
   return or(
@@ -15,7 +16,13 @@ export function linkReachesDocument(documentId: DocumentId) {
       db
         .select({ documentId: vaultItem.documentId })
         .from(vaultItem)
-        .where(and(eq(vaultItem.vaultId, link.vaultId), eq(vaultItem.documentId, documentId))),
+        .where(
+          and(
+            eq(vaultItem.vaultId, link.vaultId),
+            eq(vaultItem.documentId, documentId),
+            eq(vaultItem.isVisible, true),
+          ),
+        ),
     ),
     exists(
       db
@@ -34,6 +41,7 @@ export function linkReachesDocument(documentId: DocumentId) {
                     and(
                       eq(vaultItem.vaultId, link.vaultId),
                       eq(vaultItem.documentId, documentReference.sourceDocumentId),
+                      eq(vaultItem.isVisible, true),
                     ),
                   ),
               ),

@@ -8,6 +8,7 @@ import {
   addVaultItem as addVaultItemInRepository,
   listVaultItems as listVaultItemsFromRepository,
   removeVaultItem as removeVaultItemInRepository,
+  setVaultItemVisibility as setVaultItemVisibilityInRepository,
 } from "#/server/repositories/vault-items";
 
 const membershipPairSchema = z.object({
@@ -20,6 +21,10 @@ const addVaultItemSchema = membershipPairSchema.extend({
 });
 
 const removeVaultItemSchema = membershipPairSchema;
+
+const setVaultItemVisibilitySchema = membershipPairSchema.extend({
+  isVisible: z.boolean(),
+});
 
 export const listVaultItems = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])
@@ -41,4 +46,13 @@ export const removeVaultItem = createServerFn({ method: "POST" })
     const removed = await removeVaultItemInRepository(context.orgId, data);
     if (!removed) throw notFound();
     return removed;
+  });
+
+export const setVaultItemVisibility = createServerFn({ method: "POST" })
+  .middleware([permission({ vault: ["update"] })])
+  .validator(setVaultItemVisibilitySchema)
+  .handler(async ({ context, data }) => {
+    const updated = await setVaultItemVisibilityInRepository(context.orgId, data);
+    if (!updated) throw notFound();
+    return updated;
   });
