@@ -1,5 +1,5 @@
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { createCollection } from "@tanstack/react-db";
+import { BasicIndex, createCollection } from "@tanstack/react-db";
 import type { QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
@@ -56,11 +56,16 @@ function vaultItemKey({ vaultId, documentId }: { vaultId: string; documentId: st
   return `${vaultId}:${documentId}` as const;
 }
 
+// Dashboard collections stay warm for the QueryClient's life (ADR-0034). Query must not GC them
+// after live queries unmount, or cleanupQueryIfIdle warns that a preload refcount has no listeners.
+const collectionQueryGcTime = Number.POSITIVE_INFINITY;
+
 function createCollections(queryClient: QueryClient, organizationId: string) {
   const vaultItems = createCollection(
     queryCollectionOptions({
       queryClient,
       queryKey: ["organizations", organizationId, "vault-items"],
+      gcTime: collectionQueryGcTime,
       queryFn: () => listVaultItems(),
       // Vault membership is a row keyed by its composite primary key, never an array on the Vault.
       getKey: vaultItemKey,
@@ -101,6 +106,7 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
     queryCollectionOptions({
       queryClient,
       queryKey: ["organizations", organizationId, "links"],
+      gcTime: collectionQueryGcTime,
       queryFn: () => listLinks(),
       getKey: (link) => link.id,
       schema: linkSchema,
@@ -166,6 +172,7 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
     queryCollectionOptions({
       queryClient,
       queryKey: ["organizations", organizationId, "documents"],
+      gcTime: collectionQueryGcTime,
       queryFn: () => listDocuments(),
       getKey: (document) => document.id,
       schema: documentSchema,
@@ -225,6 +232,7 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
     queryCollectionOptions({
       queryClient,
       queryKey: ["organizations", organizationId, "vaults"],
+      gcTime: collectionQueryGcTime,
       queryFn: () => listVaults(),
       getKey: (vault) => vault.id,
       schema: vaultSchema,
@@ -279,6 +287,13 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
       },
     }),
   );
+
+  // Joins and filters load by Document or Vault id; without these indexes TanStack DB falls back
+  // to a full scan and warns on every live query that needs the field.
+  vaultItems.createIndex((row) => row.documentId, { indexType: BasicIndex });
+  vaultItems.createIndex((row) => row.vaultId, { indexType: BasicIndex });
+  links.createIndex((row) => row.documentId, { indexType: BasicIndex });
+  links.createIndex((row) => row.vaultId, { indexType: BasicIndex });
 
   return { documents, vaults, vaultItems, links };
 }

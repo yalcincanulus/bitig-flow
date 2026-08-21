@@ -1,16 +1,9 @@
-import { Link, Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 
-import { Button } from "#/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "#/components/ui/empty";
+import { DashboardNotFound } from "#/components/dashboard-not-found";
 import { Skeleton } from "#/components/ui/skeleton";
 import { getCollections } from "#/db-collections";
-import { dashboardNotFound } from "#/lib/dashboard-not-found";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
@@ -29,30 +22,25 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   // One boundary for the three detail routes: the not-found lands here, inside the Chrome,
   // so the User keeps their navigation and can move somewhere else.
   notFoundComponent: DashboardNotFound,
-  component: Outlet,
+  component: DashboardCollections,
 });
 
-function DashboardNotFound() {
-  const { pathname } = useLocation();
-  const notFound = dashboardNotFound(pathname);
+function DashboardCollections() {
+  const { organization, queryClient } = Route.useRouteContext();
+  const { documents, vaults, vaultItems, links } = getCollections(queryClient, organization.id);
 
-  return (
-    <div className="flex flex-1 flex-col p-4">
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>{notFound.title}</EmptyTitle>
-          <EmptyDescription>{notFound.description}</EmptyDescription>
-        </EmptyHeader>
-        {notFound.recovery ? (
-          <EmptyContent>
-            <Button nativeButton={false} render={<Link {...notFound.recovery.link} />}>
-              {notFound.recovery.label}
-            </Button>
-          </EmptyContent>
-        ) : null}
-      </Empty>
-    </div>
-  );
+  // Keep Query observers subscribed for the whole Dashboard visit so unused collections are not
+  // unsubscribed on page changes (that path is what logs cleanupQueryIfIdle).
+  useEffect(() => {
+    const subscriptions = [documents, vaults, vaultItems, links].map((collection) =>
+      collection.subscribeChanges(() => {}),
+    );
+    return () => {
+      for (const subscription of subscriptions) subscription.unsubscribe();
+    };
+  }, [documents, vaults, vaultItems, links]);
+
+  return <Outlet />;
 }
 
 function DashboardPending() {

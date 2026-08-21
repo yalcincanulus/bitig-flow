@@ -8,6 +8,7 @@ import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
 
+import { UnmatchedNotFound } from "#/components/unmatched-not-found";
 import {
   documentContentSecurityPolicy,
   isViewerPath,
@@ -45,6 +46,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
     ],
   }),
+  notFoundComponent: UnmatchedNotFound,
   shellComponent: RootDocument,
 });
 

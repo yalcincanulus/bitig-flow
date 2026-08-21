@@ -124,6 +124,45 @@ describe("getCollections", () => {
     expect(getCollections(secondQueryClient, "organization-1")).not.toBe(first);
   });
 
+  test("indexes Vault membership and Links by Document and Vault id", () => {
+    const { vaultItems, links } = getCollections(new QueryClient(), "organization-1");
+
+    expect(
+      [...vaultItems.indexes.values()].some((index) => index.matchesField(["documentId"])),
+    ).toBe(true);
+    expect([...vaultItems.indexes.values()].some((index) => index.matchesField(["vaultId"]))).toBe(
+      true,
+    );
+    expect([...links.indexes.values()].some((index) => index.matchesField(["documentId"]))).toBe(
+      true,
+    );
+    expect([...links.indexes.values()].some((index) => index.matchesField(["vaultId"]))).toBe(true);
+  });
+
+  test("keeps Organization queries in the Query cache for the QueryClient's life", async () => {
+    const queryClient = new QueryClient();
+    vi.mocked(listDocuments).mockResolvedValue([]);
+    vi.mocked(listVaults).mockResolvedValue([]);
+    vi.mocked(listVaultItems).mockResolvedValue([]);
+    vi.mocked(listLinks).mockResolvedValue([]);
+    const { documents, vaults, vaultItems, links } = getCollections(queryClient, organizationId);
+    await Promise.all([
+      documents.preload(),
+      vaults.preload(),
+      vaultItems.preload(),
+      links.preload(),
+    ]);
+
+    for (const collection of ["documents", "vaults", "vault-items", "links"] as const) {
+      expect(
+        queryClient.getQueryCache().find({
+          queryKey: ["organizations", organizationId, collection],
+          exact: true,
+        })?.gcTime,
+      ).toBe(Number.POSITIVE_INFINITY);
+    }
+  });
+
   test("exposes exactly the four Organization-owned entity sets", () => {
     const collections = getCollections(new QueryClient(), "organization-1");
 
