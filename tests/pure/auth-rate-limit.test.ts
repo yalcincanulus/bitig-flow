@@ -6,10 +6,10 @@ import { expect, test } from "vitest";
 
 const projectDirectory = fileURLToPath(new URL("../../", import.meta.url));
 
-test("Better Auth rate limiting is enabled with Redis storage", () => {
+test("Better Auth rate limiting follows the process rate-limit switch", () => {
   const source = readFileSync(join(projectDirectory, "src/server/auth.ts"), "utf8");
 
-  expect(source).toMatch(/rateLimit:\s*\{[\s\S]*enabled:\s*true/);
+  expect(source).toMatch(/rateLimit:\s*\{[\s\S]*enabled:\s*rateLimitsEnabled\(\)/);
   expect(source).toMatch(/secondaryStorage/);
 });
 

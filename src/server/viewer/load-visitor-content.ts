@@ -72,6 +72,7 @@ export async function loadVisitorContent(
     ...senderFields(link),
     allowDownload: link.allowDownload,
     slug: link.slug,
+    vaultTitle: memberDocumentId ? link.targetTitle : null,
   };
 
   const documentId = memberDocumentId ?? link.documentId;

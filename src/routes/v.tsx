@@ -25,9 +25,7 @@ export const Route = createFileRoute("/v")({
 function ViewerLayout() {
   return (
     <ViewerDwell>
-      <ViewerShell>
-        <Outlet />
-      </ViewerShell>
+      <Outlet />
     </ViewerDwell>
   );
 }

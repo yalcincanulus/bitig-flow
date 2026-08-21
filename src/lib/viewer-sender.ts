@@ -7,3 +7,12 @@ export function viewerSenderFirstName(senderName: string | null, organizationNam
   const firstName = senderName.trim().split(/\s+/)[0];
   return firstName || organizationName;
 }
+
+export function viewerSharedWithYouLine(
+  senderName: string | null,
+  organizationName: string,
+  share: "document" | "vault",
+) {
+  const what = share === "vault" ? "these Documents" : "this Document";
+  return `${viewerSenderLine(senderName, organizationName)} shared ${what} with you.`;
+}

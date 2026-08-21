@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { redisCall } from "#/server/redis";
 import { requiredEnv } from "#/server/runtime-env";
+import { rateLimitsEnabled } from "#/server/rate-limits-enabled";
 
 export const codeSendLimit = 5;
 export const codeSendWindowSeconds = 60 * 60;
@@ -22,6 +23,7 @@ export async function consumeCodeSendLimit(
   normalizedEmail: string,
   linkId: string,
 ) {
+  if (!rateLimitsEnabled()) return { allowed: true as const };
   const key = codeSendLimitKey(normalizedEmail, requiredEnv("GATE_RATELIMIT_SALT"));
   const count = await redisCall(() => redis.incr(key));
   if (count === 1) await redisCall(() => redis.expire(key, codeSendWindowSeconds));

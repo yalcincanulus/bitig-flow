@@ -44,6 +44,8 @@ type VisitorContentShared = Readonly<{
   allowDownload: boolean;
   slug: string;
   title: string;
+  /** Set when this Document was opened from a Vault Link, so the Viewer can return to the index. */
+  vaultTitle: string | null;
 }>;
 
 export type VisitorMarkdownContent = VisitorContentShared &

@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { organizationPluginOptions } from "#/lib/access-control";
 import { redisSecondaryStorage } from "#/server/auth-redis-storage";
 import { db } from "#/server/db/client";
+import { rateLimitsEnabled } from "#/server/rate-limits-enabled";
 import {
   account,
   invitation,
@@ -40,7 +41,7 @@ export const auth = betterAuth({
   }),
   secondaryStorage: redisSecondaryStorage(),
   rateLimit: {
-    enabled: true,
+    enabled: rateLimitsEnabled(),
   },
   // Redis secondary storage would otherwise own sessions and skip Postgres. Fixtures still write
   // sessions to the database, so keep a database copy and a Redis-miss fallback.

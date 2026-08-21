@@ -115,7 +115,6 @@ test("unknown, expired, deactivated, rotated, and deleted-Target Slugs return by
   expect(textOf(markup[0] ?? "")).toContain(
     "This link isn't available. Ask whoever sent it to you for a new one.",
   );
-  expect(markup[0]).toContain("bitig");
   for (const body of bodies) {
     expect(body).not.toContain(fixture.member.user.name);
     expect(body).not.toContain(fixture.organization.name);
@@ -159,7 +158,6 @@ test("a password Gate GET never contains the Target title, a Vault name, or the 
   expect(html).not.toContain(distinctiveVaultName);
   expect(html).not.toContain(distinctiveLinkName);
   expect(textOf(markup)).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
-  expect(markup).toContain("bitig");
   expect(markup).toContain('name="robots"');
   expect(markup).toContain("noindex, nofollow");
   expect(markup).not.toContain("og:");
@@ -233,8 +231,11 @@ test("GET of a public Link writes one Visit and reveals the sender plus the Targ
   const markup = serverRenderedMarkupOf(html);
 
   expect(response.status).toBe(200);
-  expect(textOf(markup)).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(textOf(markup)).toContain(
+    `${fixture.member.user.name} at ${fixture.organization.name} shared this Document with you.`,
+  );
   expect(textOf(markup)).toContain(distinctiveTitle);
+  expect(textOf(markup)).not.toMatch(/Back to/);
   expect(html).not.toContain(distinctiveLinkName);
 
   const visits = await database.select().from(visit).where(eq(visit.linkId, published.id));
@@ -324,7 +325,9 @@ test("GET of a public markdown Link renders the Document and resolves images thr
   const markup = serverRenderedMarkupOf(html);
 
   expect(response.status).toBe(200);
-  expect(textOf(markup)).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(textOf(markup)).toContain(
+    `${fixture.member.user.name} at ${fixture.organization.name} shared this Document with you.`,
+  );
   expect(textOf(markup)).toContain(distinctiveTitle);
   expect(markup).toContain("<p>The indemnity survives closing.</p>");
   expect(markup).toContain(`<img src="${viewerBytesUrl(published.slug, logo.id)}" alt="logo">`);
@@ -798,7 +801,9 @@ test("a Vault index lists members including a pending upload, and an empty Vault
   expect(emptyResponse.status).toBe(200);
   expect(emptyCopy).toContain("There's nothing in here yet.");
   expect(emptyHtml).toContain(distinctiveVaultName);
-  expect(emptyCopy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(emptyCopy).toContain(
+    `${fixture.member.user.name} at ${fixture.organization.name} shared these Documents with you.`,
+  );
 
   const filledVisitor = createCookieClient();
   const filledResponse = await filledVisitor.http(viewerUrl(filledLink.slug), {
@@ -809,12 +814,15 @@ test("a Vault index lists members including a pending upload, and an empty Vault
   const filledCopy = textOf(filledMarkup);
   expect(filledResponse.status).toBe(200);
   expect(filledHtml).toContain("Filled Data Room");
-  expect(filledCopy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(filledCopy).toContain(
+    `${fixture.member.user.name} at ${fixture.organization.name} shared these Documents with you.`,
+  );
   expect(filledCopy).toContain(distinctiveTitle);
-  expect(filledCopy).toContain("markdown");
+  expect(filledCopy).toContain("Markdown");
   expect(filledCopy).toContain("Board portrait.png");
-  expect(filledCopy).toContain("image");
+  expect(filledCopy).toContain("Image");
   expect(filledCopy).toMatch(/upload/i);
+  expect(filledCopy).not.toMatch(/Back to/);
   expect(filledMarkup).toContain(`href="/v/${filledLink.slug}/${memberDocument.id}"`);
   expect(filledMarkup).toContain(`href="/v/${filledLink.slug}/${pendingMember.id}"`);
   expect(filledCopy).not.toContain("There's nothing in here yet.");
@@ -853,10 +861,15 @@ test("opening a Vault member writes document_opened per visit including a revisi
   });
   const visitor = createCookieClient();
 
-  expect(
-    (await visitor.http(viewerMemberUrl(published.slug, memberDocument.id), { redirect: "manual" }))
-      .status,
-  ).toBe(200);
+  const firstOpen = await visitor.http(viewerMemberUrl(published.slug, memberDocument.id), {
+    redirect: "manual",
+  });
+  const firstMarkup = serverRenderedMarkupOf(await firstOpen.text());
+  const firstCopy = textOf(firstMarkup);
+  expect(firstOpen.status).toBe(200);
+  expect(firstCopy).toContain(distinctiveTitle);
+  expect(firstCopy).toContain(`Back to ${distinctiveVaultName}`);
+  expect(firstMarkup).toContain(`href="/v/${published.slug}"`);
   expect((await visitor.http(viewerUrl(published.slug), { redirect: "manual" })).status).toBe(200);
   const secondOpen = await visitor.http(viewerMemberUrl(published.slug, memberDocument.id), {
     redirect: "manual",
@@ -1665,7 +1678,9 @@ test("password then email then code mints a verified Visit and the next GET is t
   const html = await revealed.text();
   const copy = textOf(serverRenderedMarkupOf(html));
   expect(revealed.status).toBe(200);
-  expect(copy).toContain(`${fixture.member.user.name} at ${fixture.organization.name}`);
+  expect(copy).toContain(
+    `${fixture.member.user.name} at ${fixture.organization.name} shared this Document with you.`,
+  );
   expect(copy).toContain(distinctiveTitle);
   expect(copy).toContain("Fixture document content.");
 

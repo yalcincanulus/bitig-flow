@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { redisCall } from "#/server/redis";
 import { requiredEnv } from "#/server/runtime-env";
+import { rateLimitsEnabled } from "#/server/rate-limits-enabled";
 
 export const beaconLimit = 20;
 export const beaconWindowSeconds = 60;
@@ -22,6 +23,7 @@ function keyFor(visitId: string) {
 }
 
 export async function consumeBeaconLimit(redis: RedisLimiter, visitId: string, linkId: string) {
+  if (!rateLimitsEnabled()) return { allowed: true as const };
   const key = keyFor(visitId);
   const count = await redisCall(() => redis.incr(key));
   if (count === 1) await redisCall(() => redis.expire(key, beaconWindowSeconds));

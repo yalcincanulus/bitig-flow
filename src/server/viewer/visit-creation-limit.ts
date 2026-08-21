@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { requiredEnv } from "#/server/runtime-env";
 import { redisCall } from "#/server/redis";
+import { rateLimitsEnabled } from "#/server/rate-limits-enabled";
 
 export const visitCreationLimit = 30;
 export const visitCreationWindowSeconds = 60 * 60;
@@ -18,6 +19,7 @@ export function visitCreationLimitKey(ip: string, salt: string) {
 }
 
 export async function consumeVisitCreationLimit(redis: RedisLimiter, ip: string) {
+  if (!rateLimitsEnabled()) return { allowed: true as const };
   const key = visitCreationLimitKey(ip, requiredEnv("GATE_RATELIMIT_SALT"));
   const count = await redisCall(() => redis.incr(key));
   if (count === 1) await redisCall(() => redis.expire(key, visitCreationWindowSeconds));

@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import { redisCall } from "#/server/redis";
 import { requiredEnv } from "#/server/runtime-env";
+import { rateLimitsEnabled } from "#/server/rate-limits-enabled";
 
 export const formSubmissionLimit = 20;
 export const formSubmissionWindowSeconds = 15 * 60;
@@ -22,6 +23,7 @@ function keyFor(linkId: string, ip: string) {
 }
 
 export async function consumeFormSubmissionLimit(redis: RedisLimiter, linkId: string, ip: string) {
+  if (!rateLimitsEnabled()) return { allowed: true as const };
   const key = keyFor(linkId, ip);
   const count = await redisCall(() => redis.incr(key));
   if (count === 1) await redisCall(() => redis.expire(key, formSubmissionWindowSeconds));
