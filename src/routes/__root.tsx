@@ -8,6 +8,7 @@ import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
 
+import { ThemeScript } from "#/components/theme-script";
 import { UnmatchedNotFound } from "#/components/unmatched-not-found";
 import {
   documentContentSecurityPolicy,
@@ -52,9 +53,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // The theme class is written onto `<html>` before hydration, so React finds an attribute it
+    // did not render and would otherwise warn about it.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <ThemeScript />
       </head>
       <body>
         {children}

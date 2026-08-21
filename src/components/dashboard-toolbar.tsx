@@ -1,6 +1,7 @@
 import { Link, useMatch, useMatchRoute } from "@tanstack/react-router";
 import { Fragment } from "react";
 
+import { ThemeToggle } from "#/components/theme-toggle";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -146,6 +147,9 @@ export function DashboardToolbar() {
       <DashboardSidebarTrigger />
       <Separator orientation="vertical" className="h-4" />
       <DashboardBreadcrumbs />
+      <div className="ml-auto">
+        <ThemeToggle />
+      </div>
     </header>
   );
 }
