@@ -2,8 +2,11 @@ import { describe, expect, test } from "vitest";
 
 import {
   byStanding,
+  changeRoleActionRefusal,
   outstandingInvitations,
   readsOutstandingInvitations,
+  removalRefusal,
+  roleChangeRefusal,
   roleLabel,
 } from "#/lib/people";
 
@@ -56,6 +59,124 @@ describe("outstandingInvitations", () => {
     ];
 
     expect(outstandingInvitations(spent, now)).toEqual([]);
+  });
+});
+
+function withRoles(
+  ...roles: Array<"owner" | "admin" | "member">
+): Array<{ role: "owner" | "admin" | "member" }> {
+  return roles.map((role) => ({ role }));
+}
+
+describe("roleChangeRefusal", () => {
+  test("an owner can change any Role, including granting Owner", () => {
+    const memberships = withRoles("owner", "admin", "member");
+
+    expect(roleChangeRefusal("owner", memberships[2]!, "admin", memberships)).toBeUndefined();
+    expect(roleChangeRefusal("owner", memberships[2]!, "owner", memberships)).toBeUndefined();
+    expect(roleChangeRefusal("owner", memberships[1]!, "member", memberships)).toBeUndefined();
+  });
+
+  test("the last Owner cannot be demoted", () => {
+    const memberships = withRoles("owner", "admin");
+
+    expect(roleChangeRefusal("owner", memberships[0]!, "admin", memberships)).toBe(
+      "The last Owner cannot be demoted.",
+    );
+  });
+
+  test("an Owner can be demoted when another Owner remains", () => {
+    const memberships = withRoles("owner", "owner", "member");
+
+    expect(roleChangeRefusal("owner", memberships[0]!, "admin", memberships)).toBeUndefined();
+  });
+
+  test("an admin cannot change an Owner's Role or grant it", () => {
+    const memberships = withRoles("owner", "admin", "member");
+
+    expect(roleChangeRefusal("admin", memberships[0]!, "admin", memberships)).toBe(
+      "An admin cannot change an Owner's Role.",
+    );
+    expect(roleChangeRefusal("admin", memberships[2]!, "owner", memberships)).toBe(
+      "Only an Owner can grant the Owner Role.",
+    );
+  });
+
+  test("an admin can change a member to admin", () => {
+    const memberships = withRoles("owner", "admin", "member");
+
+    expect(roleChangeRefusal("admin", memberships[2]!, "admin", memberships)).toBeUndefined();
+  });
+
+  test("a member cannot change a Role", () => {
+    const memberships = withRoles("owner", "member");
+
+    expect(roleChangeRefusal("member", memberships[1]!, "admin", memberships)).toBe(
+      "Your Role cannot change a Membership.",
+    );
+  });
+});
+
+describe("removalRefusal", () => {
+  test("the last Owner cannot be removed", () => {
+    const memberships = withRoles("owner", "admin");
+
+    expect(removalRefusal("owner", memberships[0]!, memberships)).toBe(
+      "The last Owner cannot be removed.",
+    );
+  });
+
+  test("an Owner can be removed when another Owner remains", () => {
+    const memberships = withRoles("owner", "owner");
+
+    expect(removalRefusal("owner", memberships[1]!, memberships)).toBeUndefined();
+  });
+
+  test("an admin cannot remove an Owner", () => {
+    const memberships = withRoles("owner", "admin");
+
+    expect(removalRefusal("admin", memberships[0]!, memberships)).toBe(
+      "An admin cannot remove an Owner.",
+    );
+  });
+
+  test("an admin can remove a member", () => {
+    const memberships = withRoles("owner", "admin", "member");
+
+    expect(removalRefusal("admin", memberships[2]!, memberships)).toBeUndefined();
+  });
+
+  test("a member cannot remove a Membership", () => {
+    const memberships = withRoles("owner", "member");
+
+    expect(removalRefusal("member", memberships[1]!, memberships)).toBe(
+      "Your Role cannot remove a Membership.",
+    );
+  });
+});
+
+describe("changeRoleActionRefusal", () => {
+  test("disables the last Owner's demote action with the demotion reason", () => {
+    const memberships = withRoles("owner", "member");
+
+    expect(changeRoleActionRefusal("owner", memberships[0]!, memberships)).toBe(
+      "The last Owner cannot be demoted.",
+    );
+  });
+
+  test("disables an admin's change action on an Owner", () => {
+    const memberships = withRoles("owner", "admin");
+
+    expect(changeRoleActionRefusal("admin", memberships[0]!, memberships)).toBe(
+      "An admin cannot change an Owner's Role.",
+    );
+  });
+
+  test("leaves the action open when any other Role can still be granted", () => {
+    const memberships = withRoles("owner", "admin", "member");
+
+    expect(changeRoleActionRefusal("owner", memberships[2]!, memberships)).toBeUndefined();
+    expect(changeRoleActionRefusal("admin", memberships[2]!, memberships)).toBeUndefined();
   });
 });
 

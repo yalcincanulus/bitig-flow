@@ -7,6 +7,7 @@ import {
   createFixtureInvitation,
   createFixtureUser,
   createOrganizationFixture,
+  createOrganizationForFixtureUser,
 } from "../fixtures";
 
 const peopleModulePath = "/src/server/functions/people.ts";
@@ -14,7 +15,13 @@ const organizationApi = "/api/auth/organization";
 
 function organizationMutation(
   http: typeof fetch,
-  path: "invite-member" | "cancel-invitation" | "accept-invitation",
+  path:
+    | "invite-member"
+    | "cancel-invitation"
+    | "accept-invitation"
+    | "update-member-role"
+    | "remove-member"
+    | "set-active",
   body: unknown,
 ) {
   return http(new URL(`${organizationApi}/${path}`, process.env.BETTER_AUTH_URL), {
@@ -39,6 +46,22 @@ function readOutstandingInvitations(http: typeof fetch) {
     exportName: "listOutstandingInvitations",
     method: "GET",
   });
+}
+
+type MembershipListing = {
+  members: Array<{ id: string; role: string; user: { email: string } }>;
+};
+
+async function membershipListing(http: typeof fetch) {
+  const response = await readMemberships(http);
+  expect(response.status).toBe(200);
+  return (await response.json()) as MembershipListing;
+}
+
+function membershipId(listing: MembershipListing, email: string) {
+  const membership = listing.members.find((entry) => entry.user.email === email);
+  expect(membership).toBeDefined();
+  return membership!.id;
 }
 
 test("a member can read every Membership, with each colleague's email and Role", async () => {
@@ -200,6 +223,192 @@ test("cancelling an outstanding Invitation revokes its emailed link", async () =
   });
   expect(accepted.status).toBe(400);
   expect(await accepted.json()).toMatchObject({ code: "INVITATION_NOT_FOUND" });
+});
+
+test("an owner can change any Role, including granting Owner", async () => {
+  const fixture = await createOrganizationFixture();
+  const listing = await membershipListing(fixture.owner.http);
+  const memberId = membershipId(listing, fixture.member.user.email);
+  const adminMemberId = membershipId(listing, fixture.admin.user.email);
+
+  const promoted = await organizationMutation(fixture.owner.http, "update-member-role", {
+    memberId,
+    role: "owner",
+    organizationId: fixture.organization.id,
+  });
+  expect(promoted.status).toBe(200);
+  expect(await promoted.json()).toMatchObject({ role: "owner" });
+
+  const demoted = await organizationMutation(fixture.owner.http, "update-member-role", {
+    memberId: adminMemberId,
+    role: "member",
+    organizationId: fixture.organization.id,
+  });
+  expect(demoted.status).toBe(200);
+  expect(await demoted.json()).toMatchObject({ role: "member" });
+});
+
+test("an admin can change a member's Role and remove a member, but cannot grant Owner", async () => {
+  const fixture = await createOrganizationFixture();
+  const listing = await membershipListing(fixture.admin.http);
+  const memberId = membershipId(listing, fixture.member.user.email);
+
+  const promoted = await organizationMutation(fixture.admin.http, "update-member-role", {
+    memberId,
+    role: "admin",
+    organizationId: fixture.organization.id,
+  });
+  expect(promoted.status).toBe(200);
+  expect(await promoted.json()).toMatchObject({ role: "admin" });
+
+  const grantedOwner = await organizationMutation(fixture.admin.http, "update-member-role", {
+    memberId,
+    role: "owner",
+    organizationId: fixture.organization.id,
+  });
+  expect(grantedOwner.status).toBe(403);
+  expect(await grantedOwner.json()).toMatchObject({
+    code: "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER",
+  });
+
+  const removed = await organizationMutation(fixture.admin.http, "remove-member", {
+    memberIdOrEmail: memberId,
+    organizationId: fixture.organization.id,
+  });
+  expect(removed.status).toBe(200);
+});
+
+test("the sole owner can be neither removed nor demoted", async () => {
+  const owner = await createFixtureUser();
+  const organization = await createOrganizationForFixtureUser(owner.user.id);
+  const activated = await organizationMutation(owner.http, "set-active", {
+    organizationId: organization.id,
+  });
+  expect(activated.status).toBe(200);
+
+  const listing = await membershipListing(owner.http);
+  const memberId = listing.members[0]!.id;
+
+  const [removed, demoted] = await Promise.all([
+    organizationMutation(owner.http, "remove-member", {
+      memberIdOrEmail: memberId,
+      organizationId: organization.id,
+    }),
+    organizationMutation(owner.http, "update-member-role", {
+      memberId,
+      role: "admin",
+      organizationId: organization.id,
+    }),
+  ]);
+
+  expect(removed.status).toBe(400);
+  expect(await removed.json()).toMatchObject({
+    code: "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER",
+  });
+  expect(demoted.status).toBe(400);
+  expect(await demoted.json()).toMatchObject({
+    code: "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER",
+  });
+});
+
+test("an admin can neither remove nor demote an owner", async () => {
+  const fixture = await createOrganizationFixture();
+  const listing = await membershipListing(fixture.admin.http);
+  const ownerMemberId = membershipId(listing, fixture.owner.user.email);
+
+  const [removed, demoted] = await Promise.all([
+    organizationMutation(fixture.admin.http, "remove-member", {
+      memberIdOrEmail: ownerMemberId,
+      organizationId: fixture.organization.id,
+    }),
+    organizationMutation(fixture.admin.http, "update-member-role", {
+      memberId: ownerMemberId,
+      role: "admin",
+      organizationId: fixture.organization.id,
+    }),
+  ]);
+
+  // Better Auth's remove-member rank check reuses the last-owner code for any owner the caller
+  // does not outrank, even when another owner would remain.
+  expect(removed.status).toBe(400);
+  expect(await removed.json()).toMatchObject({
+    code: "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER",
+  });
+  expect(demoted.status).toBe(403);
+  expect(await demoted.json()).toMatchObject({
+    code: "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER",
+  });
+});
+
+test("a member attempting a removal or a role change is forbidden", async () => {
+  const fixture = await createOrganizationFixture();
+  const listing = await membershipListing(fixture.member.http);
+  const adminMemberId = membershipId(listing, fixture.admin.user.email);
+
+  const [removed, changed] = await Promise.all([
+    organizationMutation(fixture.member.http, "remove-member", {
+      memberIdOrEmail: adminMemberId,
+      organizationId: fixture.organization.id,
+    }),
+    organizationMutation(fixture.member.http, "update-member-role", {
+      memberId: adminMemberId,
+      role: "member",
+      organizationId: fixture.organization.id,
+    }),
+  ]);
+
+  expect(removed.status).toBe(401);
+  expect(await removed.json()).toMatchObject({
+    code: "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER",
+  });
+  expect(changed.status).toBe(403);
+  expect(await changed.json()).toMatchObject({
+    code: "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER",
+  });
+});
+
+test("a demotion takes effect on the target's very next request", async () => {
+  const fixture = await createOrganizationFixture();
+  const listing = await membershipListing(fixture.owner.http);
+  const adminMemberId = membershipId(listing, fixture.admin.user.email);
+
+  const demoted = await organizationMutation(fixture.owner.http, "update-member-role", {
+    memberId: adminMemberId,
+    role: "member",
+    organizationId: fixture.organization.id,
+  });
+  expect(demoted.status).toBe(200);
+
+  const invited = await organizationMutation(fixture.admin.http, "invite-member", {
+    email: `after-demotion-${randomUUID()}@example.com`,
+    role: "member",
+    organizationId: fixture.organization.id,
+  });
+
+  expect(invited.status).toBe(403);
+  expect(await invited.json()).toMatchObject({
+    code: "YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION",
+  });
+});
+
+test("a removed user lands on onboarding rather than a broken Dashboard", async () => {
+  const fixture = await createOrganizationFixture();
+  const listing = await membershipListing(fixture.owner.http);
+  const memberId = membershipId(listing, fixture.member.user.email);
+
+  const removed = await organizationMutation(fixture.owner.http, "remove-member", {
+    memberIdOrEmail: memberId,
+    organizationId: fixture.organization.id,
+  });
+  expect(removed.status).toBe(200);
+
+  const dashboard = await fixture.member.http(
+    new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+
+  expect(dashboard.status).toBe(307);
+  expect(dashboard.headers.get("location")).toBe("/onboarding");
 });
 
 test("an admin cannot cancel another Organization's Invitation", async () => {

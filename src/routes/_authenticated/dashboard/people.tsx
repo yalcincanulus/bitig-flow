@@ -3,6 +3,7 @@ import { MailIcon } from "lucide-react";
 
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { CancelInvitationDialog, InvitePersonDialog } from "#/components/people-invitations";
+import { MembershipActions, type Membership } from "#/components/people-memberships";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 import { Badge } from "#/components/ui/badge";
 import {
@@ -14,18 +15,12 @@ import {
 } from "#/components/ui/empty";
 import { TableFrame } from "#/components/table-frame";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
-import { roleSchema, type OrganizationRole } from "#/lib/access-control";
+import { hasPermission, roleSchema, type OrganizationRole } from "#/lib/access-control";
 import { authClient } from "#/lib/auth-client";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { initials } from "#/lib/initials";
 import { byStanding, readsOutstandingInvitations, roleLabel } from "#/lib/people";
 import { listOutstandingInvitations } from "#/server/functions/people";
-
-type Membership = Readonly<{
-  id: string;
-  role: OrganizationRole;
-  user: Readonly<{ name: string; email: string; image?: string | null }>;
-}>;
 
 type OutstandingInvitation = Awaited<ReturnType<typeof listOutstandingInvitations>>[number];
 
@@ -68,14 +63,29 @@ function RoleBadge({ role }: Readonly<{ role: OrganizationRole }>) {
   return <Badge variant={role === "member" ? "outline" : "secondary"}>{roleLabel(role)}</Badge>;
 }
 
-function MembershipTable({ memberships }: Readonly<{ memberships: readonly Membership[] }>) {
+function MembershipTable({
+  memberships,
+  callerRole,
+  organizationId,
+}: Readonly<{
+  memberships: readonly Membership[];
+  callerRole: OrganizationRole;
+  organizationId: string;
+}>) {
+  const showsActions = hasPermission(callerRole, { member: ["update"] });
+
   return (
     <TableFrame>
       <TableHeader>
         <TableRow className="bg-muted/40 hover:bg-muted/40">
           <TableHead className="pl-3">Person</TableHead>
           <TableHead>Email</TableHead>
-          <TableHead className="w-0 pr-3">Role</TableHead>
+          <TableHead className={showsActions ? "w-0" : "w-0 pr-3"}>Role</TableHead>
+          {showsActions ? (
+            <TableHead className="w-0 pr-3">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          ) : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -95,9 +105,19 @@ function MembershipTable({ memberships }: Readonly<{ memberships: readonly Membe
             <TableCell className="max-w-64 text-muted-foreground">
               <span className="block truncate">{membership.user.email}</span>
             </TableCell>
-            <TableCell className="pr-3">
+            <TableCell className={showsActions ? undefined : "pr-3"}>
               <RoleBadge role={membership.role} />
             </TableCell>
+            {showsActions ? (
+              <TableCell className="pr-3">
+                <MembershipActions
+                  membership={membership}
+                  memberships={memberships}
+                  callerRole={callerRole}
+                  organizationId={organizationId}
+                />
+              </TableCell>
+            ) : null}
           </TableRow>
         ))}
       </TableBody>
@@ -183,7 +203,11 @@ function PeoplePage() {
         )}
       </PageHeader>
 
-      <MembershipTable memberships={memberships} />
+      <MembershipTable
+        memberships={memberships}
+        callerRole={role}
+        organizationId={organization.id}
+      />
 
       {invitations === undefined ? null : <OutstandingInvitations invitations={invitations} />}
     </Page>
