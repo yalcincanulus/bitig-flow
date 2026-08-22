@@ -23,6 +23,8 @@ test.each(authRoutes)("an anonymous User receives $path", async ({ path, heading
   expect(await response.text()).toContain(`>${heading.replaceAll("'", "&#x27;")}</h1>`);
 });
 
+const accountEntryRoutes = authRoutes.filter(({ path }) => !path.startsWith("/accept-invitation/"));
+
 test("an anonymous User receives verify-email", async () => {
   const response = await createCookieClient().http(
     new URL("/verify-email", process.env.BETTER_AUTH_URL),
@@ -33,7 +35,7 @@ test("an anonymous User receives verify-email", async () => {
   expect(await response.text()).toContain(">Verify email</h1>");
 });
 
-test.each(authRoutes)(
+test.each(accountEntryRoutes)(
   "a signed-in User with no Organization requesting $path is sent to onboarding",
   async ({ path }) => {
     const fixture = await createFixtureUser();

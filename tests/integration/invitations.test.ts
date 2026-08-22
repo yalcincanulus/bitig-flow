@@ -3,23 +3,45 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { expect, test } from "vitest";
 
-import { invitation } from "#/server/db/schema";
+import { invitation, member } from "#/server/db/schema";
 
 import {
   callServerFunction,
   createCookieClient,
   createFixtureInvitation,
+  createFixtureUser,
   createOrganizationFixture,
+  createOrganizationForFixtureUser,
   database,
 } from "../fixtures";
+import { postAuth, waitForVerificationOtp } from "./auth-journey";
 
 const invitationModulePath = "/src/server/functions/invitations.ts";
 const organizationApi = "/api/auth/organization";
+
+test("the Invitation middleware client transform does not import the database", async () => {
+  const response = await fetch(
+    new URL("/src/server/viewer/invitation-recipient.ts", process.env.BETTER_AUTH_URL),
+  );
+  const clientModule = await response.text();
+
+  expect(response.status).toBe(200);
+  expect(clientModule).not.toContain("/src/server/db/client.ts");
+});
 
 function readInvitation(invitationId: string) {
   return callServerFunction(fetch, {
     modulePath: invitationModulePath,
     exportName: "readInvitation",
+    method: "GET",
+    data: { invitationId },
+  });
+}
+
+function prepareInvitationAcceptance(http: typeof fetch, invitationId: string) {
+  return callServerFunction(http, {
+    modulePath: invitationModulePath,
+    exportName: "prepareInvitationAcceptance",
     method: "GET",
     data: { invitationId },
   });
@@ -44,8 +66,11 @@ function textOf(html: string) {
     .trim();
 }
 
-async function invitationPageCopy(invitationId: string) {
-  const response = await createCookieClient().http(invitationPageUrl(invitationId), {
+async function invitationPageCopy(
+  invitationId: string,
+  http: typeof fetch = createCookieClient().http,
+) {
+  const response = await http(invitationPageUrl(invitationId), {
     redirect: "manual",
   });
   expect(response.status).toBe(200);
@@ -54,7 +79,7 @@ async function invitationPageCopy(invitationId: string) {
 
 function organizationMutation(
   http: typeof fetch,
-  path: "cancel-invitation" | "remove-member",
+  path: "accept-invitation" | "cancel-invitation" | "remove-member" | "set-active",
   body: unknown,
 ) {
   return http(new URL(`${organizationApi}/${path}`, process.env.BETTER_AUTH_URL), {
@@ -64,6 +89,12 @@ function organizationMutation(
       origin: process.env.BETTER_AUTH_URL!,
     },
     body: JSON.stringify(body),
+  });
+}
+
+function listOrganizationMembers(http: typeof fetch) {
+  return http(new URL(`${organizationApi}/list-members`, process.env.BETTER_AUTH_URL), {
+    headers: { origin: process.env.BETTER_AUTH_URL! },
   });
 }
 
@@ -165,6 +196,208 @@ test("a signed-out stranger sees the Sender line and nothing about the address o
   expect(copy).not.toContain(row.email);
   expect(copy).not.toMatch(/Admin/i);
   expect(copy).not.toMatch(/resend/i);
+});
+
+test("a signed-out recipient can sign in or sign up and return to the Invitation", async () => {
+  const fixture = await createOrganizationFixture();
+  const row = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.owner,
+  });
+
+  const response = await createCookieClient().http(invitationPageUrl(row.id), {
+    redirect: "manual",
+  });
+  const html = await response.text();
+  const redirect = encodeURIComponent(`/accept-invitation/${row.id}`);
+
+  expect(response.status).toBe(200);
+  expect(html).toContain(`href="/sign-in?redirect=${redirect}"`);
+  expect(html).toContain(`href="/sign-up?redirect=${redirect}"`);
+});
+
+test("Better Auth refuses an Invitation when the signed-in email does not match", async () => {
+  const fixture = await createOrganizationFixture();
+  const row = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.owner,
+  });
+
+  const response = await organizationMutation(fixture.member.http, "accept-invitation", {
+    invitationId: row.id,
+  });
+
+  expect(response.status).toBe(403);
+  expect(await response.json()).toMatchObject({
+    code: "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION",
+  });
+});
+
+test("a signed-in recipient accepts and reaches the inviting Organization", async () => {
+  const [fixture, recipient] = await Promise.all([
+    createOrganizationFixture(),
+    createFixtureUser(),
+  ]);
+  const row = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.owner,
+    email: recipient.user.email.toUpperCase(),
+  });
+
+  const accepted = await organizationMutation(recipient.http, "accept-invitation", {
+    invitationId: row.id,
+  });
+  expect(accepted.status).toBe(200);
+
+  const dashboard = await recipient.http(
+    new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  expect(dashboard.status).toBe(200);
+  expect(await dashboard.text()).toContain(fixture.organization.name);
+});
+
+test("a stranger signs up, verifies, accepts, and never receives onboarding", async () => {
+  const fixture = await createOrganizationFixture();
+  const nonce = randomUUID();
+  const email = `invitation-recipient-${nonce}@example.com`;
+  const password = `invitation-password-${nonce}`;
+  const row = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.owner,
+    email,
+  });
+  const http = createCookieClient().http;
+
+  const signedUp = await postAuth(http, "/api/auth/sign-up/email", {
+    name: `Invitation Recipient ${nonce}`,
+    email,
+    password,
+  });
+  expect(signedUp.status).toBe(200);
+
+  const otp = await waitForVerificationOtp(email);
+  const verified = await postAuth(http, "/api/auth/email-otp/verify-email", { email, otp });
+  expect(verified.status).toBe(200);
+
+  const signedIn = await postAuth(http, "/api/auth/sign-in/email", { email, password });
+  expect(signedIn.status).toBe(200);
+
+  const prepared = await prepareInvitationAcceptance(http, row.id);
+  expect(prepared.status).toBe(200);
+  expect(await prepared.json()).toEqual({
+    status: "ready",
+    organizationId: fixture.organization.id,
+    alreadyMember: false,
+  });
+
+  const accepted = await organizationMutation(http, "accept-invitation", {
+    invitationId: row.id,
+  });
+  expect(accepted.status).toBe(200);
+
+  const onboarding = await http(new URL("/onboarding", process.env.BETTER_AUTH_URL), {
+    redirect: "manual",
+  });
+  expect(onboarding.status).toBe(307);
+  expect(onboarding.headers.get("location")).toBe("/dashboard/documents");
+
+  const dashboard = await http(new URL("/dashboard/documents", process.env.BETTER_AUTH_URL), {
+    redirect: "manual",
+  });
+  expect(dashboard.status).toBe(200);
+  expect(await dashboard.text()).toContain(fixture.organization.name);
+});
+
+test("an Invitation no longer needed lands in the Organization without a second Membership", async () => {
+  const [fixture, recipient] = await Promise.all([
+    createOrganizationFixture(),
+    createFixtureUser(),
+  ]);
+  const row = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.owner,
+    email: recipient.user.email,
+  });
+  const otherOrganization = await createOrganizationForFixtureUser(recipient.user.id);
+
+  const firstAcceptance = await organizationMutation(recipient.http, "accept-invitation", {
+    invitationId: row.id,
+  });
+  expect(firstAcceptance.status).toBe(200);
+
+  const switchedAway = await organizationMutation(recipient.http, "set-active", {
+    organizationId: otherOrganization.id,
+  });
+  expect(switchedAway.status).toBe(200);
+
+  const page = await recipient.http(invitationPageUrl(row.id), { redirect: "manual" });
+  expect(page.status).toBe(200);
+
+  const prepared = await prepareInvitationAcceptance(recipient.http, row.id);
+  expect(prepared.status).toBe(200);
+  expect(await prepared.json()).toEqual({
+    status: "ready",
+    organizationId: fixture.organization.id,
+    alreadyMember: true,
+  });
+
+  const active = await organizationMutation(recipient.http, "set-active", {
+    organizationId: fixture.organization.id,
+  });
+  expect(active.status).toBe(200);
+
+  const dashboard = await recipient.http(
+    new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  expect(dashboard.status).toBe(200);
+  expect(await dashboard.text()).toContain(fixture.organization.name);
+
+  const membershipsResponse = await listOrganizationMembers(recipient.http);
+  const listing = (await membershipsResponse.json()) as {
+    members: Array<{ userId: string }>;
+  };
+  expect(
+    listing.members.filter((membership) => membership.userId === recipient.user.id),
+  ).toHaveLength(1);
+});
+
+test("the database refuses a second Membership for one User in one Organization", async () => {
+  const fixture = await createOrganizationFixture();
+
+  // Sanctioned ADR-0053 exception: reaching below HTTP only to prove the Membership constraint is
+  // in SQL; the public accept flow pre-checks this state and cannot exercise its race backstop.
+  let failure: unknown;
+  try {
+    await database.insert(member).values({
+      organizationId: fixture.organization.id,
+      userId: fixture.member.user.id,
+      role: "member",
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    failure = error;
+  }
+
+  expect(failure).toMatchObject({
+    cause: { constraint: "member_organization_id_user_id_uidx" },
+  });
+});
+
+test("a signed-in User with the wrong address sees their account and a way out", async () => {
+  const fixture = await createOrganizationFixture();
+  const row = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.owner,
+  });
+
+  const copy = await invitationPageCopy(row.id, fixture.member.http);
+
+  expect(copy).toContain("This account cannot accept the Invitation.");
+  expect(copy).toContain(fixture.member.user.email);
+  expect(copy).toContain("Sign out");
+  expect(copy).not.toContain(row.email);
 });
 
 test("an expired Invitation page names the Organization, says it expired, and offers only the shared remedy", async () => {

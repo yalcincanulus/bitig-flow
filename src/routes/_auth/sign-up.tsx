@@ -8,26 +8,35 @@ import { TextFormField } from "#/components/text-form-field";
 import { Button } from "#/components/ui/button";
 import { FieldError, FieldGroup } from "#/components/ui/field";
 import { goToDashboardOrOnboarding } from "#/lib/after-authentication";
+import { authRedirectSearchSchema } from "#/lib/auth-redirect";
 import { authClient } from "#/lib/auth-client";
 import { otpSchema, signUpSchema } from "#/lib/auth-form-schemas";
 
-export const Route = createFileRoute("/_auth/sign-up")({ component: SignUpPage });
+export const Route = createFileRoute("/_auth/sign-up")({
+  validateSearch: authRedirectSearchSchema,
+  component: SignUpPage,
+});
 
 function SignUpPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const [credentials, setCredentials] = useState<{ email: string; password: string }>();
 
   if (credentials) {
-    return <SignUpOtpForm credentials={credentials} navigate={navigate} />;
+    return (
+      <SignUpOtpForm credentials={credentials} navigate={navigate} redirect={search.redirect} />
+    );
   }
 
-  return <SignUpDetailsForm onSignedUp={setCredentials} />;
+  return <SignUpDetailsForm onSignedUp={setCredentials} redirect={search.redirect} />;
 }
 
 function SignUpDetailsForm({
   onSignedUp,
+  redirect,
 }: {
   onSignedUp: (credentials: { email: string; password: string }) => void;
+  redirect?: string;
 }) {
   const [submitError, setSubmitError] = useState<string>();
   const form = useForm({
@@ -90,7 +99,10 @@ function SignUpDetailsForm({
         </form.Subscribe>
       </form>
       <p className="text-sm text-muted-foreground">
-        Already have an account? <Link to="/sign-in">Sign in</Link>
+        Already have an account?{" "}
+        <Link to="/sign-in" search={{ redirect }}>
+          Sign in
+        </Link>
       </p>
     </AuthPage>
   );
@@ -99,9 +111,11 @@ function SignUpDetailsForm({
 function SignUpOtpForm({
   credentials,
   navigate,
+  redirect,
 }: {
   credentials: { email: string; password: string };
   navigate: ReturnType<typeof useNavigate>;
+  redirect?: string;
 }) {
   const [submitError, setSubmitError] = useState<string>();
   const form = useForm({
@@ -126,7 +140,7 @@ function SignUpOtpForm({
         return;
       }
 
-      await goToDashboardOrOnboarding(navigate);
+      await goToDashboardOrOnboarding(navigate, redirect);
     },
   });
 

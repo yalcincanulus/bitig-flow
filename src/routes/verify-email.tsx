@@ -58,7 +58,9 @@ function VerifyEmailPage() {
     return (
       <AuthPage title="Verify email">
         <p>Email verified — sign in.</p>
-        <Link to="/sign-in">Sign in</Link>
+        <Link to="/sign-in" search={{ redirect: search.redirect }}>
+          Sign in
+        </Link>
       </AuthPage>
     );
   }

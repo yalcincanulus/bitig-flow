@@ -110,6 +110,7 @@ export const member = snakeCase.table(
   (table) => [
     index("member_organization_id_idx").on(table.organizationId),
     index("member_user_id_idx").on(table.userId),
+    uniqueIndex("member_organization_id_user_id_uidx").on(table.organizationId, table.userId),
     // ADR-0013: every authenticated request looks up this user's current role.
     index("member_user_id_organization_id_idx").on(table.userId, table.organizationId),
   ],

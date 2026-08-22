@@ -1,14 +1,19 @@
 import { Outlet, createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 
-import { hasAuthenticatedSession, listOrganizations } from "#/server/functions/auth";
+import { currentSessionUser, listOrganizations } from "#/server/functions/auth";
 
 export const Route = createFileRoute("/_auth")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
+    let sessionUser: Awaited<ReturnType<typeof currentSessionUser>> | null = null;
     try {
-      await hasAuthenticatedSession();
+      sessionUser = await currentSessionUser();
     } catch (error) {
-      if (isRedirect(error)) return;
+      if (isRedirect(error)) return { sessionUser };
       throw error;
+    }
+
+    if (location.pathname.startsWith("/accept-invitation/")) {
+      return { sessionUser };
     }
 
     const organizations = (await listOrganizations()) ?? [];

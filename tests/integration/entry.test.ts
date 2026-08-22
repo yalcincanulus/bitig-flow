@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
 
 import { createCookieClient, createFixtureUser, createOrganizationFixture } from "../fixtures";
-import { mailpitBaseUrl } from "./environment";
+import { postAuth, waitForVerificationOtp } from "./auth-journey";
 import { test } from "./http";
 
 function expectRedirect(response: Response, location: string) {
@@ -77,46 +77,6 @@ test("a signed-in User with an Organization requesting onboarding is sent to the
 
   expectRedirect(response, "/dashboard/documents");
 });
-
-async function postAuth(http: typeof fetch, path: string, body: unknown) {
-  return http(new URL(path, process.env.BETTER_AUTH_URL), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: process.env.BETTER_AUTH_URL!,
-    },
-    body: JSON.stringify(body),
-  });
-}
-
-async function waitForVerificationOtp(email: string) {
-  const mailpitUrl = mailpitBaseUrl(process.env);
-  const query = `to:${email}`;
-
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const searchResponse = await fetch(
-      `${mailpitUrl}/api/v1/search?query=${encodeURIComponent(query)}`,
-    );
-    if (searchResponse.ok) {
-      const { messages } = (await searchResponse.json()) as {
-        messages: Array<{ ID: string; Subject: string }>;
-      };
-      const verification = messages.find((message) =>
-        message.Subject.includes("verification code"),
-      );
-      if (verification) {
-        const messageResponse = await fetch(`${mailpitUrl}/api/v1/message/${verification.ID}`);
-        const message = (await messageResponse.json()) as { Text: string };
-        const match = /Your verification code is (\d{6})/.exec(message.Text);
-        if (match?.[1]) return match[1];
-      }
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-
-  throw new Error(`No verification OTP arrived for ${email}`);
-}
 
 test("sign-up, OTP, sign-in, and a named Organization open the Dashboard", async () => {
   const http = createCookieClient().http;

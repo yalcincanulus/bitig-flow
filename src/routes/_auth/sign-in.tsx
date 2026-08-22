@@ -7,13 +7,18 @@ import { TextFormField } from "#/components/text-form-field";
 import { Button } from "#/components/ui/button";
 import { FieldError, FieldGroup } from "#/components/ui/field";
 import { goToDashboardOrOnboarding } from "#/lib/after-authentication";
+import { authRedirectSearchSchema } from "#/lib/auth-redirect";
 import { authClient } from "#/lib/auth-client";
 import { signInSchema } from "#/lib/auth-form-schemas";
 
-export const Route = createFileRoute("/_auth/sign-in")({ component: SignInPage });
+export const Route = createFileRoute("/_auth/sign-in")({
+  validateSearch: authRedirectSearchSchema,
+  component: SignInPage,
+});
 
 function SignInPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const [submitError, setSubmitError] = useState<string>();
   const form = useForm({
     defaultValues: {
@@ -28,14 +33,17 @@ function SignInPage() {
       const result = await authClient.signIn.email(value);
       if (result.error) {
         if (result.error.status === 403) {
-          await navigate({ to: "/verify-email", search: { email: value.email } });
+          await navigate({
+            to: "/verify-email",
+            search: { email: value.email, redirect: search.redirect },
+          });
           return;
         }
         setSubmitError(result.error.message ?? "Could not sign in");
         return;
       }
 
-      await goToDashboardOrOnboarding(navigate);
+      await goToDashboardOrOnboarding(navigate, search.redirect);
     },
   });
 
@@ -76,7 +84,10 @@ function SignInPage() {
         </form.Subscribe>
       </form>
       <p className="text-sm text-muted-foreground">
-        No account? <Link to="/sign-up">Sign up</Link>
+        No account?{" "}
+        <Link to="/sign-up" search={search}>
+          Sign up
+        </Link>
       </p>
     </AuthPage>
   );
