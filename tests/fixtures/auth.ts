@@ -154,13 +154,15 @@ export async function createFixtureInvitation({
   organizationId,
   inviter,
   role = "member",
+  email = `invited-${randomUUID()}@example.com`,
 }: Readonly<{
   organizationId: string;
   inviter: FixtureUser;
   role?: "owner" | "admin" | "member";
+  email?: string;
 }>) {
   return fixtureAuth.api.createInvitation({
-    body: { email: `invited-${randomUUID()}@example.com`, role, organizationId },
+    body: { email, role, organizationId },
     headers: await sessionHeaders(inviter),
   });
 }

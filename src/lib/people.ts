@@ -23,6 +23,24 @@ export function readsOutstandingInvitations(role: OrganizationRole): boolean {
   return hasPermission(role, { invitation: ["create"] });
 }
 
+const invitationRolesByInviter = {
+  owner: ["owner", "admin", "member"],
+  admin: ["admin", "member"],
+  member: [],
+} as const satisfies Record<OrganizationRole, readonly OrganizationRole[]>;
+
+/**
+ * The Roles a caller may offer in a new **Invitation**.
+ *
+ * This is a rank rule, not a permission: Better Auth compares the invited Role with its configured
+ * creator Role inside the invitation handler, and its access-control statements cannot express
+ * that an admin may invite an admin but not an owner. The server remains the enforcement point;
+ * this copy keeps the form from offering an action Better Auth will refuse.
+ */
+export function invitationRoleChoices(role: OrganizationRole): readonly OrganizationRole[] {
+  return invitationRolesByInviter[role];
+}
+
 type InvitationRecord = Readonly<{
   status: string;
   expiresAt: Date;

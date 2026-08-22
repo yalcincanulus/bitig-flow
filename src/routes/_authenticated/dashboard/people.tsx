@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MailIcon } from "lucide-react";
 
-import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { CancelInvitationDialog, InvitePersonDialog } from "#/components/people-invitations";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 import { Badge } from "#/components/ui/badge";
 import {
@@ -135,6 +136,9 @@ function OutstandingInvitations({
               <TableHead className="pl-3">Email</TableHead>
               <TableHead className="w-0">Role</TableHead>
               <TableHead className="pr-3">Expires</TableHead>
+              <TableHead className="w-0 pr-3">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -149,6 +153,9 @@ function OutstandingInvitations({
                 <TableCell className="pr-3 text-muted-foreground">
                   {new Date(invitation.expiresAt).toLocaleDateString()}
                 </TableCell>
+                <TableCell className="pr-3 text-right">
+                  <CancelInvitationDialog invitation={invitation} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -160,6 +167,7 @@ function OutstandingInvitations({
 
 function PeoplePage() {
   const { memberships, invitations } = Route.useLoaderData();
+  const { organization, role } = Route.useRouteContext();
 
   return (
     <Page>
@@ -168,6 +176,11 @@ function PeoplePage() {
         <PageDescription>
           Everyone who belongs to this Organization, and the Role each of them holds.
         </PageDescription>
+        {invitations === undefined ? null : (
+          <PageActions>
+            <InvitePersonDialog organizationId={organization.id} callerRole={role} />
+          </PageActions>
+        )}
       </PageHeader>
 
       <MembershipTable memberships={memberships} />
