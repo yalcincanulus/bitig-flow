@@ -40,6 +40,7 @@ type Destination = (typeof primaryDestinations)[number] | typeof settingsDestina
 type DashboardSidebarProps = Readonly<{
   organization: OrganizationSummary;
   organizations: readonly OrganizationSummary[];
+  atOwnedOrganizationLimit: boolean;
   user: UserSummary;
 }>;
 
@@ -73,11 +74,20 @@ function DestinationItem({ destination }: Readonly<{ destination: Destination }>
   );
 }
 
-export function DashboardSidebar({ organization, organizations, user }: DashboardSidebarProps) {
+export function DashboardSidebar({
+  organization,
+  organizations,
+  atOwnedOrganizationLimit,
+  user,
+}: DashboardSidebarProps) {
   return (
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
-        <OrganizationSwitcher activeOrganization={organization} organizations={organizations} />
+        <OrganizationSwitcher
+          activeOrganization={organization}
+          organizations={organizations}
+          atOwnedOrganizationLimit={atOwnedOrganizationLimit}
+        />
       </SidebarHeader>
       <SidebarContent>
         <nav aria-label="Dashboard" className="flex min-h-0 flex-1 flex-col">

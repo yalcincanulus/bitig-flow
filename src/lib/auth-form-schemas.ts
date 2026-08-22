@@ -20,6 +20,6 @@ export const verifyEmailSchema = z.object({
   otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
 });
 
-export const onboardingSchema = z.object({
+export const createOrganizationSchema = z.object({
   name: z.string().trim().min(1, "Name your Organization"),
 });

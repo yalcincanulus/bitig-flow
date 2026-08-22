@@ -178,3 +178,17 @@ export async function createOrganizationForFixtureUser(userId: string) {
     },
   });
 }
+
+export async function addFixtureMember({
+  organizationId,
+  userId,
+  role = "member",
+}: Readonly<{
+  organizationId: string;
+  userId: string;
+  role?: "owner" | "admin" | "member";
+}>) {
+  return fixtureAuth.api.addMember({
+    body: { organizationId, userId, role },
+  });
+}

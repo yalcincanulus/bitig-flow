@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { organization as organizationPlugin } from "better-auth/plugins/organization";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 
 import { organizationPluginOptions } from "#/lib/access-control";
 import { redisSecondaryStorage } from "#/server/auth-redis-storage";
@@ -23,6 +23,17 @@ import type { OrganizationId } from "#/server/ids";
 import { createMailpitEmailTransport } from "./email";
 
 const emailTransport = createMailpitEmailTransport();
+
+const ownedOrganizationLimit = 5;
+
+export async function userHasReachedOwnedOrganizationLimit(userId: string) {
+  const [row] = await db
+    .select({ owned: count() })
+    .from(member)
+    .where(and(eq(member.userId, userId), eq(member.role, "owner")));
+
+  return (row?.owned ?? 0) >= ownedOrganizationLimit;
+}
 
 const authSchema = {
   account,
@@ -76,6 +87,7 @@ export const auth = betterAuth({
     }),
     organizationPlugin({
       ...organizationPluginOptions,
+      organizationLimit: (sessionUser) => userHasReachedOwnedOrganizationLimit(sessionUser.id),
       async sendInvitationEmail({ email, id, organization }) {
         const invitationUrl = new URL(
           `/accept-invitation/${encodeURIComponent(id)}`,

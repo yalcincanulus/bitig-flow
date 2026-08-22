@@ -1,17 +1,28 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMatchRoute, useRouter } from "@tanstack/react-router";
-import { Building2Icon, ChevronsUpDownIcon } from "lucide-react";
+import { Building2Icon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 
+import { CreateOrganizationForm } from "#/components/create-organization-form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "#/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "#/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { authClient } from "#/lib/auth-client";
 import { flushDocumentEditor } from "#/lib/document-editor-lifecycle";
 
@@ -20,19 +31,50 @@ export type OrganizationSummary = Readonly<{
   name: string;
 }>;
 
+const ownedOrganizationCapReason = "You can run five Organizations of your own.";
+
 type OrganizationSwitcherProps = Readonly<{
   activeOrganization: OrganizationSummary;
   organizations: readonly OrganizationSummary[];
+  atOwnedOrganizationLimit: boolean;
 }>;
+
+function CreateOrganizationItem({
+  disabled,
+  onClick,
+}: Readonly<{
+  disabled?: boolean;
+  onClick?: () => void;
+}>) {
+  return (
+    <DropdownMenuItem disabled={disabled} onClick={onClick}>
+      <PlusIcon />
+      Create Organization
+    </DropdownMenuItem>
+  );
+}
+
+function DisabledCreateItem({ reason }: Readonly<{ reason: string }>) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="flex w-full" />}>
+        <CreateOrganizationItem disabled />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">{reason}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function OrganizationSwitcher({
   activeOrganization,
   organizations,
+  atOwnedOrganizationLimit,
 }: OrganizationSwitcherProps) {
   const router = useRouter();
   const matchRoute = useMatchRoute();
   const [switchingTo, setSwitchingTo] = useState<string>();
   const [error, setError] = useState<string>();
+  const [createOpen, setCreateOpen] = useState(false);
   const listDestination = matchRoute({
     to: "/dashboard/documents/$documentId",
     fuzzy: true,
@@ -67,6 +109,24 @@ export function OrganizationSwitcher({
     }
 
     setSwitchingTo(undefined);
+  }
+
+  async function landInCreatedOrganization() {
+    setCreateOpen(false);
+    await router.navigate({ to: "/dashboard/documents" });
+    await router.invalidate({ sync: true });
+  }
+
+  let createItem: ReactNode;
+  if (atOwnedOrganizationLimit) {
+    createItem = <DisabledCreateItem reason={ownedOrganizationCapReason} />;
+  } else {
+    createItem = (
+      <CreateOrganizationItem
+        disabled={switchingTo !== undefined}
+        onClick={() => setCreateOpen(true)}
+      />
+    );
   }
 
   return (
@@ -109,8 +169,22 @@ export function OrganizationSwitcher({
                 ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>{createItem}</DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Organization</DialogTitle>
+              <DialogDescription>Name the Organization you will run.</DialogDescription>
+            </DialogHeader>
+            <CreateOrganizationForm
+              submitLabel="Create Organization"
+              onCreated={landInCreatedOrganization}
+            />
+          </DialogContent>
+        </Dialog>
         <span className="sr-only" role="alert">
           {error}
         </span>

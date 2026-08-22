@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function DashboardChrome() {
-  const { organization, session } = Route.useRouteContext();
+  const { organization, session, atOwnedOrganizationLimit } = Route.useRouteContext();
   const organizations = Route.useLoaderData();
 
   return (
@@ -32,6 +32,7 @@ function DashboardChrome() {
         <DashboardSidebar
           organization={organization}
           organizations={organizations}
+          atOwnedOrganizationLimit={atOwnedOrganizationLimit}
           user={session.user}
         />
         {/* `min-w-0` is what lets a wide Page — the Links table, say — scroll inside the Chrome

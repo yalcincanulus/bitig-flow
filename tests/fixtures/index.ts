@@ -1,4 +1,5 @@
 export {
+  addFixtureMember,
   createFixtureInvitation,
   createFixtureUser,
   createOrganizationFixture,
