@@ -65,22 +65,18 @@ function OnboardingPage() {
         }}
       >
         <FieldGroup>
-          <form.Field
-            name="name"
-            children={(field) => (
-              <TextFormField field={field} label="Name" autoComplete="organization" />
-            )}
-          />
+          <form.Field name="name">
+            {(field) => <TextFormField field={field} label="Name" autoComplete="organization" />}
+          </form.Field>
           <FieldError>{submitError}</FieldError>
         </FieldGroup>
-        <form.Subscribe
-          selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-          children={([canSubmit, isSubmitting]) => (
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
               Continue
             </Button>
           )}
-        />
+        </form.Subscribe>
       </form>
       <SignOutButton />
     </AuthPage>

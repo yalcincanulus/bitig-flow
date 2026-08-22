@@ -231,6 +231,7 @@ function DocumentEditorPage() {
   }
 
   const persistWithRetriesRef = useRef(persistWithRetries);
+  const queueAutosaveRef = useRef(queueAutosave);
 
   // Every reader below runs after commit — async saves, unmount cleanups, window listeners — so
   // refreshing these here rather than during render keeps them current without a render-phase write.
@@ -240,6 +241,7 @@ function DocumentEditorPage() {
     contentRef.current = content;
     statusRef.current = status;
     persistWithRetriesRef.current = persistWithRetries;
+    queueAutosaveRef.current = queueAutosave;
   });
 
   useEffect(() => {
@@ -250,7 +252,7 @@ function DocumentEditorPage() {
     void waitForDocumentInsert(loaded.id).then(() => {
       insertReady.current = true;
       if (statusRef.current === "unsaved") {
-        queueAutosave(titleRef.current, contentRef.current);
+        queueAutosaveRef.current(titleRef.current, contentRef.current);
       }
     });
   }, [loaded.id]);

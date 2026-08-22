@@ -74,27 +74,24 @@ function VerifyEmailPage() {
         }}
       >
         <FieldGroup>
-          <form.Field
-            name="email"
-            children={(field) => (
+          <form.Field name="email">
+            {(field) => (
               <TextFormField field={field} label="Email" type="email" autoComplete="email" />
             )}
-          />
-          <form.Field name="otp" children={(field) => <OtpField field={field} />} />
+          </form.Field>
+          <form.Field name="otp">{(field) => <OtpField field={field} />}</form.Field>
           <FieldError>{submitError}</FieldError>
         </FieldGroup>
-        <form.Subscribe
-          selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-          children={([canSubmit, isSubmitting]) => (
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
               Verify
             </Button>
           )}
-        />
+        </form.Subscribe>
       </form>
-      <form.Subscribe
-        selector={(state) => [state.isSubmitting, state.values.email] as const}
-        children={([isSubmitting, email]) => (
+      <form.Subscribe selector={(state) => [state.isSubmitting, state.values.email] as const}>
+        {([isSubmitting, email]) => (
           <Button
             type="button"
             variant="ghost"
@@ -104,7 +101,7 @@ function VerifyEmailPage() {
             Resend code
           </Button>
         )}
-      />
+      </form.Subscribe>
     </AuthPage>
   );
 }

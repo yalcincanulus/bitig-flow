@@ -50,15 +50,13 @@ function SignInPage() {
         }}
       >
         <FieldGroup>
-          <form.Field
-            name="email"
-            children={(field) => (
+          <form.Field name="email">
+            {(field) => (
               <TextFormField field={field} label="Email" type="email" autoComplete="email" />
             )}
-          />
-          <form.Field
-            name="password"
-            children={(field) => (
+          </form.Field>
+          <form.Field name="password">
+            {(field) => (
               <TextFormField
                 field={field}
                 label="Password"
@@ -66,17 +64,16 @@ function SignInPage() {
                 autoComplete="current-password"
               />
             )}
-          />
+          </form.Field>
           <FieldError>{submitError}</FieldError>
         </FieldGroup>
-        <form.Subscribe
-          selector={(state) => [state.canSubmit, state.isSubmitting] as const}
-          children={([canSubmit, isSubmitting]) => (
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+          {([canSubmit, isSubmitting]) => (
             <Button type="submit" disabled={!canSubmit || isSubmitting}>
               Sign in
             </Button>
           )}
-        />
+        </form.Subscribe>
       </form>
       <p className="text-sm text-muted-foreground">
         No account? <Link to="/sign-up">Sign up</Link>
