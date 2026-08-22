@@ -22,6 +22,10 @@ _Avoid_: shell, layout, frame
 The owner's view of a rendered **Document**, on the Dashboard. It goes through the same render module the **Viewer** uses, so what an owner checks is what a **Visitor** gets. It is not a pane inside the editor.
 _Avoid_: live preview, draft view, rendered view
 
+**People**:
+The Dashboard surface listing an **Organization**'s **Memberships** and its pending **Invitations**. Everyone in the organization can read it; only owners and admins can act on it. It is not where the organization itself is configured.
+_Avoid_: members page, team, users, roster, directory
+
 ### Content
 
 **Document**:
@@ -89,7 +93,7 @@ How the gate shows a visitor their own gate progress — a list of the requireme
 _Avoid_: stepper, progress bar, wizard steps
 
 **Sender line**:
-The one piece of context the gate shows before any requirement is satisfied — the link's creator and their organization, and never the target. Degrades to the organization alone when the creator's account is gone.
+The one piece of context a page shows to someone holding an opaque identifier and nothing else — who is asking, and never what is behind it. On a **Gate** it is the **Link**'s creator and their organization, never the **Target**; on an **Invitation** it is the inviter and their organization, never the invited address. Degrades to the organization alone when that person's account is gone, or when they have left the organization.
 _Avoid_: header, branding, attribution
 
 ### The people
@@ -103,8 +107,16 @@ Someone with an account, belonging to one or more organizations. The people who 
 _Avoid_: owner (that is a role), account, member (that is also a role)
 
 **Organization**:
-The tenant. Owns documents, vaults, and links; users belong to it with a role of owner, admin, or member.
+The tenant. Owns documents, vaults, and links; users belong to it through a **Membership**.
 _Avoid_: team, workspace, tenant, company
+
+**Membership**:
+One **User**'s standing in one **Organization**, carrying exactly one **Role**. A user holds at most one membership per organization, and holds them in many organizations independently — the same person may own one organization and hold the member role in another. It is the thing that is created by accepting an **Invitation** and destroyed by removal.
+_Avoid_: member (that is a role), seat, affiliation, participation
+
+**Invitation**:
+An offer of a **Membership**, addressed to one email address, naming the **Role** the membership will carry, and expiring on its own schedule. The address is binding: only a signed-in **User** holding that address may accept, and accepting is the act that creates the membership. An **Organization** has at most one outstanding invitation per address.
+_Avoid_: invite, request, join link, referral
 
 **Role**:
 A user's single, fixed standing within one organization — owner, admin, or member. A user has one role per organization and may hold different roles in different ones. Roles govern people, not content: all three have full access to documents, vaults, and links.

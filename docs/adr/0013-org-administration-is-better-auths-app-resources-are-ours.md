@@ -14,4 +14,12 @@ The session-only tier is not ceremony. Creating your first organization, listing
 
 **A new user picks an organization name; we do not invent one.** After verification, a user with no memberships routes to onboarding and creates their first organization explicitly. An auto-created "Yalçıncan's Organization" gives a name nobody wants and a semi-public slug, and one screen with one field is not meaningful friction — for a portfolio application, making the tenancy model visible on first run is a feature. A user who signed up by accepting an invitation already has a membership and skips it. The same screen serves the evicted-from-organization case.
 
-**Client-side checks are cosmetic and are never the enforcement point.** `src/lib/permissions.ts` holds the access-control instance and role objects, imported by both the server `auth.ts` and the browser `auth-client.ts`, and a `usePermission()` hook over the synchronous, network-free `checkRolePermission` hides and disables UI. Sharing the identical statement object across the boundary is exactly what makes it tempting to forget that the browser's copy decides nothing.
+**Client-side checks are cosmetic and are never the enforcement point.** `src/lib/access-control.ts` holds the access-control instance and role objects, imported by both the server `auth.ts` and the browser `auth-client.ts`, and a `usePermission()` hook over the synchronous, network-free `checkRolePermission` hides and disables UI. Sharing the identical statement object across the boundary is exactly what makes it tempting to forget that the browser's copy decides nothing.
+
+## Amendment: one read Better Auth declines to serve is ours
+
+**The rule is about mutations, and it holds without exception.** Inviting, canceling, accepting, removing, changing a role, renaming, deleting, and setting the active organization all still go through `authClient`.
+
+Reads were never the point, and one of them cannot go there. `getInvitation` requires a session whose email already matches the invitation, so the public invitation page — whose entire job is telling a signed-out stranger which organization invited them — cannot use it. That page reads through a `createServerFn` of ours that returns the organization and inviter names and nothing else, declaring an `invitationRecipient` tier so it stays visible to the audit sweep. ADR-0066 records the decision in full.
+
+The **People** surface reads through Better Auth as the rule intends: `authClient.organization.listMembers` from a route loader, with `router.invalidate()` after each mutation. A `createServerFn` wrapper around `auth.api.listMembers` was specifically refused, because it is the extra hop and the second home for authorization that this ADR exists to prevent.

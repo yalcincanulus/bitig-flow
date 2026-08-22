@@ -5,7 +5,7 @@
 | Resource | owner | admin | member |
 | --- | --- | --- | --- |
 | `organization` | update, delete | update | — |
-| `member` | create, update, delete | create, update, delete | — |
+| `member` | read, create, update, delete | read, create, update, delete | read |
 | `invitation` | create, cancel | create, cancel | — |
 | `document` | create, read, update, delete | create, read, update, delete | create, read, update, delete |
 | `vault` | create, read, update, delete | create, read, update, delete | create, read, update, delete |
@@ -25,3 +25,13 @@ The accepted cost is that deletes cascade: a member deleting a **Document** dest
 **Roles are single-valued.** better-auth stores `member.role` as a free string and supports comma-separated multiple roles; we do not. The role is parsed through `z.enum(["owner","admin","member"])` when it is read, and anything else — a comma, a stale value — throws as a data-integrity failure rather than falling back to the lowest privilege. A silent downgrade looks like the safe default but turns a corrupted row into a permissions bug nobody traces.
 
 **The public viewer path is outside all of this.** A **Visitor** holds no role and appears in no `member` row; their access is authorized by satisfying a **Gate**, never by a permission check.
+
+## Amendment: `member:read` is ours, and owner rank is not a permission at all
+
+**`member: ["read"]` is an action we invented, and every role holds it.** Better Auth's `defaultStatements` gives the `member` resource only `create`, `update`, and `delete`, and its `listMembers` endpoint checks no permission whatsoever — bare membership in the organization is enough. So a member can already read the roster, and the grant we add is one Better Auth will never consult. We add it anyway, for the reason the vacuous `document:read` is kept above: "everyone in an organization can see who else is in it" should be a written grant rather than a fact inferred from an endpoint's missing check. Our own read path asserts it, which is what stops it from being decoration.
+
+Pending **Invitations** are the exception on the **People** surface. They are shown to owners and admins only, which needs no new statement — `invitation: ["create", "cancel"]` is already exclusive to those two roles, so the existing matrix decides it.
+
+**"Only an owner may mint an owner" is a rank rule, and the statement vocabulary cannot express it.** The single difference between `ownerAc` and `adminAc` at the statement level is `organization:delete`. Everything else separating the two roles is hard-coded comparison against `creatorRole` inside Better Auth's handlers: `updateMemberRole` refuses to set the owner role unless the caller holds it, `createInvitation` refuses to issue an invitation carrying it on the same test, and `removeMember` refuses to remove an owner except by a fellow owner and never the last one. None of that is visible in the matrix above, and a reader auditing the table would conclude an admin can promote anyone. It cannot be moved into the statements either, because the checks compare role *names* rather than evaluating grants. The consequence for the Dashboard is that the invite form's role choices — owner, admin, and member for an owner; admin and member for an admin — come from a rule written once and named as a rank rule, not from `checkRolePermission`.
+
+The three last-owner guards are read-then-write rather than transactional, so concurrent demotions can race an organization into having no owner. The client predicts and disables what it can see and still handles the thrown error, because its roster may be stale — the same relationship ADR-0013 sets between cosmetic client checks and real server enforcement.

@@ -15,3 +15,7 @@ Filtering never happens in `queryFn`. In eager mode a `queryFn` returning a subs
 ## Amendment: analytics payloads contain no display names
 
 An analytics server function returns Link ids and numeric aggregates, never Link names or target titles. The Dashboard joins each result to the already-warm `links` collection with `useLiveQuery`; adding presentation fields to the aggregate would create a second, stale copy of collection-owned data. A missing local row degrades to the word “Link” while keeping the numeric result visible.
+
+## Amendment: People is a route loader, not a fifth collection
+
+**Memberships** and pending **Invitations** stay outside the collection set, as the paragraph above says, and the **People** surface reads them in a route loader that calls `authClient.organization.listMembers` — refreshed by `router.invalidate()` after each mutation, which is already the organization switcher's mechanism. Under ADR-0030 that loader runs in the browser, which is fine: `listMembers` returns each member's name, email, and image, so the screen needs no join against anything warm and no second call. A `useQuery` was rejected for being the only Dashboard screen fetching from inside a component, and a `createServerFn` wrapper for the reason ADR-0013 gives.
