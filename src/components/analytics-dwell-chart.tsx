@@ -2,7 +2,7 @@ import { barY, defineChart } from "@tanstack/charts";
 import { Chart } from "@tanstack/charts/react";
 import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 
 import { formatTotalTime } from "#/lib/analytics-format";
 
@@ -21,9 +21,9 @@ function sameDwellPages(
 }
 
 export function AnalyticsDwellChart({ pages: incoming }: AnalyticsDwellChartProps) {
-  const captured = useRef(incoming);
-  if (!sameDwellPages(captured.current, incoming)) captured.current = incoming;
-  const pages = captured.current;
+  // The caller rebuilds this array every render, so hold the last one that differed by value.
+  const [pages, setPages] = useState(incoming);
+  if (!sameDwellPages(pages, incoming)) setPages(incoming);
 
   const definition = useMemo(() => {
     return defineChart({

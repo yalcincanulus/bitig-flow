@@ -55,19 +55,18 @@ export function OrganizationSwitcher({
       const result = await authClient.organization.setActive({ organizationId });
       if (result.error) {
         setError(result.error.message ?? "Could not switch Organization");
-        return;
-      }
+      } else {
+        if (listDestination) {
+          await router.navigate({ to: listDestination });
+        }
 
-      if (listDestination) {
-        await router.navigate({ to: listDestination });
+        await router.invalidate({ sync: true });
       }
-
-      await router.invalidate({ sync: true });
     } catch {
       setError("Could not switch Organization");
-    } finally {
-      setSwitchingTo(undefined);
     }
+
+    setSwitchingTo(undefined);
   }
 
   return (

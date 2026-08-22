@@ -85,9 +85,6 @@ function DocumentEditorPage() {
   const titleRef = useRef(title);
   const contentRef = useRef(content);
   const statusRef = useRef(status);
-  titleRef.current = title;
-  contentRef.current = content;
-  statusRef.current = status;
   const savingStartedAt = useRef<number | null>(null);
   const generation = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -234,7 +231,16 @@ function DocumentEditorPage() {
   }
 
   const persistWithRetriesRef = useRef(persistWithRetries);
-  persistWithRetriesRef.current = persistWithRetries;
+
+  // Every reader below runs after commit — async saves, unmount cleanups, window listeners — so
+  // refreshing these here rather than during render keeps them current without a render-phase write.
+  // Declared before the other effects so none of them can observe a stale value.
+  useEffect(() => {
+    titleRef.current = title;
+    contentRef.current = content;
+    statusRef.current = status;
+    persistWithRetriesRef.current = persistWithRetries;
+  });
 
   useEffect(() => {
     return registerDocumentEditorFlush(() => persistWithRetriesRef.current());

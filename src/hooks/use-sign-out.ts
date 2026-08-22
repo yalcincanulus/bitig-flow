@@ -13,12 +13,17 @@ export function useSignOut() {
     if (pending) return;
     setPending(true);
 
+    // Reset before rethrowing so a failed sign-out re-enables the control instead of wedging it.
+    let failure: unknown;
     try {
       await authClient.signOut();
       await navigate({ href: "/" });
-    } finally {
-      setPending(false);
+    } catch (error) {
+      failure = error;
     }
+
+    setPending(false);
+    if (failure) throw failure;
   }
 
   return { pending, signOut };
