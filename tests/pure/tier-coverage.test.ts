@@ -144,6 +144,23 @@ test("a route with no server block is not a server route", () => {
   expect(serverRoutesIn("src/routes/dashboard.tsx", source)).toEqual([]);
 });
 
+test("a server function declaring invitationRecipient passes", () => {
+  const source = `
+    import { createServerFn } from "@tanstack/react-start";
+
+    export const readInvitation = createServerFn({ method: "GET" })
+      .middleware([invitationRecipient])
+      .handler(() => ({ status: "unavailable" }));
+  `;
+
+  expect(serverFunctionsIn("src/server/functions/invitations.ts", source)).toEqual([
+    {
+      name: "src/server/functions/invitations.ts:4:35",
+      declaresTier: true,
+    },
+  ]);
+});
+
 test("a Viewer Gate POST declaring gateCredential passes", () => {
   const source = `
     import { createFileRoute } from "@tanstack/react-router";

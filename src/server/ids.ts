@@ -20,3 +20,6 @@ export type VisitId = z.infer<typeof visitIdSchema>;
 
 export const visitEventIdSchema = z.uuid().brand<"VisitEventId">();
 export type VisitEventId = z.infer<typeof visitEventIdSchema>;
+
+export const invitationIdSchema = z.uuid().brand<"InvitationId">();
+export type InvitationId = z.infer<typeof invitationIdSchema>;

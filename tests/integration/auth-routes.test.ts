@@ -10,7 +10,7 @@ const authRoutes = [
   { path: "/reset-password", heading: "Reset password" },
   {
     path: "/accept-invitation/fixture-invitation-id",
-    heading: "Accept invitation",
+    heading: "This Invitation isn't available.",
   },
 ] as const;
 
@@ -20,7 +20,7 @@ test.each(authRoutes)("an anonymous User receives $path", async ({ path, heading
   });
 
   expect(response.status).toBe(200);
-  expect(await response.text()).toContain(`>${heading}</h1>`);
+  expect(await response.text()).toContain(`>${heading.replaceAll("'", "&#x27;")}</h1>`);
 });
 
 test("an anonymous User receives verify-email", async () => {

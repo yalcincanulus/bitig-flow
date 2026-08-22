@@ -8,7 +8,12 @@ import {
   type ObjectExpression,
 } from "oxc-parser";
 
-const functionTierNames: ReadonlySet<string> = new Set(["authedMiddleware", "orgMiddleware"]);
+const functionTierNames: ReadonlySet<string> = new Set([
+  "authedMiddleware",
+  "orgMiddleware",
+  // Possession of the emailed Invitation id, not a session (ADR-0066).
+  "invitationRecipient",
+]);
 
 // A server route is stricter than a server function: Dashboard routes serve organization-owned
 // bytes, so being signed in is not a tier — the request must be scoped to an organization.
