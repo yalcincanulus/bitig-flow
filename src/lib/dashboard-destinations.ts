@@ -1,7 +1,7 @@
 import { linkOptions } from "@tanstack/react-router";
 
 /**
- * The five Dashboard destinations, named once.
+ * The six Dashboard destinations, named once.
  *
  * The sidebar and the toolbar breadcrumbs both have to say "Documents" and both have to point at
  * `/dashboard/documents`; keeping the pair here is what stops the two halves of the Chrome from
@@ -12,6 +12,7 @@ export const dashboardDestinations = {
   vaults: { label: "Vaults", link: linkOptions({ to: "/dashboard/vaults" }) },
   links: { label: "Links", link: linkOptions({ to: "/dashboard/links" }) },
   analytics: { label: "Analytics", link: linkOptions({ to: "/dashboard/analytics" }) },
+  people: { label: "People", link: linkOptions({ to: "/dashboard/people" }) },
   settings: { label: "Settings", link: linkOptions({ to: "/dashboard/settings" }) },
 } as const;
 

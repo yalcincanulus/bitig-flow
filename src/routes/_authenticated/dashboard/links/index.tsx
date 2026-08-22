@@ -23,14 +23,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "#/components/ui/empty";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table";
+import { TableFrame } from "#/components/table-frame";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
@@ -193,67 +187,65 @@ function LinksPage() {
           </Empty>
         )
       ) : (
-        <div className="overflow-hidden rounded-lg ring-1 ring-foreground/10">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="pl-3">Link</TableHead>
-                <TableHead>Target</TableHead>
-                <TableHead>Gate</TableHead>
-                <TableHead>Public URL</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-0 pr-3 text-right">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
+        <TableFrame>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="pl-3">Link</TableHead>
+              <TableHead>Target</TableHead>
+              <TableHead>Gate</TableHead>
+              <TableHead>Public URL</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-0 pr-3 text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((link) => (
+              <TableRow key={link.id}>
+                <TableCell className="max-w-56 pl-3 font-medium">
+                  <Link
+                    to="/dashboard/links/$linkId"
+                    params={{ linkId: link.id }}
+                    className="block truncate hover:underline"
+                  >
+                    {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
+                  </Link>
+                  {link.$synced ? null : (
+                    <span className="text-xs font-normal text-muted-foreground">Saving…</span>
+                  )}
+                </TableCell>
+                <TableCell className="max-w-48 text-muted-foreground">
+                  <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />
+                </TableCell>
+                <TableCell>
+                  <GateBadges link={link} />
+                </TableCell>
+                <TableCell>
+                  <CopyLinkSlugButton slug={link.slug} />
+                </TableCell>
+                <TableCell>
+                  <LinkStatusBadge isActive={link.isActive} />
+                </TableCell>
+                <TableCell className="pr-3 text-right">
+                  <div className="flex items-center justify-end gap-0.5">
+                    <OpenLinkButton slug={link.slug} />
+                    <LinkActionsMenu
+                      organizationId={organization.id}
+                      organizationName={organization.name}
+                      createdBy={session.user.id}
+                      documents={documentRows}
+                      vaults={vaultRows}
+                      link={link}
+                      links={links}
+                      watchPersistence={watchPersistence}
+                    />
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((link) => (
-                <TableRow key={link.id}>
-                  <TableCell className="max-w-56 pl-3 font-medium">
-                    <Link
-                      to="/dashboard/links/$linkId"
-                      params={{ linkId: link.id }}
-                      className="block truncate hover:underline"
-                    >
-                      {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
-                    </Link>
-                    {link.$synced ? null : (
-                      <span className="text-xs font-normal text-muted-foreground">Saving…</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-48 text-muted-foreground">
-                    <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />
-                  </TableCell>
-                  <TableCell>
-                    <GateBadges link={link} />
-                  </TableCell>
-                  <TableCell>
-                    <CopyLinkSlugButton slug={link.slug} />
-                  </TableCell>
-                  <TableCell>
-                    <LinkStatusBadge isActive={link.isActive} />
-                  </TableCell>
-                  <TableCell className="pr-3 text-right">
-                    <div className="flex items-center justify-end gap-0.5">
-                      <OpenLinkButton slug={link.slug} />
-                      <LinkActionsMenu
-                        organizationId={organization.id}
-                        organizationName={organization.name}
-                        createdBy={session.user.id}
-                        documents={documentRows}
-                        vaults={vaultRows}
-                        link={link}
-                        links={links}
-                        watchPersistence={watchPersistence}
-                      />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </TableFrame>
       )}
     </Page>
   );

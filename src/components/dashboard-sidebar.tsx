@@ -5,6 +5,7 @@ import {
   FolderClosedIcon,
   LinkIcon,
   SettingsIcon,
+  UsersIcon,
 } from "lucide-react";
 
 import { OrganizationSwitcher, type OrganizationSummary } from "#/components/organization-switcher";
@@ -29,6 +30,7 @@ const primaryDestinations = [
   { ...dashboardDestinations.vaults, icon: FolderClosedIcon },
   { ...dashboardDestinations.links, icon: LinkIcon },
   { ...dashboardDestinations.analytics, icon: ChartNoAxesCombinedIcon },
+  { ...dashboardDestinations.people, icon: UsersIcon },
 ] as const;
 
 const settingsDestination = { ...dashboardDestinations.settings, icon: SettingsIcon } as const;

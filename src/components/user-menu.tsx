@@ -11,6 +11,7 @@ import {
 } from "#/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "#/components/ui/sidebar";
 import { useSignOut } from "#/hooks/use-sign-out";
+import { initials } from "#/lib/initials";
 
 export type UserSummary = Readonly<{
   name: string;
@@ -20,14 +21,6 @@ export type UserSummary = Readonly<{
 type UserMenuProps = Readonly<{
   user: UserSummary;
 }>;
-
-// Two letters is as much as a collapsed sidebar can show, and a User with one name still gets one.
-function initials(name: string) {
-  const words = name.split(/\s+/).filter(Boolean);
-  const letters = words.length > 1 ? [words[0], words.at(-1)] : words;
-
-  return letters.map((word) => word?.charAt(0).toUpperCase()).join("") || "?";
-}
 
 export function UserMenu({ user }: UserMenuProps) {
   const { pending, signOut } = useSignOut();

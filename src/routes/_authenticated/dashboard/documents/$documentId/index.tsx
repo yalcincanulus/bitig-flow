@@ -20,14 +20,8 @@ import {
   EmptyTitle,
 } from "#/components/ui/empty";
 import { Spinner } from "#/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table";
+import { TableFrame } from "#/components/table-frame";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
@@ -184,57 +178,55 @@ function DocumentPage() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="overflow-hidden rounded-lg ring-1 ring-foreground/10">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="pl-3">Link</TableHead>
-                  <TableHead>Gate</TableHead>
-                  <TableHead className="text-right">Visits</TableHead>
-                  <TableHead className="text-right">Unique</TableHead>
-                  <TableHead className="text-right">Total time</TableHead>
-                  <TableHead className="pr-3 text-right">Downloads</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {analytics.links.map((totals) => {
-                  const link = linkById.get(totals.linkId);
+          <TableFrame>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="pl-3">Link</TableHead>
+                <TableHead>Gate</TableHead>
+                <TableHead className="text-right">Visits</TableHead>
+                <TableHead className="text-right">Unique</TableHead>
+                <TableHead className="text-right">Total time</TableHead>
+                <TableHead className="pr-3 text-right">Downloads</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {analytics.links.map((totals) => {
+                const link = linkById.get(totals.linkId);
 
-                  return (
-                    <TableRow key={totals.linkId}>
-                      <TableCell className="max-w-64 pl-3 font-medium">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <Link
-                            to="/dashboard/analytics/$linkId"
-                            params={{ linkId: totals.linkId }}
-                            search={analytics.range}
-                            className="truncate hover:underline"
-                          >
-                            {link?.name ||
-                              (link && isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
-                          </Link>
-                          <AnalyticsTrustMark link={link} />
-                        </span>
-                      </TableCell>
-                      <TableCell>{link ? <GateBadges link={link} /> : null}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {analyticsNumberFormat.format(totals.visits)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {analyticsNumberFormat.format(totals.viewerIdentities)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatTotalTime(totals.totalMs)}
-                      </TableCell>
-                      <TableCell className="pr-3 text-right tabular-nums">
-                        {analyticsNumberFormat.format(totals.downloads)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                return (
+                  <TableRow key={totals.linkId}>
+                    <TableCell className="max-w-64 pl-3 font-medium">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <Link
+                          to="/dashboard/analytics/$linkId"
+                          params={{ linkId: totals.linkId }}
+                          search={analytics.range}
+                          className="truncate hover:underline"
+                        >
+                          {link?.name ||
+                            (link && isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
+                        </Link>
+                        <AnalyticsTrustMark link={link} />
+                      </span>
+                    </TableCell>
+                    <TableCell>{link ? <GateBadges link={link} /> : null}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {analyticsNumberFormat.format(totals.visits)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {analyticsNumberFormat.format(totals.viewerIdentities)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatTotalTime(totals.totalMs)}
+                    </TableCell>
+                    <TableCell className="pr-3 text-right tabular-nums">
+                      {analyticsNumberFormat.format(totals.downloads)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </TableFrame>
         )}
       </section>
     </Page>

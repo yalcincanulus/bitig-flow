@@ -21,6 +21,7 @@ export type DashboardPlace =
       destination: "analytics";
       link?: Readonly<{ id: string; name?: string | null; slug?: string }>;
     }>
+  | Readonly<{ destination: "people" }>
   | Readonly<{ destination: "settings" }>;
 
 export type DashboardCrumb = Readonly<{

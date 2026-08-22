@@ -1,12 +1,9 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
-import { z } from "zod";
 
-import { roles, type PermissionRequest } from "#/lib/access-control";
+import { hasPermission, roleSchema, type PermissionRequest } from "#/lib/access-control";
 import { auth, findOrganizationMembership } from "#/server/auth";
 import { organizationIdSchema } from "#/server/ids";
-
-const roleSchema = z.enum(["owner", "admin", "member"]);
 
 function signInRedirect(): never {
   throw redirect({ href: "/sign-in" });
@@ -81,7 +78,7 @@ export function permission(request: PermissionRequest) {
   return createMiddleware({ type: "function" })
     .middleware([orgMiddleware])
     .server(async ({ next, context }) => {
-      if (!roles[context.role].authorize(request).success) {
+      if (!hasPermission(context.role, request)) {
         throw forbiddenError();
       }
 

@@ -22,6 +22,7 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as VSlugRouteImport } from './routes/v/$slug'
 import { Route as AuthAcceptInvitationInvitationIdRouteImport } from './routes/_auth/accept-invitation/$invitationId'
+import { Route as AuthenticatedDashboardPeopleRouteImport } from './routes/_authenticated/dashboard/people'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as VSlugIndexRouteImport } from './routes/v/$slug.index'
@@ -102,6 +103,12 @@ const AuthAcceptInvitationInvitationIdRoute =
     id: '/accept-invitation/$invitationId',
     path: '/accept-invitation/$invitationId',
     getParentRoute: () => AuthRoute,
+  } as any)
+const AuthenticatedDashboardPeopleRoute =
+  AuthenticatedDashboardPeopleRouteImport.update({
+    id: '/people',
+    path: '/people',
+    getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
 const AuthenticatedDashboardSettingsRoute =
   AuthenticatedDashboardSettingsRouteImport.update({
@@ -207,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/v/$slug': typeof VSlugRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
+  '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
@@ -235,6 +243,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
+  '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
@@ -267,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/v/$slug': typeof VSlugRouteWithChildren
   '/_auth/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
+  '/_authenticated/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/v/$slug'
     | '/accept-invitation/$invitationId'
+    | '/dashboard/people'
     | '/dashboard/settings'
     | '/api/auth/$'
     | '/v/$slug/$documentId'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/dashboard'
     | '/accept-invitation/$invitationId'
+    | '/dashboard/people'
     | '/dashboard/settings'
     | '/api/auth/$'
     | '/v/$slug/$documentId'
@@ -357,6 +369,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/v/$slug'
     | '/_auth/accept-invitation/$invitationId'
+    | '/_authenticated/dashboard/people'
     | '/_authenticated/dashboard/settings'
     | '/api/auth/$'
     | '/v/$slug/$documentId'
@@ -478,6 +491,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/accept-invitation/$invitationId'
       preLoaderRoute: typeof AuthAcceptInvitationInvitationIdRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/_authenticated/dashboard/people': {
+      id: '/_authenticated/dashboard/people'
+      path: '/people'
+      fullPath: '/dashboard/people'
+      preLoaderRoute: typeof AuthenticatedDashboardPeopleRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
     }
     '/_authenticated/dashboard/settings': {
       id: '/_authenticated/dashboard/settings'
@@ -613,6 +633,7 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardPeopleRoute: typeof AuthenticatedDashboardPeopleRoute
   AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
   AuthenticatedDashboardAnalyticsLinkIdRoute: typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   AuthenticatedDashboardLinksLinkIdRoute: typeof AuthenticatedDashboardLinksLinkIdRoute
@@ -627,6 +648,7 @@ interface AuthenticatedDashboardRouteChildren {
 
 const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
   {
+    AuthenticatedDashboardPeopleRoute: AuthenticatedDashboardPeopleRoute,
     AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
     AuthenticatedDashboardAnalyticsLinkIdRoute:
       AuthenticatedDashboardAnalyticsLinkIdRoute,

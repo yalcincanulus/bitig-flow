@@ -16,6 +16,7 @@ describe("dashboardBreadcrumbs", () => {
     expect(labelsOf({ destination: "vaults" })).toEqual(["Vaults"]);
     expect(labelsOf({ destination: "links" })).toEqual(["Links"]);
     expect(labelsOf({ destination: "analytics" })).toEqual(["Analytics"]);
+    expect(labelsOf({ destination: "people" })).toEqual(["People"]);
     expect(labelsOf({ destination: "settings" })).toEqual(["Settings"]);
   });
 

@@ -142,6 +142,29 @@ export async function createOrganizationFixture() {
   };
 }
 
+type FixtureUser = Awaited<ReturnType<typeof createFixtureUser>>;
+
+/**
+ * An outstanding **Invitation**, issued by the component of record (ADR-0051) rather than inserted.
+ *
+ * The inviter is a fixture user whose session Better Auth checks for the `invitation:create` grant
+ * and the owner rank rule, so an admin inviting an owner fails here exactly as it would in the app.
+ */
+export async function createFixtureInvitation({
+  organizationId,
+  inviter,
+  role = "member",
+}: Readonly<{
+  organizationId: string;
+  inviter: FixtureUser;
+  role?: "owner" | "admin" | "member";
+}>) {
+  return fixtureAuth.api.createInvitation({
+    body: { email: `invited-${randomUUID()}@example.com`, role, organizationId },
+    headers: await sessionHeaders(inviter),
+  });
+}
+
 export async function createOrganizationForFixtureUser(userId: string) {
   const nonce = randomUUID();
 
