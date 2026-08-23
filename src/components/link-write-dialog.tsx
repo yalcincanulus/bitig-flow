@@ -16,10 +16,11 @@ import {
   RefreshCwIcon,
   TrashIcon,
 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import { DocumentKindIcon } from "#/components/document-kind";
+import { LinkTargetPicker } from "#/components/link-target-picker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,15 +62,6 @@ import {
   FieldSet,
 } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectLabel,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "#/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { getCollections } from "#/db-collections";
@@ -173,7 +165,6 @@ export function LinkWriteDialog({
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = openProp ?? uncontrolledOpen;
-  const readyDocuments = documents.filter((document) => document.status === "ready");
   const editing = Boolean(link);
   const lockedTargetKey = lockedTarget
     ? "documentId" in lockedTarget
@@ -187,14 +178,6 @@ export function LinkWriteDialog({
   const [clearPassword, setClearPassword] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-
-  const targetLabels: Record<string, ReactNode> = {};
-  for (const document of readyDocuments) {
-    targetLabels[`document:${document.id}`] = document.title || "Untitled";
-  }
-  for (const vault of vaults) {
-    targetLabels[`vault:${vault.id}`] = vault.name;
-  }
 
   function handleOpenChange(nextOpen: boolean) {
     if (openProp === undefined) setUncontrolledOpen(nextOpen);
@@ -338,43 +321,18 @@ export function LinkWriteDialog({
             {editing ? null : (
               <Field data-invalid={Boolean(targetError)}>
                 <FieldLabel htmlFor="link-target">Target</FieldLabel>
-                <Select
-                  items={targetLabels}
-                  name="target"
-                  value={target || null}
-                  onValueChange={(value) => setTarget(typeof value === "string" ? value : "")}
+                <LinkTargetPicker
+                  id="link-target"
+                  documents={documents}
+                  vaults={vaults}
+                  value={target}
+                  onValueChange={(value) => {
+                    setTarget(value);
+                    setTargetError(null);
+                  }}
                   disabled={Boolean(lockedTarget)}
-                >
-                  <SelectTrigger
-                    id="link-target"
-                    className="w-full"
-                    aria-invalid={Boolean(targetError)}
-                  >
-                    <SelectValue placeholder="Choose a Document or Vault" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {readyDocuments.length > 0 ? (
-                      <SelectGroup>
-                        <SelectLabel>Documents</SelectLabel>
-                        {readyDocuments.map((document) => (
-                          <SelectItem key={document.id} value={`document:${document.id}`}>
-                            {document.title || "Untitled"}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ) : null}
-                    {vaults.length > 0 ? (
-                      <SelectGroup>
-                        <SelectLabel>Vaults</SelectLabel>
-                        {vaults.map((vault) => (
-                          <SelectItem key={vault.id} value={`vault:${vault.id}`}>
-                            {vault.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ) : null}
-                  </SelectContent>
-                </Select>
+                  invalid={Boolean(targetError)}
+                />
                 <FieldError>{targetError}</FieldError>
               </Field>
             )}
