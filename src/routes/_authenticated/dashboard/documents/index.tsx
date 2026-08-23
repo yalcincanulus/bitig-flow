@@ -5,7 +5,9 @@ import {
   DownloadIcon,
   EllipsisIcon,
   FileTextIcon,
+  LayoutGridIcon,
   LinkIcon,
+  ListIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -17,7 +19,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import { FilterBar, FilterBarLabel, FilterBarSpacer } from "#/components/dashboard-filter-bar";
-import { DocumentThumbnail } from "#/components/document-kind";
+import { DocumentKindBadge, DocumentThumbnail } from "#/components/document-kind";
 import { documentKindLabel } from "#/lib/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
@@ -67,11 +69,16 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "#/components/ui/input-group";
+import { TableFrame } from "#/components/table-frame";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
-import { documentsSearchSchema } from "#/lib/dashboard-search";
+import { documentsSearchSchema, type DocumentsView } from "#/lib/dashboard-search";
+import { readDocumentsView, writeDocumentsView } from "#/lib/documents-view-preference";
 import { documentBytesUrl } from "#/lib/document-bytes";
+import { formatAnalyticsInstant } from "#/lib/analytics-format";
+import { formatByteSize } from "#/lib/format-bytes";
 import { rememberDocumentInsert } from "#/lib/document-editor-lifecycle";
 import {
   documentKindFromMimeType,
@@ -100,6 +107,11 @@ type WatchPersistence = (
   transaction: ReturnType<DocumentCollection["insert"]>,
   message: string,
 ) => void;
+
+const viewFilters = [
+  { value: "grid", label: "Grid view", icon: LayoutGridIcon },
+  { value: "list", label: "List view", icon: ListIcon },
+] as const;
 
 const kindFilters = [
   { value: "all", label: "All" },
@@ -162,6 +174,10 @@ function DocumentsPage() {
   });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const isFiltered = Boolean(search.kind || search.q || search.vault);
+  // The URL wins when it says something; storage answers only for a bare `/dashboard/documents`.
+  // It is read once, because a later write must not reorder the page under the User's cursor.
+  const [rememberedView] = useState(readDocumentsView);
+  const view = search.view ?? rememberedView ?? "grid";
   const filteredVault = search.vault
     ? vaultRows.find((vault) => vault.id === search.vault)
     : undefined;
@@ -269,6 +285,26 @@ function DocumentsPage() {
           </InputGroup>
         </form>
 
+        <ToggleGroup
+          variant="outline"
+          spacing={0}
+          value={[view]}
+          onValueChange={(value) => {
+            const next = value[0];
+            if (!next) return;
+            const chosen = next as DocumentsView;
+            writeDocumentsView(chosen);
+            setSearch({ view: chosen });
+          }}
+          aria-label="Choose the layout"
+        >
+          {viewFilters.map((filter) => (
+            <ToggleGroupItem key={filter.value} value={filter.value} aria-label={filter.label}>
+              <filter.icon />
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+
         <FilterBarLabel>
           {data.length} {data.length === 1 ? "Document" : "Documents"}
         </FilterBarLabel>
@@ -323,6 +359,30 @@ function DocumentsPage() {
             </EmptyContent>
           </Empty>
         )
+      ) : view === "list" ? (
+        <TableFrame>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="pl-3">Document</TableHead>
+              <TableHead className="hidden sm:table-cell">Kind</TableHead>
+              <TableHead className="hidden md:table-cell text-right">Size</TableHead>
+              <TableHead className="hidden lg:table-cell">Updated</TableHead>
+              <TableHead className="w-0 pr-3 text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((document) => (
+              <DocumentRow
+                key={document.id}
+                document={document}
+                documents={documents}
+                watchPersistence={watchPersistence}
+              />
+            ))}
+          </TableBody>
+        </TableFrame>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {data.map((document) => (
@@ -337,6 +397,13 @@ function DocumentsPage() {
       )}
     </Page>
   );
+}
+
+/** What a Document is doing, when that matters more than what kind it is. */
+function documentProgress(document: DocumentRow) {
+  if (document.status === "pending") return "Uploading…";
+  if (!document.$synced) return "Saving…";
+  return null;
 }
 
 /**
@@ -356,7 +423,6 @@ function DocumentTile({
   watchPersistence: WatchPersistence;
 }>) {
   const [deleting, setDeleting] = useState(false);
-  const pending = document.status === "pending";
 
   return (
     <Card className="group gap-0 overflow-hidden py-0 transition-shadow hover:ring-foreground/20">
@@ -379,68 +445,10 @@ function DocumentTile({
           </Link>
         </CardTitle>
         <CardDescription>
-          {pending ? "Uploading…" : document.$synced ? documentKindLabel(document.kind) : "Saving…"}
+          {documentProgress(document) ?? documentKindLabel(document.kind)}
         </CardDescription>
         <CardAction>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon-sm" aria-label="Document actions" />}
-            >
-              <EllipsisIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  render={
-                    <Link
-                      to="/dashboard/documents/$documentId"
-                      params={{ documentId: document.id }}
-                    />
-                  }
-                >
-                  <ChartNoAxesCombinedIcon />
-                  Preview and activity
-                </DropdownMenuItem>
-                {document.kind === "markdown" ? (
-                  <DropdownMenuItem
-                    render={
-                      <Link
-                        to="/dashboard/documents/$documentId/edit"
-                        params={{ documentId: document.id }}
-                      />
-                    }
-                  >
-                    <PencilIcon />
-                    Edit
-                  </DropdownMenuItem>
-                ) : null}
-                {document.kind !== "markdown" && !pending ? (
-                  <DropdownMenuItem
-                    render={<a href={documentBytesUrl(document.id, { download: true })} />}
-                  >
-                    <DownloadIcon />
-                    Download
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem
-                  disabled={pending}
-                  render={
-                    <Link to="/dashboard/links" search={pending ? {} : { target: document.id }} />
-                  }
-                >
-                  <LinkIcon />
-                  Links to it
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
-                  <TrashIcon />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <DocumentActionsMenu document={document} onDelete={() => setDeleting(true)} />
         </CardAction>
       </CardHeader>
       <DeleteDocumentDialog
@@ -451,6 +459,136 @@ function DocumentTile({
         onOpenChange={setDeleting}
       />
     </Card>
+  );
+}
+
+/**
+ * One Document as a row.
+ *
+ * The list is the grid read down instead of across: the same thumbnail, the same one menu, and the
+ * facts a tile has no room for — size and when it last changed — in columns that can be scanned.
+ * Those columns drop away as the screen narrows, because the name is the part that has to survive.
+ */
+function DocumentRow({
+  document,
+  documents,
+  watchPersistence,
+}: Readonly<{
+  document: DocumentRow;
+  documents: DocumentCollection;
+  watchPersistence: WatchPersistence;
+}>) {
+  const [deleting, setDeleting] = useState(false);
+  const progress = documentProgress(document);
+  const updated = formatAnalyticsInstant(document.updatedAt);
+
+  return (
+    <TableRow className="group/row">
+      <TableCell className="pl-3">
+        <Link
+          to="/dashboard/documents/$documentId"
+          params={{ documentId: document.id }}
+          className="flex min-w-0 items-center gap-3 outline-none"
+        >
+          <span className="size-9 shrink-0 overflow-hidden rounded-md ring-1 ring-foreground/10">
+            <DocumentThumbnail document={document} compact />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium group-hover/row:underline">
+              {document.title || "Untitled"}
+            </span>
+            {progress ? <span className="text-muted-foreground">{progress}</span> : null}
+          </span>
+        </Link>
+      </TableCell>
+      <TableCell className="hidden sm:table-cell">
+        <DocumentKindBadge kind={document.kind} />
+      </TableCell>
+      <TableCell className="hidden text-right tabular-nums text-muted-foreground md:table-cell">
+        {formatByteSize(document.byteSize) ?? "—"}
+      </TableCell>
+      <TableCell className="hidden whitespace-nowrap text-muted-foreground lg:table-cell">
+        <time dateTime={updated.dateTime}>{updated.label}</time>
+      </TableCell>
+      <TableCell className="w-0 pr-3 text-right">
+        <DocumentActionsMenu document={document} onDelete={() => setDeleting(true)} />
+        <DeleteDocumentDialog
+          document={document}
+          documents={documents}
+          watchPersistence={watchPersistence}
+          open={deleting}
+          onOpenChange={setDeleting}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/**
+ * The verbs an owner reaches for rarely. Both layouts show the same menu, so learning it once in
+ * the grid is enough to use it in the list.
+ */
+function DocumentActionsMenu({
+  document,
+  onDelete,
+}: Readonly<{ document: DocumentRow; onDelete: () => void }>) {
+  const pending = document.status === "pending";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon-sm" aria-label="Document actions" />}
+      >
+        <EllipsisIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={
+              <Link to="/dashboard/documents/$documentId" params={{ documentId: document.id }} />
+            }
+          >
+            <ChartNoAxesCombinedIcon />
+            Preview and activity
+          </DropdownMenuItem>
+          {document.kind === "markdown" ? (
+            <DropdownMenuItem
+              render={
+                <Link
+                  to="/dashboard/documents/$documentId/edit"
+                  params={{ documentId: document.id }}
+                />
+              }
+            >
+              <PencilIcon />
+              Edit
+            </DropdownMenuItem>
+          ) : null}
+          {document.kind !== "markdown" && !pending ? (
+            <DropdownMenuItem
+              render={<a href={documentBytesUrl(document.id, { download: true })} />}
+            >
+              <DownloadIcon />
+              Download
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem
+            disabled={pending}
+            render={<Link to="/dashboard/links" search={pending ? {} : { target: document.id }} />}
+          >
+            <LinkIcon />
+            Links to it
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <TrashIcon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

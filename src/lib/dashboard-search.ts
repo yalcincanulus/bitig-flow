@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+// How the Documents are laid out. It sits on the Documents layout route rather than on the index,
+// so that opening a Document keeps it in the URL and coming back reads it again — a layout is a
+// preference, and losing it every time you look at something is not what anyone means by it.
+export const documentsViewSearchSchema = z.object({
+  view: z.enum(["grid", "list"]).optional(),
+});
+
+export type DocumentsView = NonNullable<z.infer<typeof documentsViewSearchSchema>["view"]>;
+
 export const documentsSearchSchema = z.object({
   vault: z.uuid().optional(),
   kind: z.enum(["markdown", "pdf", "image"]).optional(),
