@@ -1,0 +1,3 @@
+# Deleting an Organization destroys everything it owns
+
+Deleting an **Organization** permanently destroys its **Memberships**, **Invitations**, **Documents**, **Vaults**, **Links**, **Visits**, and **Events** rather than archiving the tenant. The confirmation names that complete consequence and requires the Organization's current name, while Document bytes disappear through the existing **Sweep** because database cascades cannot transact with object storage. This keeps deletion consistent with the ownership boundary and the existing hard-delete model instead of introducing a second, partially active tenant state.
