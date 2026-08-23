@@ -1,10 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
 import { CalendarIcon } from "lucide-react";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
+import { DatePicker } from "#/components/date-picker";
 import { Button } from "#/components/ui/button";
 import { Field, FieldLabel } from "#/components/ui/field";
-import { Input } from "#/components/ui/input";
+import { formatDateOnly, parseDateOnly } from "#/lib/calendar-date";
 
 type AnalyticsRangeControlsProps = Readonly<{
   from: string;
@@ -30,6 +31,8 @@ export function AnalyticsRangeControls({
   documentId,
 }: AnalyticsRangeControlsProps) {
   const navigate = useNavigate();
+  const [fromDate, setFromDate] = useState(() => parseDateOnly(from));
+  const [toDate, setToDate] = useState(() => parseDateOnly(to));
 
   function goToRange(search: { from?: string; to?: string }) {
     if (documentId) {
@@ -47,11 +50,8 @@ export function AnalyticsRangeControls({
 
   function applyRange(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const values = new FormData(event.currentTarget);
-    const nextFrom = values.get("from");
-    const nextTo = values.get("to");
-    if (typeof nextFrom !== "string" || typeof nextTo !== "string") return;
-    goToRange({ from: nextFrom, to: nextTo });
+    if (!fromDate || !toDate) return;
+    goToRange({ from: formatDateOnly(fromDate), to: formatDateOnly(toDate) });
   }
 
   return (
@@ -69,15 +69,15 @@ export function AnalyticsRangeControls({
           <FieldLabel htmlFor="analytics-from" className="text-[0.625rem] text-muted-foreground">
             From
           </FieldLabel>
-          <Input id="analytics-from" name="from" type="date" defaultValue={from} required />
+          <DatePicker id="analytics-from" value={fromDate} onValueChange={setFromDate} />
         </Field>
         <Field className="w-36">
           <FieldLabel htmlFor="analytics-to" className="text-[0.625rem] text-muted-foreground">
             To
           </FieldLabel>
-          <Input id="analytics-to" name="to" type="date" defaultValue={to} required />
+          <DatePicker id="analytics-to" value={toDate} onValueChange={setToDate} />
         </Field>
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="outline" disabled={!fromDate || !toDate}>
           Apply
         </Button>
         <Button type="button" variant="ghost" onClick={() => goToRange({})}>

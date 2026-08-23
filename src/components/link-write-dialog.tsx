@@ -20,6 +20,7 @@ import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import { DocumentKindIcon } from "#/components/document-kind";
+import { DatePicker } from "#/components/date-picker";
 import { LinkTargetPicker } from "#/components/link-target-picker";
 import {
   AlertDialog,
@@ -66,6 +67,7 @@ import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { getCollections } from "#/db-collections";
 import { linkDeleteWarning } from "#/lib/cascade-delete-copy";
+import { combineDateAndTime, formatTimeOnly } from "#/lib/calendar-date";
 import { pendingLinkSlug, isLinkSlug, linkViewerPath } from "#/lib/link-slug";
 import { queueSharePassword } from "#/lib/pending-share-password";
 import { sharePasswordRefusal } from "#/lib/share-password";
@@ -87,6 +89,9 @@ export type WatchLinkPersistence = (
 type GatePreset = "public" | "password" | "email" | "verified";
 
 type TargetKey = `document:${string}` | `vault:${string}`;
+
+// A Link picked for a day should last that day out, so the end of it is the time to assume.
+const defaultExpiryTime = "23:59";
 
 const gatePresets = [
   { value: "public", label: "Public", icon: GlobeIcon },
@@ -176,6 +181,12 @@ export function LinkWriteDialog({
   const [alsoPassword, setAlsoPassword] = useState(false);
   const [allowDownload, setAllowDownload] = useState(false);
   const [clearPassword, setClearPassword] = useState(false);
+  const [expiresDate, setExpiresDate] = useState<Date | undefined>(() =>
+    link?.expiresAt ? new Date(link.expiresAt) : undefined,
+  );
+  const [expiresTime, setExpiresTime] = useState(() =>
+    link?.expiresAt ? formatTimeOnly(link.expiresAt) : defaultExpiryTime,
+  );
   const [targetError, setTargetError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
@@ -189,6 +200,8 @@ export function LinkWriteDialog({
       return;
     }
     setTarget(lockedTargetKey ?? (link ? targetKeyOf(link) : ""));
+    setExpiresDate(link?.expiresAt ? new Date(link.expiresAt) : undefined);
+    setExpiresTime(link?.expiresAt ? formatTimeOnly(link.expiresAt) : defaultExpiryTime);
     if (link) {
       const nextPreset = presetFromLink(link);
       setPreset(nextPreset);
@@ -208,8 +221,7 @@ export function LinkWriteDialog({
     const wantsPassword = flags.wantsPassword || alsoPassword;
     const password = textValue(formData, "password");
     const name = textValue(formData, "name").trim() || null;
-    const expiresValue = textValue(formData, "expiresAt");
-    const expiresAt = expiresValue ? new Date(expiresValue) : null;
+    const expiresAt = expiresDate ? combineDateAndTime(expiresDate, expiresTime) : null;
 
     let resolvedTarget = lockedTarget;
     if (!editing && !resolvedTarget) {
@@ -437,20 +449,24 @@ export function LinkWriteDialog({
             </Field>
             <Field>
               <FieldLabel htmlFor="link-expires">Expires</FieldLabel>
-              <Input
-                id="link-expires"
-                name="expiresAt"
-                type="datetime-local"
-                defaultValue={
-                  link?.expiresAt
-                    ? new Date(
-                        link.expiresAt.getTime() - link.expiresAt.getTimezoneOffset() * 60_000,
-                      )
-                        .toISOString()
-                        .slice(0, 16)
-                    : ""
-                }
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <DatePicker
+                  id="link-expires"
+                  value={expiresDate}
+                  onValueChange={setExpiresDate}
+                  placeholder="Never"
+                  clearable
+                  className="w-44"
+                />
+                <Input
+                  type="time"
+                  aria-label="Expiry time"
+                  value={expiresTime}
+                  onChange={(event) => setExpiresTime(event.target.value)}
+                  disabled={!expiresDate}
+                  className="w-28"
+                />
+              </div>
               <FieldDescription>Leave empty for a Link that never expires.</FieldDescription>
             </Field>
           </FieldGroup>
