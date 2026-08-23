@@ -19,7 +19,8 @@ test("an anonymous User at / is sent to sign in and sign up", async () => {
 
   expect(response.status).toBe(200);
   expect(html).toContain(">Sign in</a>");
-  expect(html).toContain(">Sign up</a>");
+  expect(html).toContain('href="/sign-up"');
+  expect(html).toContain(">Get started</a>");
   expect(html).not.toContain(">Go to Dashboard</a>");
   expect(html).not.toContain(">Continue setup</a>");
 });
