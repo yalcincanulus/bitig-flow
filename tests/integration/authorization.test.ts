@@ -87,8 +87,14 @@ test("Better Auth refuses Organization updates for a member and allows an admin"
   const adminResponse = await update(fixture.admin.http, "Admin update");
 
   expect(memberResponse.status).toBe(403);
-  expect(adminResponse.ok).toBe(true);
-  expect(await adminResponse.json()).toMatchObject({ name: "Admin update" });
+  expect(await memberResponse.json()).toMatchObject({
+    code: "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION",
+  });
+  expect(adminResponse.status).toBe(200);
+  expect(await adminResponse.json()).toMatchObject({
+    name: "Admin update",
+    slug: fixture.organization.slug,
+  });
 });
 
 test("a Document from another Organization is not found and not forbidden over HTTP", async () => {

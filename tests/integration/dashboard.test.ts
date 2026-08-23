@@ -347,14 +347,14 @@ test("a Vault detail breadcrumb hangs the Vault under a navigable Vaults", async
 
 test("every Role can reach Links, Analytics, and Settings", async () => {
   const fixture = await createOrganizationFixture();
-  const unfinished = [
+  const destinations = [
     dashboardDestinations.links,
     dashboardDestinations.analytics,
     dashboardDestinations.settings,
   ];
 
   for (const role of ["owner", "admin", "member"] as const) {
-    for (const destination of unfinished) {
+    for (const destination of destinations) {
       const path = destination.link.to;
       const response = await fixture[role].http(new URL(path, process.env.BETTER_AUTH_URL), {
         redirect: "manual",
