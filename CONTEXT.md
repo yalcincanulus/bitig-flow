@@ -26,6 +26,14 @@ _Avoid_: live preview, draft view, rendered view
 The Dashboard surface listing an **Organization**'s **Memberships** and its pending **Invitations**. Everyone in the organization can read it; only owners and admins can act on it. It is not where the organization itself is configured.
 _Avoid_: members page, team, users, roster, directory
 
+**Operations**:
+The deployment-wide surface reserved for the **Platform Operator**. It governs the portfolio sandbox and is outside every **Organization**; it is not an Organization settings page.
+_Avoid_: admin dashboard, admin panel, console, backoffice
+
+**Deployment Policy**:
+The live, deployment-wide rules that govern durable signup, demo admission, and Demo Environment resource limits. It can restrict a runtime capability but can never create one that the deployment does not have.
+_Avoid_: settings, configuration, feature flags, admin preferences
+
 ### Content
 
 **Document**:
@@ -54,6 +62,10 @@ _Avoid_: allowed, permitted, in scope
 The single object path holding a document's bytes — `org/<orgId>/doc/<documentId>/original`. One object per document, carrying neither the original filename nor an extension.
 _Avoid_: path, object name, blob key
 
+**Upload key**:
+A random, short-lived object path that receives unconfirmed upload bytes. It is never served as a Document, and Confirmation removes it after writing verified bytes to the immutable **Storage key**.
+_Avoid_: staging path, temporary Storage key, pending Document
+
 **Confirmation**:
 The step that turns a `pending` document into a `ready` one: the server reads the uploaded object back once, verifies it, and records its true size, type, checksum, and page count. Until it happens, the row exists and the bytes are unproven.
 _Avoid_: finalize, commit, validate
@@ -61,6 +73,10 @@ _Avoid_: finalize, commit, validate
 **Sweep**:
 The scheduled reconciliation between the database and the object store — reaping unconfirmed uploads and objects whose document row is gone. The mechanism by which cascade deletes eventually reach storage.
 _Avoid_: cleanup, GC, prune
+
+**Reaper**:
+The scheduled deletion of expired **Demo Environments** from the domain model. It deletes the Organization before its Demo User and leaves failed object removal to the **Sweep**.
+_Avoid_: Sweep, retention job, garbage collection, purge
 
 ### Sharing
 
@@ -96,6 +112,10 @@ _Avoid_: stepper, progress bar, wizard steps
 The one piece of context a page shows to someone holding an opaque identifier and nothing else — who is asking, and never what is behind it. On a **Gate** it is the **Link**'s creator and their organization, never the **Target**; on an **Invitation** it is the inviter and their organization, never the invited address. Degrades to the organization alone when that person's account is gone, or when they have left the organization.
 _Avoid_: header, branding, attribution
 
+**Demo Report**:
+One public, fixed-category claim that a **Demo Environment** is serving abusive content. Three reports from distinct short-lived network hashes permanently pause the environment; reports contain no free text or reporter identity and are never analytics.
+_Avoid_: moderation ticket, complaint, abuse Event, feedback
+
 ### The people
 
 **Visitor**:
@@ -105,6 +125,18 @@ _Avoid_: viewer, guest, recipient, lead
 **User**:
 Someone with an account, belonging to one or more organizations. The people who create documents and links.
 _Avoid_: owner (that is a role), account, member (that is also a role)
+
+**Platform Operator**:
+The one non-transferable deployment authority who governs the portfolio sandbox through **Operations**. The Platform Operator is not an Organization **Role** and has no delegates.
+_Avoid_: admin, super admin, site admin, owner
+
+**Demo User**:
+A short-lived **User** created by one-click demo entry without credentials or personal information. A Demo User is the sole owner of the isolated Organization in its **Demo Environment** and can never become a durable User.
+_Avoid_: guest, Visitor, anonymous visitor, trial user
+
+**Demo Environment**:
+One Demo User's isolated Organization and everything that Organization owns. It is deleted as one unit 24 hours after creation, never shares content with another Demo Environment, and cannot be extended through activity.
+_Avoid_: guest account, shared sandbox, demo workspace, tenant
 
 **Organization**:
 The tenant. Owns documents, vaults, and links; users belong to it through a **Membership**.
@@ -127,6 +159,10 @@ One action on one resource, granted to a role — `document:create`, `analytics:
 _Avoid_: capability, scope, grant, right
 
 ### Analytics
+
+**Demo Summary**:
+A content-free record of one ended **Demo Environment**: its lifetime, end reason, peak resource use, coarse feature counts, and quota refusals. It contains no User identity, network identity, content identity, title, or filename.
+_Avoid_: audit log, activity log, session replay, demo analytics event
 
 **Viewer identity**:
 The non-transitive identity used to group Visits: a captured email when present, otherwise the Visitor id. Distinct Viewer identities are what analytics calls unique visitors.
