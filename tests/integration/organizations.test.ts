@@ -1,15 +1,31 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { expect, test } from "vitest";
 
 import {
+  document as documentTable,
+  invitation as invitationTable,
+  link as linkTable,
+  member as membershipTable,
+  vault as vaultTable,
+  visit as visitTable,
+  visitEvent as visitEventTable,
+} from "#/server/db/schema";
+
+import {
   addFixtureMember,
+  callServerFunction,
   createFixtureDocument,
   createFixtureInvitation,
   createFixtureLink,
+  createFixtureVault,
+  createFixtureVisit,
+  createFixtureVisitEvent,
   createFixtureUser,
   createOrganizationFixture,
   createOrganizationForFixtureUser,
+  database,
 } from "../fixtures";
 import { postAuth } from "./auth-journey";
 
@@ -102,6 +118,152 @@ test("Memberships in other people's Organizations do not count against the cap",
 
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ name: `Owned Organization ${nonce}` });
+});
+
+test("leaving recovers to the case-insensitive first Organization with id as the tie-breaker", async () => {
+  const fixture = await createOrganizationFixture();
+  await createOrganizationForFixtureUser(fixture.member.user.id, "Zulu Organization");
+  const sameName = await Promise.all([
+    createOrganizationForFixtureUser(fixture.member.user.id, "alpha Organization"),
+    createOrganizationForFixtureUser(fixture.member.user.id, "alpha Organization"),
+  ]);
+
+  const left = await postAuth(fixture.member.http, `${organizationApi}/leave`, {
+    organizationId: fixture.organization.id,
+  });
+  expect(left.status).toBe(200);
+
+  const recovered = await callServerFunction(fixture.member.http, {
+    modulePath: "/src/server/functions/dashboard.ts",
+    exportName: "getDashboardContext",
+    method: "GET",
+  });
+  const expected = [...sameName].sort((left, right) => left.id.localeCompare(right.id))[0]!;
+
+  expect(recovered.status).toBe(200);
+  expect(await recovered.json()).toMatchObject({ organization: { id: expected.id } });
+});
+
+test("leaving removes only the caller's Membership and degrades retained Sender lines", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentRow = await createFixtureDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.admin.user.id,
+  });
+  const vaultRow = await createFixtureVault({ organizationId: fixture.organization.id });
+  const published = await createFixtureLink({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.admin.user.id,
+    documentId: documentRow.id,
+  });
+  const outstanding = await createFixtureInvitation({
+    organizationId: fixture.organization.id,
+    inviter: fixture.admin,
+  });
+  const now = new Date();
+  const visitRow = await createFixtureVisit({
+    linkId: published.id,
+    visitorId: `visitor-${randomUUID()}`,
+    email: null,
+    emailVerified: false,
+    gateVersion: published.gateVersion,
+    startedAt: now,
+    lastSeenAt: now,
+    expiresAt: new Date(now.getTime() + 60_000),
+    userAgent: "leave fixture",
+    ipHash: "leave-fixture-ip",
+  });
+  const eventRow = await createFixtureVisitEvent({
+    visitId: visitRow.id,
+    documentId: documentRow.id,
+    type: "document_opened",
+    payload: null,
+    occurredAt: now,
+  });
+
+  const left = await postAuth(fixture.admin.http, `${organizationApi}/leave`, {
+    organizationId: fixture.organization.id,
+  });
+  expect(left.status).toBe(200);
+
+  const dashboard = await fixture.admin.http(
+    new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  expect(dashboard.status).toBe(307);
+  expect(dashboard.headers.get("location")).toBe("/onboarding");
+
+  const retainedRows = await Promise.all([
+    database.select().from(documentTable).where(eq(documentTable.id, documentRow.id)),
+    database.select().from(vaultTable).where(eq(vaultTable.id, vaultRow.id)),
+    database.select().from(linkTable).where(eq(linkTable.id, published.id)),
+    database.select().from(visitTable).where(eq(visitTable.id, visitRow.id)),
+    database.select().from(visitEventTable).where(eq(visitEventTable.id, eventRow.id)),
+    database.select().from(invitationTable).where(eq(invitationTable.id, outstanding.id)),
+  ]);
+  for (const rows of retainedRows) expect(rows).toHaveLength(1);
+  expect(retainedRows[5]?.[0]).toMatchObject({ status: "pending" });
+
+  const memberships = await database
+    .select({ userId: membershipTable.userId })
+    .from(membershipTable)
+    .where(eq(membershipTable.organizationId, fixture.organization.id));
+  expect(memberships).toEqual(
+    expect.arrayContaining([{ userId: fixture.owner.user.id }, { userId: fixture.member.user.id }]),
+  );
+  expect(memberships).toHaveLength(2);
+
+  const linkPage = await fetch(new URL(`/v/${published.slug}`, process.env.BETTER_AUTH_URL), {
+    redirect: "manual",
+  });
+  const linkCopy = textOf(serverRenderedMarkupOf(await linkPage.text()));
+  expect(linkPage.status).toBe(200);
+  expect(linkCopy).toContain(fixture.organization.name);
+  expect(linkCopy).not.toContain(fixture.admin.user.name);
+  expect(linkCopy).not.toContain(" at ");
+
+  const invitationPage = await fetch(
+    new URL(`/accept-invitation/${outstanding.id}`, process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  const invitationCopy = textOf(serverRenderedMarkupOf(await invitationPage.text()));
+  expect(invitationPage.status).toBe(200);
+  expect(invitationCopy).toContain(fixture.organization.name);
+  expect(invitationCopy).not.toContain(fixture.admin.user.name);
+});
+
+test("a co-Owner can leave while Better Auth refuses the sole Owner", async () => {
+  const fixture = await createOrganizationFixture();
+  const coOwner = await createFixtureUser();
+  await addFixtureMember({
+    organizationId: fixture.organization.id,
+    userId: coOwner.user.id,
+    role: "owner",
+  });
+  const activated = await postAuth(coOwner.http, `${organizationApi}/set-active`, {
+    organizationId: fixture.organization.id,
+  });
+  expect(activated.status).toBe(200);
+
+  const left = await postAuth(coOwner.http, `${organizationApi}/leave`, {
+    organizationId: fixture.organization.id,
+  });
+  expect(left.status).toBe(200);
+
+  const soleOwner = await createFixtureUser();
+  const soleOwnerOrganization = await createOrganizationForFixtureUser(soleOwner.user.id);
+  const soleOwnerActivated = await postAuth(soleOwner.http, `${organizationApi}/set-active`, {
+    organizationId: soleOwnerOrganization.id,
+  });
+  expect(soleOwnerActivated.status).toBe(200);
+
+  const refused = await postAuth(soleOwner.http, `${organizationApi}/leave`, {
+    organizationId: soleOwnerOrganization.id,
+  });
+  expect(refused.status).toBe(400);
+  expect(await refused.json()).toMatchObject({
+    code: "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER",
+  });
 });
 
 test("an Owner renames the active Organization without changing its slug or existing Sender lines", async () => {

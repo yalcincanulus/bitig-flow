@@ -3,7 +3,6 @@ import { CheckCircle2Icon, CircleAlertIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { Alert, AlertDescription } from "#/components/ui/alert";
-import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
   Card,
@@ -28,7 +27,6 @@ import { Spinner } from "#/components/ui/spinner";
 import { hasPermission, type OrganizationRole } from "#/lib/access-control";
 import { createOrganizationSchema } from "#/lib/auth-form-schemas";
 import { authClient } from "#/lib/auth-client";
-import { roleLabel } from "#/lib/people";
 
 type OrganizationSettingsProps = Readonly<{
   organization: Readonly<{ id: string; name: string }>;
@@ -53,16 +51,7 @@ function renameFailure(code: string | undefined): string {
   }
 }
 
-function RoleField({ role }: Readonly<{ role: OrganizationRole }>) {
-  return (
-    <Field orientation="horizontal">
-      <FieldTitle>Your Role</FieldTitle>
-      <Badge variant={role === "member" ? "outline" : "secondary"}>{roleLabel(role)}</Badge>
-    </Field>
-  );
-}
-
-function ReadOnlyOrganization({ name, role }: Readonly<{ name: string; role: OrganizationRole }>) {
+function ReadOnlyOrganization({ name }: Readonly<{ name: string }>) {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
@@ -75,7 +64,6 @@ function ReadOnlyOrganization({ name, role }: Readonly<{ name: string; role: Org
             <FieldTitle>Name</FieldTitle>
             <span>{name}</span>
           </Field>
-          <RoleField role={role} />
         </FieldGroup>
       </CardContent>
     </Card>
@@ -84,10 +72,8 @@ function ReadOnlyOrganization({ name, role }: Readonly<{ name: string; role: Org
 
 function OrganizationRenameForm({
   organization,
-  role,
 }: Readonly<{
   organization: OrganizationSettingsProps["organization"];
-  role: OrganizationRole;
 }>) {
   const router = useRouter();
   const [name, setName] = useState(organization.name);
@@ -177,7 +163,6 @@ function OrganizationRenameForm({
                 </FieldDescription>
               </FieldContent>
             </Field>
-            <RoleField role={role} />
           </FieldGroup>
 
           {feedback ? (
@@ -201,8 +186,8 @@ function OrganizationRenameForm({
 
 export function OrganizationSettings({ organization, role }: OrganizationSettingsProps) {
   if (!hasPermission(role, { organization: ["update"] })) {
-    return <ReadOnlyOrganization name={organization.name} role={role} />;
+    return <ReadOnlyOrganization name={organization.name} />;
   }
 
-  return <OrganizationRenameForm organization={organization} role={role} />;
+  return <OrganizationRenameForm organization={organization} />;
 }

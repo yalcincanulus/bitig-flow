@@ -167,12 +167,12 @@ export async function createFixtureInvitation({
   });
 }
 
-export async function createOrganizationForFixtureUser(userId: string) {
+export async function createOrganizationForFixtureUser(userId: string, name?: string) {
   const nonce = randomUUID();
 
   return fixtureAuth.api.createOrganization({
     body: {
-      name: `Fixture Organization ${nonce}`,
+      name: name ?? `Fixture Organization ${nonce}`,
       slug: `fixture-${nonce}`,
       userId,
     },

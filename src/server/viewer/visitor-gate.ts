@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { hasRequirements } from "#/lib/link-trust";
 import { db } from "#/server/db/client";
-import { document, link, organization, user, vault } from "#/server/db/schema";
+import { document, link, member, organization, user, vault } from "#/server/db/schema";
 import {
   documentIdSchema,
   linkIdSchema,
@@ -160,6 +160,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
       id: link.id,
       slug: link.slug,
       senderName: user.name,
+      senderMembershipId: member.id,
       organizationName: organization.name,
       passwordHash: link.passwordHash,
       requiresEmail: link.requiresEmail,
@@ -176,6 +177,10 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     .from(link)
     .innerJoin(organization, eq(organization.id, link.organizationId))
     .leftJoin(user, eq(user.id, link.createdBy))
+    .leftJoin(
+      member,
+      and(eq(member.userId, link.createdBy), eq(member.organizationId, link.organizationId)),
+    )
     .leftJoin(document, eq(document.id, link.documentId))
     .leftJoin(vault, eq(vault.id, link.vaultId))
     .where(eq(link.slug, slug))
@@ -191,7 +196,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
   return {
     id: linkIdSchema.parse(row.id),
     slug: row.slug,
-    senderName: row.senderName,
+    senderName: row.senderMembershipId === null ? null : row.senderName,
     organizationName: row.organizationName,
     passwordHash: row.passwordHash,
     requiresPassword: row.passwordHash !== null,

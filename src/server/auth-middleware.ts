@@ -2,6 +2,7 @@ import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 
 import { hasPermission, roleSchema, type PermissionRequest } from "#/lib/access-control";
+import { byRecoveryOrder } from "#/lib/organization-recovery";
 import { auth, findOrganizationMembership } from "#/server/auth";
 import { organizationIdSchema } from "#/server/ids";
 
@@ -57,7 +58,8 @@ export const orgMiddleware = createMiddleware()
       }
     }
 
-    const fallbackId = organizationIdSchema.parse(organizations[0]!.id);
+    const fallback = [...organizations].sort(byRecoveryOrder)[0]!;
+    const fallbackId = organizationIdSchema.parse(fallback.id);
     await auth.api.setActiveOrganization({
       body: { organizationId: fallbackId },
       headers,
