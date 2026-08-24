@@ -1,7 +1,14 @@
 import { useRouter } from "@tanstack/react-router";
-import { CircleAlertIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { Trash2Icon } from "lucide-react";
+import { Fragment, useState } from "react";
 
+import {
+  SettingsSection,
+  SettingsSectionContent,
+  SettingsSectionDescription,
+  SettingsSectionHeader,
+  SettingsSectionTitle,
+} from "#/components/settings-section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +22,6 @@ import {
 } from "#/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "#/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { Separator } from "#/components/ui/separator";
@@ -115,76 +114,76 @@ export function OrganizationDangerZone({ organization, role }: OrganizationDange
   }
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>Danger zone</CardTitle>
-        <CardDescription>
-          Permanently delete this Organization and everything it owns.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Alert variant="destructive">
-          <CircleAlertIcon />
-          <AlertDescription>{deletionWarning}</AlertDescription>
-        </Alert>
-      </CardContent>
+    <Fragment>
       <Separator />
-      <CardFooter className="justify-end">
-        <AlertDialog open={open} onOpenChange={handleOpenChange}>
-          <AlertDialogTrigger render={<Button variant="destructive" />}>
-            <Trash2Icon data-icon="inline-start" />
+      <SettingsSection>
+        <SettingsSectionHeader>
+          <SettingsSectionTitle className="text-destructive">
             Delete Organization
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete {organization.name}?</AlertDialogTitle>
-              <AlertDialogDescription>{deletionWarning}</AlertDialogDescription>
-            </AlertDialogHeader>
+          </SettingsSectionTitle>
+          <SettingsSectionDescription>
+            Permanently delete this Organization and everything it owns.
+          </SettingsSectionDescription>
+        </SettingsSectionHeader>
+        <SettingsSectionContent>
+          <p className="max-w-prose text-sm text-muted-foreground">{deletionWarning}</p>
 
-            <FieldGroup>
-              <Field data-disabled={pending}>
-                <FieldLabel htmlFor="delete-organization-name">Organization name</FieldLabel>
-                <Input
-                  id="delete-organization-name"
-                  name="organizationName"
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={confirmation}
-                  onChange={(event) => {
-                    setConfirmation(event.target.value);
-                    setFailure(undefined);
+          <AlertDialog open={open} onOpenChange={handleOpenChange}>
+            <AlertDialogTrigger render={<Button variant="destructive" />}>
+              <Trash2Icon data-icon="inline-start" />
+              Delete Organization
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {organization.name}?</AlertDialogTitle>
+                <AlertDialogDescription>{deletionWarning}</AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <FieldGroup>
+                <Field data-disabled={pending}>
+                  <FieldLabel htmlFor="delete-organization-name">Organization name</FieldLabel>
+                  <Input
+                    id="delete-organization-name"
+                    name="organizationName"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={confirmation}
+                    onChange={(event) => {
+                      setConfirmation(event.target.value);
+                      setFailure(undefined);
+                    }}
+                    disabled={pending}
+                  />
+                  <FieldDescription>
+                    Enter <strong>{organization.name}</strong> exactly to confirm.
+                  </FieldDescription>
+                </Field>
+              </FieldGroup>
+
+              {failure ? (
+                <Alert variant="destructive" aria-live="polite">
+                  <AlertDescription>{failure}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={pending}>Keep Organization</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={!confirmed || pending}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void handleDelete();
                   }}
-                  disabled={pending}
-                />
-                <FieldDescription>
-                  Enter <strong>{organization.name}</strong> exactly to confirm.
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-
-            {failure ? (
-              <Alert variant="destructive" aria-live="polite">
-                <AlertDescription>{failure}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={pending}>Keep Organization</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                disabled={!confirmed || pending}
-                onClick={(event) => {
-                  event.preventDefault();
-                  void handleDelete();
-                }}
-              >
-                {pending ? <Spinner data-icon="inline-start" /> : null}
-                Delete Organization
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardFooter>
-    </Card>
+                >
+                  {pending ? <Spinner data-icon="inline-start" /> : null}
+                  Delete Organization
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </SettingsSectionContent>
+      </SettingsSection>
+    </Fragment>
   );
 }

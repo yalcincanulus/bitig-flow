@@ -1,26 +1,17 @@
 import { useRouter } from "@tanstack/react-router";
 import { CheckCircle2Icon, CircleAlertIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 
+import {
+  SettingsSection,
+  SettingsSectionContent,
+  SettingsSectionDescription,
+  SettingsSectionHeader,
+  SettingsSectionTitle,
+} from "#/components/settings-section";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "#/components/ui/card";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldTitle,
-} from "#/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { Separator } from "#/components/ui/separator";
 import { Spinner } from "#/components/ui/spinner";
@@ -53,20 +44,20 @@ function renameFailure(code: string | undefined): string {
 
 function ReadOnlyOrganization({ name }: Readonly<{ name: string }>) {
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>Organization</CardTitle>
-        <CardDescription>The Organization that owns this Dashboard's content.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup>
-          <Field orientation="horizontal">
-            <FieldTitle>Name</FieldTitle>
-            <span>{name}</span>
-          </Field>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+    <Fragment>
+      <Separator />
+      <SettingsSection>
+        <SettingsSectionHeader>
+          <SettingsSectionTitle>Name</SettingsSectionTitle>
+          <SettingsSectionDescription>
+            The Organization that owns this Dashboard's content. Your Role cannot rename it.
+          </SettingsSectionDescription>
+        </SettingsSectionHeader>
+        <SettingsSectionContent>
+          <p className="text-sm font-medium">{name}</p>
+        </SettingsSectionContent>
+      </SettingsSection>
+    </Fragment>
   );
 }
 
@@ -132,19 +123,22 @@ function OrganizationRenameForm({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Organization</CardTitle>
-          <CardDescription>
-            The name shown in the Dashboard Chrome and current public Sender lines.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <FieldGroup>
-            <Field orientation="responsive" data-invalid={Boolean(validationError)}>
-              <FieldLabel htmlFor="organization-name">Name</FieldLabel>
-              <FieldContent className="max-w-md">
+    <Fragment>
+      <Separator />
+      <form onSubmit={handleSubmit}>
+        <SettingsSection>
+          <SettingsSectionHeader>
+            <SettingsSectionTitle>Name</SettingsSectionTitle>
+            <SettingsSectionDescription>
+              The name shown in the Dashboard Chrome and current public Sender lines.
+            </SettingsSectionDescription>
+          </SettingsSectionHeader>
+          <SettingsSectionContent>
+            <FieldGroup className="max-w-sm">
+              <Field data-invalid={Boolean(validationError)}>
+                <FieldLabel htmlFor="organization-name" className="sr-only">
+                  Organization name
+                </FieldLabel>
                 <Input
                   id="organization-name"
                   name="name"
@@ -161,26 +155,28 @@ function OrganizationRenameForm({
                 <FieldDescription>
                   Surrounding whitespace is removed. The Organization slug does not change.
                 </FieldDescription>
-              </FieldContent>
-            </Field>
-          </FieldGroup>
+              </Field>
+            </FieldGroup>
 
-          {feedback ? (
-            <Alert variant={feedback.kind === "failure" ? "destructive" : "default"}>
-              {feedback.kind === "failure" ? <CircleAlertIcon /> : <CheckCircle2Icon />}
-              <AlertDescription>{feedback.message}</AlertDescription>
-            </Alert>
-          ) : null}
-        </CardContent>
-        <Separator />
-        <CardFooter className="justify-end">
-          <Button type="submit" disabled={pending || isNoOp}>
-            {pending ? <Spinner data-icon="inline-start" /> : null}
-            Save changes
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
+            {feedback ? (
+              <Alert
+                variant={feedback.kind === "failure" ? "destructive" : "default"}
+                aria-live="polite"
+                className="max-w-sm"
+              >
+                {feedback.kind === "failure" ? <CircleAlertIcon /> : <CheckCircle2Icon />}
+                <AlertDescription>{feedback.message}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <Button type="submit" disabled={pending || isNoOp}>
+              {pending ? <Spinner data-icon="inline-start" /> : null}
+              Save changes
+            </Button>
+          </SettingsSectionContent>
+        </SettingsSection>
+      </form>
+    </Fragment>
   );
 }
 

@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Building2Icon } from "lucide-react";
 
 import { OrganizationDangerZone } from "#/components/organization-danger-zone";
 import { OrganizationMembershipSettings } from "#/components/organization-membership-settings";
 import { OrganizationSettings } from "#/components/organization-settings";
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Badge } from "#/components/ui/badge";
 import { authClient } from "#/lib/auth-client";
+import { type OrganizationRole } from "#/lib/access-control";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
+import { roleLabel } from "#/lib/people";
 
 export const Route = createFileRoute("/_authenticated/dashboard/settings")({
   loader: async ({ context: { organization } }) => {
@@ -29,6 +33,27 @@ export const Route = createFileRoute("/_authenticated/dashboard/settings")({
   component: SettingsPage,
 });
 
+/**
+ * Who the settings below belong to, said once at the top so no section has to repeat the
+ * Organization's name or the standing the reader holds in it.
+ */
+function OrganizationIdentity({ name, role }: Readonly<{ name: string; role: OrganizationRole }>) {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary [&>svg]:size-5">
+        <Building2Icon aria-hidden />
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="truncate text-base font-semibold tracking-tight">{name}</span>
+        <span className="text-sm text-muted-foreground">Active Organization</span>
+      </div>
+      <Badge variant={role === "member" ? "outline" : "secondary"} className="ml-auto">
+        {roleLabel(role)}
+      </Badge>
+    </div>
+  );
+}
+
 function SettingsPage() {
   const { organization, role } = Route.useRouteContext();
   const { ownerCount } = Route.useLoaderData();
@@ -42,21 +67,25 @@ function SettingsPage() {
         </PageDescription>
       </PageHeader>
 
-      <OrganizationSettings
-        key={`organization-settings-${organization.id}`}
-        organization={organization}
-        role={role}
-      />
-      <OrganizationMembershipSettings
-        organizationId={organization.id}
-        ownerCount={ownerCount}
-        role={role}
-      />
-      <OrganizationDangerZone
-        key={`organization-danger-zone-${organization.id}`}
-        organization={organization}
-        role={role}
-      />
+      <div className="flex w-full max-w-3xl min-w-0 flex-col gap-8">
+        <OrganizationIdentity name={organization.name} role={role} />
+
+        <OrganizationSettings
+          key={`organization-settings-${organization.id}`}
+          organization={organization}
+          role={role}
+        />
+        <OrganizationMembershipSettings
+          organizationId={organization.id}
+          ownerCount={ownerCount}
+          role={role}
+        />
+        <OrganizationDangerZone
+          key={`organization-danger-zone-${organization.id}`}
+          organization={organization}
+          role={role}
+        />
+      </div>
     </Page>
   );
 }

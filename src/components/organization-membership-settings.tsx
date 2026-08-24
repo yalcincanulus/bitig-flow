@@ -1,7 +1,14 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { CircleAlertIcon, LogOutIcon } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
+import {
+  SettingsSection,
+  SettingsSectionContent,
+  SettingsSectionDescription,
+  SettingsSectionHeader,
+  SettingsSectionTitle,
+} from "#/components/settings-section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,17 +21,7 @@ import {
   AlertDialogTrigger,
 } from "#/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
-import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "#/components/ui/card";
-import { Field, FieldGroup, FieldTitle } from "#/components/ui/field";
 import { Separator } from "#/components/ui/separator";
 import { Spinner } from "#/components/ui/spinner";
 import type { OrganizationRole } from "#/lib/access-control";
@@ -59,15 +56,6 @@ function interpretLeaveFailure(code: string | undefined): LeaveFailure {
     default:
       return { message: "Could not leave this Organization." };
   }
-}
-
-function RoleField({ role }: Readonly<{ role: OrganizationRole }>) {
-  return (
-    <Field orientation="horizontal">
-      <FieldTitle>Your Role</FieldTitle>
-      <Badge variant={role === "member" ? "outline" : "secondary"}>{roleLabel(role)}</Badge>
-    </Field>
-  );
 }
 
 export function OrganizationMembershipSettings({
@@ -120,71 +108,70 @@ export function OrganizationMembershipSettings({
   }
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>Membership</CardTitle>
-        <CardDescription>Your standing and access in this Organization.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <FieldGroup>
-          <RoleField role={role} />
-        </FieldGroup>
-
-        {isSoleOwner ? (
-          <Alert>
-            <CircleAlertIcon />
-            <AlertTitle>Another Owner is required</AlertTitle>
-            <AlertDescription>
-              Promote another User to Owner in <Link to="/dashboard/people">People</Link> before
-              leaving this Organization.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-      </CardContent>
+    <Fragment>
       <Separator />
-      <CardFooter className="justify-end">
-        {isSoleOwner ? (
-          <Button variant="destructive" disabled>
-            <LogOutIcon data-icon="inline-start" />
-            Leave Organization
-          </Button>
-        ) : (
-          <AlertDialog open={open} onOpenChange={handleOpenChange}>
-            <AlertDialogTrigger render={<Button variant="destructive" />}>
+      <SettingsSection>
+        <SettingsSectionHeader>
+          <SettingsSectionTitle>Membership</SettingsSectionTitle>
+          <SettingsSectionDescription>
+            You are in this Organization as {roleLabel(role)}. Leaving ends your access immediately.
+          </SettingsSectionDescription>
+        </SettingsSectionHeader>
+        <SettingsSectionContent>
+          {isSoleOwner ? (
+            <Alert className="max-w-md">
+              <CircleAlertIcon />
+              <AlertTitle>Another Owner is required</AlertTitle>
+              <AlertDescription>
+                Promote another User to Owner in <Link to="/dashboard/people">People</Link> before
+                leaving this Organization.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {isSoleOwner ? (
+            <Button variant="outline" disabled>
               <LogOutIcon data-icon="inline-start" />
               Leave Organization
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Leave this Organization?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Your access ends immediately. Returning requires a new Invitation from this
-                  Organization.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              {failure ? (
-                <Alert variant="destructive" aria-live="polite">
-                  <AlertDescription>{failure}</AlertDescription>
-                </Alert>
-              ) : null}
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={pending}>Keep Membership</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  disabled={pending}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    void handleLeave();
-                  }}
-                >
-                  {pending ? <Spinner data-icon="inline-start" /> : null}
-                  Leave Organization
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
-      </CardFooter>
-    </Card>
+            </Button>
+          ) : (
+            <AlertDialog open={open} onOpenChange={handleOpenChange}>
+              <AlertDialogTrigger render={<Button variant="outline" />}>
+                <LogOutIcon data-icon="inline-start" />
+                Leave Organization
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Leave this Organization?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Your access ends immediately. Returning requires a new Invitation from this
+                    Organization.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {failure ? (
+                  <Alert variant="destructive" aria-live="polite">
+                    <AlertDescription>{failure}</AlertDescription>
+                  </Alert>
+                ) : null}
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={pending}>Keep Membership</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    disabled={pending}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void handleLeave();
+                    }}
+                  >
+                    {pending ? <Spinner data-icon="inline-start" /> : null}
+                    Leave Organization
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </SettingsSectionContent>
+      </SettingsSection>
+    </Fragment>
   );
 }
