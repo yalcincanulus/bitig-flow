@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { extractDocumentReferences } from "#/lib/document-references";
 import { db } from "#/server/db/client";
-import { document, documentReference, user } from "#/server/db/schema";
+import { document, documentReference, documentUpload, user } from "#/server/db/schema";
 import { type DocumentId, type OrganizationId, type UserId } from "#/server/ids";
 
 type NewMarkdownDocument = Readonly<{
@@ -16,15 +16,23 @@ type NewPendingUpload = Readonly<{
   title: string;
   kind: "pdf" | "image";
   fileName: string | null;
-  storageKey: string;
+  uploadKey: string;
+  declaredByteSize: number;
   createdBy: UserId;
 }>;
 
 type ConfirmedUpload = Readonly<{
+  storageKey: string;
   mimeType: string;
   byteSize: number;
   checksum: string;
   pageCount: number | null;
+}>;
+
+export type StagedUpload = Readonly<{
+  document: DocumentRow;
+  uploadKey: string;
+  declaredByteSize: number;
 }>;
 
 export type MarkdownDocumentWrite = Readonly<{
@@ -257,31 +265,74 @@ export async function upsertDocument(orgId: OrganizationId, write: MarkdownDocum
   }
 }
 
-export async function createPendingUpload(orgId: OrganizationId, pending: NewPendingUpload) {
+// The Document row and its staging state are written together: a pending upload with no
+// Upload key would be a row nothing could ever confirm.
+export async function createPendingUpload(
+  orgId: OrganizationId,
+  pending: NewPendingUpload,
+): Promise<StagedUpload | undefined> {
   const now = new Date();
-  const [created] = await db
-    .insert(document)
-    .values({
-      id: pending.id,
-      organizationId: orgId,
-      title: pending.title,
-      kind: pending.kind,
-      status: "pending",
-      fileName: pending.fileName,
-      storageKey: pending.storageKey,
-      createdBy: pending.createdBy,
-      updatedBy: pending.createdBy,
+  const created = await db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(document)
+      .values({
+        id: pending.id,
+        organizationId: orgId,
+        title: pending.title,
+        kind: pending.kind,
+        status: "pending",
+        fileName: pending.fileName,
+        // The final Storage key is written by Confirmation and never before it (ADR-0072).
+        storageKey: null,
+        createdBy: pending.createdBy,
+        updatedBy: pending.createdBy,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    if (!inserted) return undefined;
+
+    await tx.insert(documentUpload).values({
+      documentId: pending.id,
+      uploadKey: pending.uploadKey,
+      declaredByteSize: pending.declaredByteSize,
       createdAt: now,
-      updatedAt: now,
+    });
+
+    return inserted;
+  });
+
+  if (created) {
+    return {
+      document: created,
+      uploadKey: pending.uploadKey,
+      declaredByteSize: pending.declaredByteSize,
+    };
+  }
+
+  // A repeated call reuses the staging state it already issued, so a retry cannot strand a
+  // second staged object, and a confirmed Document is never handed a fresh upload URL.
+  return findStagedUpload(orgId, pending.id);
+}
+
+export async function findStagedUpload(
+  orgId: OrganizationId,
+  documentId: DocumentId,
+): Promise<StagedUpload | undefined> {
+  const [found] = await db
+    .select({
+      document,
+      uploadKey: documentUpload.uploadKey,
+      declaredByteSize: documentUpload.declaredByteSize,
     })
-    .onConflictDoNothing()
-    .returning();
+    .from(document)
+    .innerJoin(documentUpload, eq(documentUpload.documentId, document.id))
+    .where(and(eq(document.organizationId, orgId), eq(document.id, documentId)))
+    .limit(1);
 
-  if (created) return created;
-
-  const existing = await findDocument(orgId, pending.id);
-  if (existing) return existing;
-  throw new Error("Document insert returned no row");
+  return found;
 }
 
 export async function markDocumentReady(
@@ -289,33 +340,47 @@ export async function markDocumentReady(
   documentId: DocumentId,
   confirmed: ConfirmedUpload,
 ) {
-  const [updated] = await db
-    .update(document)
-    .set({
-      status: "ready",
-      mimeType: confirmed.mimeType,
-      byteSize: confirmed.byteSize,
-      checksum: confirmed.checksum,
-      pageCount: confirmed.pageCount,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(document.organizationId, orgId),
-        eq(document.id, documentId),
-        eq(document.status, "pending"),
-      ),
-    )
-    .returning();
+  // Becoming ready and losing the staging state are one write: a ready Document that still
+  // held an Upload key would be handed a fresh upload URL for bytes that are already final.
+  return db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(document)
+      .set({
+        status: "ready",
+        storageKey: confirmed.storageKey,
+        mimeType: confirmed.mimeType,
+        byteSize: confirmed.byteSize,
+        checksum: confirmed.checksum,
+        pageCount: confirmed.pageCount,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(document.organizationId, orgId),
+          eq(document.id, documentId),
+          eq(document.status, "pending"),
+        ),
+      )
+      .returning();
 
-  return updated;
+    if (updated) {
+      await tx.delete(documentUpload).where(eq(documentUpload.documentId, documentId));
+    }
+
+    return updated;
+  });
 }
 
+// The staged object has to be read before the row that names it, because deleting the
+// Document cascades its staging state away.
 export async function deleteDocument(orgId: OrganizationId, documentId: DocumentId) {
+  const staged = await findStagedUpload(orgId, documentId);
+
   const [deleted] = await db
     .delete(document)
     .where(and(eq(document.organizationId, orgId), eq(document.id, documentId)))
     .returning();
 
-  return deleted;
+  if (!deleted) return undefined;
+  return { document: deleted, uploadKey: staged?.uploadKey ?? null };
 }

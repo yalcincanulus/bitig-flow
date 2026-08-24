@@ -66,6 +66,26 @@ export const document = snakeCase.table(
   ],
 );
 
+// The staging half of an upload (ADR-0072). It holds the random Upload key the bytes are
+// PUT to and the byte size the client declared before that URL was issued. Confirmation
+// deletes the row, so a ready Document never carries one and no Upload key is ever served.
+// `created_at` records when the URL was issued and is read by nothing: the Sweep bounds an
+// Upload key's life through the pending Document row written in the same transaction.
+export const documentUpload = snakeCase.table(
+  "document_upload",
+  {
+    documentId: uuid()
+      .primaryKey()
+      .references(() => document.id, { onDelete: "cascade" }),
+    uploadKey: text().notNull().unique(),
+    declaredByteSize: integer().notNull(),
+    createdAt: timestampWithTimezone().notNull(),
+  },
+  (table) => [
+    check("document_upload_declared_byte_size_check", sql`${table.declaredByteSize} > 0`),
+  ],
+);
+
 export const vault = snakeCase.table(
   "vault",
   {

@@ -1,4 +1,4 @@
-import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 import { createStorageClients } from "#/server/storage-clients";
 
@@ -13,6 +13,11 @@ export async function putFixtureObject(key: string, body: Uint8Array, contentTyp
       ContentType: contentType,
     }),
   );
+}
+
+export async function readFixtureObject(key: string) {
+  const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  return response.Body ? await response.Body.transformToByteArray() : new Uint8Array();
 }
 
 export async function fixtureObjectExists(key: string) {

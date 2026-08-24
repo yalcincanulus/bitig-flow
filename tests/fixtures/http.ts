@@ -103,6 +103,8 @@ export async function callServerFunction(http: typeof fetch, call: ServerFunctio
         DOCUMENT_CONFLICT: 409,
         UPLOAD_INCOMPLETE: 409,
         UPLOAD_CONFIRMATION: 422,
+        UPLOAD_REJECTED: 422,
+        UPLOAD_IMMUTABLE: 409,
         SHARE_PASSWORD: 422,
         PENDING_TARGET: 422,
         INVALID_GATE: 422,

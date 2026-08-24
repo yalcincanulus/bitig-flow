@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -7,7 +8,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import { expect, test } from "vitest";
 
-import { storageKeyForDocument, storageKeyPrefix } from "#/lib/upload";
+import { storageKeyForDocument, storageKeyPrefix, uploadKeyForOrganization } from "#/lib/upload";
 import { document } from "#/server/db/schema";
 import { sweepOrphanedObjects, sweepUnconfirmedUploads } from "#/server/sweep";
 
@@ -59,14 +60,14 @@ function nodeArgsForScript(script: string) {
   return script.split(/\s+/).filter((token) => token !== "node" && token !== "--env-file=.env");
 }
 
-test("a pending Document aged past 24 hours loses its object and then its row", async () => {
+test("a pending Document aged past 24 hours loses its staged object and then its row", async () => {
   const pending = await createAgedPendingUpload();
 
   const report = await sweepUnconfirmedUploads();
 
   expect(report.removedDocumentIds).toEqual([pending.id]);
-  expect(report.removedStorageKeys).toEqual([pending.storageKey]);
-  expect(await fixtureObjectExists(pending.storageKey!)).toBe(false);
+  expect(report.removedUploadKeys).toEqual([pending.uploadKey]);
+  expect(await fixtureObjectExists(pending.uploadKey)).toBe(false);
   expect(await database.select().from(document).where(eq(document.id, pending.id))).toEqual([]);
 });
 
@@ -83,8 +84,8 @@ test("a recently created pending Document is untouched", async () => {
 
   const report = await sweepUnconfirmedUploads();
 
-  expect(report).toEqual({ removedDocumentIds: [], removedStorageKeys: [] });
-  expect(await fixtureObjectExists(pending.storageKey!)).toBe(true);
+  expect(report).toEqual({ removedDocumentIds: [], removedUploadKeys: [] });
+  expect(await fixtureObjectExists(pending.uploadKey)).toBe(true);
   expect(await database.select().from(document).where(eq(document.id, pending.id))).toEqual([
     expect.objectContaining({ id: pending.id, status: "pending" }),
   ]);
@@ -133,11 +134,11 @@ test("sweeping unconfirmed uploads twice changes nothing the second time", async
 
   expect(await sweepUnconfirmedUploads()).toEqual({
     removedDocumentIds: [pending.id],
-    removedStorageKeys: [pending.storageKey],
+    removedUploadKeys: [pending.uploadKey],
   });
   expect(await sweepUnconfirmedUploads()).toEqual({
     removedDocumentIds: [],
-    removedStorageKeys: [],
+    removedUploadKeys: [],
   });
 });
 
@@ -148,7 +149,42 @@ test("sweeping orphaned objects twice changes nothing the second time", async ()
 
   const first = await sweepOrphanedObjects();
   expect(first.removedStorageKeys).toContain(orphanKey);
-  expect(await sweepOrphanedObjects()).toEqual({ removedStorageKeys: [] });
+  expect(await sweepOrphanedObjects()).toEqual({
+    removedStorageKeys: [],
+    removedUploadKeys: [],
+  });
+});
+
+test("an Upload key no upload attempt claims is removed", async () => {
+  const fixture = await createOrganizationFixture();
+  const abandonedKey = uploadKeyForOrganization(
+    fixture.organization.id,
+    randomUUID(),
+    storageKeyPrefix(),
+  );
+  await putFixtureObject(abandonedKey, pixelPng, "image/png");
+
+  const report = await sweepOrphanedObjects();
+
+  expect(report.removedUploadKeys).toContain(abandonedKey);
+  expect(await fixtureObjectExists(abandonedKey)).toBe(false);
+});
+
+test("an Upload key an in-flight upload still holds is left alone", async () => {
+  const fixture = await createOrganizationFixture();
+  const pending = await createFixturePendingDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.member.user.id,
+    kind: "image",
+    fileName: "pixel.png",
+    bytes: pixelPng,
+    contentType: "image/png",
+  });
+
+  const report = await sweepOrphanedObjects();
+
+  expect(report.removedUploadKeys).not.toContain(pending.uploadKey);
+  expect(await fixtureObjectExists(pending.uploadKey)).toBe(true);
 });
 
 test("the entrypoint runs both passes and exits, and is reachable through a package script", async () => {

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
@@ -15,11 +15,13 @@ import { renderHtml } from "#/lib/render-html";
 import {
   allowedUploadMimeTypes,
   documentKindFromMimeType,
+  isDeclaredByteSizeAllowed,
   isUploadOverSizeCap,
   sanitizeFileName,
   sniffUploadMimeType,
   storageKeyForDocument,
   storageKeyPrefix,
+  uploadKeyForOrganization,
 } from "#/lib/upload";
 import { orgMiddleware, permission } from "#/server/auth-middleware";
 import { documentIdSchema, userIdSchema } from "#/server/ids";
@@ -29,6 +31,7 @@ import {
   createPendingUpload as createPendingUploadInRepository,
   deleteDocument as deleteDocumentInRepository,
   findDocument,
+  findStagedUpload,
   isDocumentWriteConflict,
   listDocuments as listDocumentsFromRepository,
   markDocumentReady as markDocumentReadyInRepository,
@@ -63,6 +66,9 @@ const createUploadSchema = z.object({
   documentId: documentIdSchema,
   fileName: z.string(),
   contentType: z.enum(allowedUploadMimeTypes),
+  // The declared size is a claim, not evidence — it is what the server is asked to stage
+  // for, and Confirmation still measures the bytes that actually arrived.
+  byteSize: z.number(),
 });
 
 const confirmUploadSchema = z.object({
@@ -111,6 +117,22 @@ export type UploadConfirmationError = Readonly<{
   retryable: false;
 }>;
 
+// The declared byte size is refused before any URL is signed, so this is a rejection of the
+// request rather than of the bytes.
+export type UploadRejectedError = Readonly<{
+  name: "UploadRejectedError";
+  code: "UPLOAD_REJECTED";
+  reason: "size";
+  retryable: false;
+}>;
+
+// A ready Document's bytes never change (ADR-0020), so it is never staged for again.
+export type UploadImmutableError = Readonly<{
+  name: "UploadImmutableError";
+  code: "UPLOAD_IMMUTABLE";
+  retryable: false;
+}>;
+
 export function isUploadIncompleteError(error: unknown): error is UploadIncompleteError {
   return (
     typeof error === "object" &&
@@ -133,6 +155,14 @@ function uploadIncompleteError(): UploadIncompleteError {
   return { name: "UploadIncompleteError", code: "UPLOAD_INCOMPLETE", retryable: true };
 }
 
+function uploadRejectedError(reason: "size"): UploadRejectedError {
+  return { name: "UploadRejectedError", code: "UPLOAD_REJECTED", reason, retryable: false };
+}
+
+function uploadImmutableError(): UploadImmutableError {
+  return { name: "UploadImmutableError", code: "UPLOAD_IMMUTABLE", retryable: false };
+}
+
 function uploadConfirmationError(check: "type" | "size"): UploadConfirmationError {
   return { name: "UploadConfirmationError", code: "UPLOAD_CONFIRMATION", check, retryable: false };
 }
@@ -150,13 +180,13 @@ async function deleteObjectAfterRow(storageKey: string) {
 }
 
 async function refuseUpload(
-  storageKey: string,
+  uploadKey: string,
   orgId: Parameters<typeof deleteDocumentInRepository>[0],
   documentId: z.infer<typeof documentIdSchema>,
   check: "type" | "size",
 ): Promise<never> {
   await deleteDocumentInRepository(orgId, documentId);
-  await deleteObjectAfterRow(storageKey);
+  await deleteObjectAfterRow(uploadKey);
   setResponseStatus(422);
   throw uploadConfirmationError(check);
 }
@@ -230,30 +260,50 @@ export const createUpload = createServerFn({ method: "POST" })
   .middleware([permission({ document: ["create"] })])
   .validator(createUploadSchema)
   .handler(async ({ context, data }) => {
+    if (!isDeclaredByteSizeAllowed(data.byteSize)) {
+      setResponseStatus(422);
+      throw uploadRejectedError("size");
+    }
+
     const fileName = sanitizeFileName(data.fileName);
-    const storageKey = storageKeyForDocument(context.orgId, data.documentId, storageKeyPrefix());
-    const document = await createPendingUploadInRepository(context.orgId, {
+    const staged = await createPendingUploadInRepository(context.orgId, {
       id: data.documentId,
       title: authoredTitle(fileName).slice(0, documentTitleMaxLength),
       kind: documentKindFromMimeType(data.contentType),
       fileName: fileName || null,
-      storageKey,
+      uploadKey: uploadKeyForOrganization(context.orgId, randomUUID(), storageKeyPrefix()),
+      declaredByteSize: data.byteSize,
       createdBy: userIdSchema.parse(context.userId),
     });
-    const uploadUrl = await presignPutObject(document.storageKey ?? storageKey);
-    return { document, uploadUrl };
+
+    // No staging state means the id was taken by a row this call did not create. If this
+    // Organization owns it, it is already confirmed and never gets another upload URL
+    // (ADR-0020, ADR-0072); if it does not, the id belongs to nobody it can see (ADR-0012).
+    if (!staged) {
+      if (!(await findDocument(context.orgId, data.documentId))) throw notFound();
+      setResponseStatus(409);
+      throw uploadImmutableError();
+    }
+
+    const uploadUrl = await presignPutObject(staged.uploadKey);
+    return { document: staged.document, uploadUrl };
   });
 
 export const confirmUpload = createServerFn({ method: "POST" })
   .middleware([permission({ document: ["create"] })])
   .validator(confirmUploadSchema)
   .handler(async ({ context, data }) => {
-    const found = await findDocument(context.orgId, data.documentId);
-    if (!found) throw notFound();
-    if (found.status === "ready") return found;
-    if (found.kind === "markdown" || !found.storageKey) throw notFound();
+    const staged = await findStagedUpload(context.orgId, data.documentId);
+    if (!staged) {
+      // Staging state is dropped by Confirmation, so its absence means either a Document
+      // that is already ready — a no-op — or nothing this Organization owns.
+      const found = await findDocument(context.orgId, data.documentId);
+      if (found?.status === "ready" && found.kind !== "markdown") return found;
+      throw notFound();
+    }
 
-    const stored = await getStoredObject(found.storageKey);
+    const { uploadKey, declaredByteSize } = staged;
+    const stored = await getStoredObject(uploadKey);
     if (!stored) {
       setResponseStatus(409);
       throw uploadIncompleteError();
@@ -261,22 +311,28 @@ export const confirmUpload = createServerFn({ method: "POST" })
     if (
       stored.oversized ||
       stored.bytes.byteLength === 0 ||
-      isUploadOverSizeCap(stored.bytes.byteLength)
+      isUploadOverSizeCap(stored.bytes.byteLength) ||
+      stored.bytes.byteLength > declaredByteSize
     ) {
-      return await refuseUpload(found.storageKey, context.orgId, data.documentId, "size");
+      return await refuseUpload(uploadKey, context.orgId, data.documentId, "size");
     }
 
     const sniffed = sniffUploadMimeType(stored.bytes);
     if (!sniffed || sniffed !== data.contentType) {
-      return await refuseUpload(found.storageKey, context.orgId, data.documentId, "type");
+      return await refuseUpload(uploadKey, context.orgId, data.documentId, "type");
     }
 
     const checksum = createHash("sha256").update(stored.bytes).digest("hex");
     const pageCount =
       sniffed === "application/pdf" ? ((await countPdfPages(stored.bytes)) ?? null) : null;
-    await putStoredObject(found.storageKey, stored.bytes, sniffed);
+
+    // The verified bytes are written to the final Storage key, which no URL was ever signed
+    // for, and only then does the row become ready.
+    const storageKey = storageKeyForDocument(context.orgId, data.documentId, storageKeyPrefix());
+    await putStoredObject(storageKey, stored.bytes, sniffed);
 
     const confirmed = await markDocumentReadyInRepository(context.orgId, data.documentId, {
+      storageKey,
       mimeType: sniffed,
       byteSize: stored.bytes.byteLength,
       checksum,
@@ -287,6 +343,8 @@ export const confirmUpload = createServerFn({ method: "POST" })
       if (raced?.status === "ready") return raced;
       throw notFound();
     }
+
+    await deleteObjectAfterRow(uploadKey);
     return confirmed;
   });
 
@@ -296,8 +354,8 @@ export const deleteDocument = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const deleted = await deleteDocumentInRepository(context.orgId, data.documentId);
     if (!deleted) throw notFound();
-    if (deleted.storageKey) {
-      await deleteObjectAfterRow(deleted.storageKey);
+    for (const key of [deleted.document.storageKey, deleted.uploadKey]) {
+      if (key) await deleteObjectAfterRow(key);
     }
-    return deleted;
+    return deleted.document;
   });

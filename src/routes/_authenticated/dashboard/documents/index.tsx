@@ -649,7 +649,7 @@ function UploadDocumentButton({
     let persisted = false;
     try {
       const created = await createUpload({
-        data: { documentId, fileName: file.name, contentType },
+        data: { documentId, fileName: file.name, contentType, byteSize: file.size },
       });
       persisted = true;
       documents.utils.writeUpdate(created.document);

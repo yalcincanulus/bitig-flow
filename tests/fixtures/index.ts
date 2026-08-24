@@ -12,7 +12,7 @@ export {
   createFixtureUploadedDocument,
   readUploadSample,
 } from "./documents";
-export { fixtureObjectExists } from "./storage";
+export { fixtureObjectExists, putFixtureObject, readFixtureObject } from "./storage";
 export { callServerFunction, createCookieClient } from "./http";
 export { createFixtureLink } from "./links";
 export { database, pool, redis } from "./services";

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { expect, test } from "vitest";
 
 import {
@@ -6,9 +8,15 @@ import {
   createFixturePendingDocument,
   createOrganizationFixture,
   fixtureObjectExists,
+  readFixtureObject,
   readUploadSample,
 } from "../fixtures";
-import { uploadMaxBytes, storageKeyForDocument, storageKeyPrefix } from "#/lib/upload";
+import {
+  uploadKeyPrefix,
+  uploadMaxBytes,
+  storageKeyForDocument,
+  storageKeyPrefix,
+} from "#/lib/upload";
 
 const documentsModulePath = "/src/server/functions/documents.ts";
 
@@ -29,15 +37,26 @@ type UploadCreated = {
   uploadUrl: string;
 };
 
+function uploadKeyOf(uploadUrl: string) {
+  const bucketPath = `/${process.env.S3_BUCKET}/`;
+  const { pathname } = new URL(uploadUrl);
+  if (!pathname.startsWith(bucketPath)) throw new Error(`Unexpected upload URL ${uploadUrl}`);
+  return decodeURIComponent(pathname.slice(bucketPath.length));
+}
+
+function sha256(bytes: Uint8Array) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 async function createUpload(
   http: typeof fetch,
-  data: { documentId: string; fileName: string; contentType: string },
+  data: { documentId: string; fileName: string; contentType: string; byteSize?: number },
 ) {
   return callServerFunction(http, {
     modulePath: documentsModulePath,
     exportName: "createUpload",
     method: "POST",
-    data,
+    data: { byteSize: uploadMaxBytes, ...data },
   });
 }
 
@@ -73,7 +92,8 @@ test("a User can upload a PDF and see the row as pending before the bytes land",
     kind: "pdf",
     status: "pending",
     fileName: "launch notes.pdf",
-    storageKey: storageKeyForDocument(fixture.organization.id, documentId, storageKeyPrefix()),
+    // The bytes are unproven, so the row names no final Storage key yet.
+    storageKey: null,
     mimeType: null,
     byteSize: null,
     checksum: null,
@@ -82,6 +102,12 @@ test("a User can upload a PDF and see the row as pending before the bytes land",
   expect(created.uploadUrl).toEqual(expect.stringContaining("http"));
   expect(new URL(created.uploadUrl).searchParams.get("X-Amz-SignedHeaders")).not.toContain(
     "x-amz-checksum",
+  );
+
+  const uploadKey = uploadKeyOf(created.uploadUrl);
+  expect(uploadKey.startsWith(uploadKeyPrefix(storageKeyPrefix()))).toBe(true);
+  expect(uploadKey).not.toBe(
+    storageKeyForDocument(fixture.organization.id, documentId, storageKeyPrefix()),
   );
 
   const listResponse = await callServerFunction(fixture.member.http, {
@@ -259,7 +285,7 @@ test("SVG bytes are refused and leave no ready Document and no object", async ()
     method: "GET",
   });
   expect(await listResponse.json()).toEqual([]);
-  expect(await fixtureObjectExists(created.document.storageKey!)).toBe(false);
+  expect(await fixtureObjectExists(uploadKeyOf(created.uploadUrl))).toBe(false);
 });
 
 test("bytes that contradict the declared kind are refused", async () => {
@@ -278,7 +304,7 @@ test("bytes that contradict the declared kind are refused", async () => {
 
   expect(confirmResponse.status).toBe(422);
   expect(await confirmResponse.json()).toMatchObject({ check: "type" });
-  expect(await fixtureObjectExists(created.document.storageKey!)).toBe(false);
+  expect(await fixtureObjectExists(uploadKeyOf(created.uploadUrl))).toBe(false);
 });
 
 test("an object over 25 MB is refused at Confirmation", async () => {
@@ -295,7 +321,7 @@ test("an object over 25 MB is refused at Confirmation", async () => {
   const confirmResponse = await confirmUpload(fixture.member.http, pending.id);
   expect(confirmResponse.status).toBe(422);
   expect(await confirmResponse.json()).toMatchObject({ check: "size" });
-  expect(await fixtureObjectExists(pending.storageKey!)).toBe(false);
+  expect(await fixtureObjectExists(pending.uploadKey)).toBe(false);
 
   const listResponse = await callServerFunction(fixture.member.http, {
     modulePath: documentsModulePath,
@@ -351,7 +377,8 @@ test("deleting an uploaded Document removes its object after the row", async () 
     bytes: twoPagePdf,
   });
   await confirmUpload(fixture.member.http, pending.id);
-  expect(await fixtureObjectExists(pending.storageKey!)).toBe(true);
+  const storageKey = storageKeyForDocument(fixture.organization.id, pending.id, storageKeyPrefix());
+  expect(await fixtureObjectExists(storageKey)).toBe(true);
 
   const deleteResponse = await callServerFunction(fixture.member.http, {
     modulePath: documentsModulePath,
@@ -360,7 +387,7 @@ test("deleting an uploaded Document removes its object after the row", async () 
     data: { documentId: pending.id },
   });
   expect(deleteResponse.ok).toBe(true);
-  expect(await fixtureObjectExists(pending.storageKey!)).toBe(false);
+  expect(await fixtureObjectExists(storageKey)).toBe(false);
 });
 
 test("upload writes redirect to sign in without a session", async () => {
@@ -378,6 +405,28 @@ test("upload writes redirect to sign in without a session", async () => {
   expect(confirmResponse.headers.get("location")).toBe("/sign-in");
 });
 
+test("a Document id from another Organization is not found when an upload is created", async () => {
+  const [firstOrganization, secondOrganization] = await Promise.all([
+    createOrganizationFixture(),
+    createOrganizationFixture(),
+  ]);
+  const foreign = await createFixturePendingDocument({
+    organizationId: secondOrganization.organization.id,
+    createdBy: secondOrganization.member.user.id,
+    bytes: twoPagePdf,
+  });
+
+  const response = await createUpload(firstOrganization.member.http, {
+    documentId: foreign.id,
+    fileName: "deck.pdf",
+    contentType: "application/pdf",
+  });
+
+  expect(response.status).toBe(404);
+  expect(await response.json()).toMatchObject({ isNotFound: true });
+  expect(await fixtureObjectExists(foreign.uploadKey)).toBe(true);
+});
+
 test("a Document id from another Organization is not found on confirm", async () => {
   const [firstOrganization, secondOrganization] = await Promise.all([
     createOrganizationFixture(),
@@ -392,4 +441,146 @@ test("a Document id from another Organization is not found on confirm", async ()
   const response = await confirmUpload(firstOrganization.member.http, foreign.id);
   expect(response.status).toBe(404);
   expect(await response.json()).toMatchObject({ isNotFound: true });
+});
+
+test("an upload URL is refused without a usable declared byte size", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af2040b";
+
+  const oversized = await createUpload(fixture.member.http, {
+    documentId,
+    fileName: "deck.pdf",
+    contentType: "application/pdf",
+    byteSize: uploadMaxBytes + 1,
+  });
+  expect(oversized.status).toBe(422);
+  expect(await oversized.json()).toMatchObject({ code: "UPLOAD_REJECTED", reason: "size" });
+
+  const empty = await createUpload(fixture.member.http, {
+    documentId,
+    fileName: "deck.pdf",
+    contentType: "application/pdf",
+    byteSize: 0,
+  });
+  expect(empty.status).toBe(422);
+
+  const listResponse = await callServerFunction(fixture.member.http, {
+    modulePath: documentsModulePath,
+    exportName: "listDocuments",
+    method: "GET",
+  });
+  expect(await listResponse.json()).toEqual([]);
+});
+
+test("bytes larger than the declared size are refused and their staged object is removed", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af2040c";
+  const created = (await (
+    await createUpload(fixture.member.http, {
+      documentId,
+      fileName: "deck.pdf",
+      contentType: "application/pdf",
+      byteSize: 10,
+    })
+  ).json()) as UploadCreated;
+
+  expect((await fetch(created.uploadUrl, { method: "PUT", body: twoPagePdf })).ok).toBe(true);
+
+  const confirmResponse = await confirmUpload(fixture.member.http, documentId);
+  expect(confirmResponse.status).toBe(422);
+  expect(await confirmResponse.json()).toMatchObject({ check: "size" });
+  expect(await fixtureObjectExists(uploadKeyOf(created.uploadUrl))).toBe(false);
+});
+
+test("Confirmation commits the verified bytes to the Storage key and removes the staged object", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af2040d";
+  const created = (await (
+    await createUpload(fixture.member.http, {
+      documentId,
+      fileName: "deck.pdf",
+      contentType: "application/pdf",
+    })
+  ).json()) as UploadCreated;
+  const uploadKey = uploadKeyOf(created.uploadUrl);
+
+  await fetch(created.uploadUrl, { method: "PUT", body: twoPagePdf });
+  const confirmed = (await (await confirmUpload(fixture.member.http, documentId)).json()) as {
+    storageKey: string;
+  };
+
+  const storageKey = storageKeyForDocument(fixture.organization.id, documentId, storageKeyPrefix());
+  expect(confirmed.storageKey).toBe(storageKey);
+  expect(await fixtureObjectExists(uploadKey)).toBe(false);
+  expect(sha256(await readFixtureObject(storageKey))).toBe(sha256(twoPagePdf));
+});
+
+test("a retained upload URL cannot change confirmed bytes or their recorded metadata", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af2040e";
+  const created = (await (
+    await createUpload(fixture.member.http, {
+      documentId,
+      fileName: "deck.pdf",
+      contentType: "application/pdf",
+    })
+  ).json()) as UploadCreated;
+
+  await fetch(created.uploadUrl, { method: "PUT", body: twoPagePdf });
+  const confirmed = (await (await confirmUpload(fixture.member.http, documentId)).json()) as {
+    checksum: string;
+    byteSize: number;
+    updatedAt: string;
+  };
+
+  // The URL still works — it just no longer points anywhere a Document is served from.
+  const replay = await fetch(created.uploadUrl, { method: "PUT", body: pixelPng });
+  expect(replay.ok).toBe(true);
+
+  const reconfirm = await confirmUpload(fixture.member.http, documentId);
+  expect(reconfirm.ok).toBe(true);
+  expect(await reconfirm.json()).toMatchObject({
+    id: documentId,
+    status: "ready",
+    checksum: confirmed.checksum,
+    byteSize: confirmed.byteSize,
+    updatedAt: confirmed.updatedAt,
+  });
+
+  const storageKey = storageKeyForDocument(fixture.organization.id, documentId, storageKeyPrefix());
+  expect(sha256(await readFixtureObject(storageKey))).toBe(confirmed.checksum);
+});
+
+test("a confirmed Document is never issued another upload URL", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af2040f";
+  const created = (await (
+    await createUpload(fixture.member.http, {
+      documentId,
+      fileName: "deck.pdf",
+      contentType: "application/pdf",
+    })
+  ).json()) as UploadCreated;
+  await fetch(created.uploadUrl, { method: "PUT", body: twoPagePdf });
+  await confirmUpload(fixture.member.http, documentId);
+
+  const again = await createUpload(fixture.member.http, {
+    documentId,
+    fileName: "deck.pdf",
+    contentType: "application/pdf",
+  });
+
+  expect(again.status).toBe(409);
+  expect(await again.json()).toMatchObject({ code: "UPLOAD_IMMUTABLE", retryable: false });
+});
+
+test("a repeated createUpload for a pending Document reuses its Upload key", async () => {
+  const fixture = await createOrganizationFixture();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af20410";
+  const data = { documentId, fileName: "deck.pdf", contentType: "application/pdf" };
+
+  const first = (await (await createUpload(fixture.member.http, data)).json()) as UploadCreated;
+  const second = (await (await createUpload(fixture.member.http, data)).json()) as UploadCreated;
+
+  expect(uploadKeyOf(second.uploadUrl)).toBe(uploadKeyOf(first.uploadUrl));
 });

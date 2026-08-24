@@ -12,7 +12,7 @@ import {
   pool,
   readUploadSample,
 } from "../fixtures";
-import { storageKeyForDocument, storageKeyPrefix } from "#/lib/upload";
+import { storageKeyPrefix, uploadKeyPrefix } from "#/lib/upload";
 
 test("a fixture User fetches their own Better Auth session over HTTP", async () => {
   const fixture = await createFixtureUser();
@@ -63,7 +63,7 @@ test("the Organization fixture returns three jars resolving to distinct Users an
   expect(resolvedUserIds.size).toBe(3);
 });
 
-test("a pending PDF fixture can place real bytes at a Storage key", async () => {
+test("a pending PDF fixture can place real bytes at an Upload key", async () => {
   const fixture = await createOrganizationFixture();
   const pending = await createFixturePendingDocument({
     organizationId: fixture.organization.id,
@@ -73,10 +73,9 @@ test("a pending PDF fixture can place real bytes at a Storage key", async () => 
 
   expect(pending.status).toBe("pending");
   expect(pending.kind).toBe("pdf");
-  expect(pending.storageKey).toBe(
-    storageKeyForDocument(fixture.organization.id, pending.id, storageKeyPrefix()),
-  );
-  expect(await fixtureObjectExists(pending.storageKey!)).toBe(true);
+  expect(pending.storageKey).toBeNull();
+  expect(pending.uploadKey.startsWith(uploadKeyPrefix(storageKeyPrefix()))).toBe(true);
+  expect(await fixtureObjectExists(pending.uploadKey)).toBe(true);
 });
 
 test("Document fixtures use fresh uuidv7 ids and return the inserted rows", async () => {

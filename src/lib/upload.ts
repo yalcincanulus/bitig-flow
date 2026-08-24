@@ -79,3 +79,17 @@ export function storageKeyPrefix() {
 export function storageKeyForDocument(organizationId: string, documentId: string, prefix = "") {
   return `${prefix}org/${organizationId}/doc/${documentId}/original`;
 }
+
+// Upload keys live outside the `org/` prefix so that nothing which resolves a Document's
+// bytes can reach one, and so that dropping `org/<orgId>/` never touches staged bytes.
+export function uploadKeyPrefix(prefix = "") {
+  return `${prefix}upload/`;
+}
+
+export function uploadKeyForOrganization(organizationId: string, token: string, prefix = "") {
+  return `${uploadKeyPrefix(prefix)}${organizationId}/${token}`;
+}
+
+export function isDeclaredByteSizeAllowed(byteSize: number) {
+  return Number.isSafeInteger(byteSize) && byteSize > 0 && !isUploadOverSizeCap(byteSize);
+}
