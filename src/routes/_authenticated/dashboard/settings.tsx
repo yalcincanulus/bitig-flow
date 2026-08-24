@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { OrganizationDangerZone } from "#/components/organization-danger-zone";
 import { OrganizationMembershipSettings } from "#/components/organization-membership-settings";
 import { OrganizationSettings } from "#/components/organization-settings";
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
@@ -41,10 +42,19 @@ function SettingsPage() {
         </PageDescription>
       </PageHeader>
 
-      <OrganizationSettings key={organization.id} organization={organization} role={role} />
+      <OrganizationSettings
+        key={`organization-settings-${organization.id}`}
+        organization={organization}
+        role={role}
+      />
       <OrganizationMembershipSettings
         organizationId={organization.id}
         ownerCount={ownerCount}
+        role={role}
+      />
+      <OrganizationDangerZone
+        key={`organization-danger-zone-${organization.id}`}
+        organization={organization}
         role={role}
       />
     </Page>

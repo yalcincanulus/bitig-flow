@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { expect, test } from "vitest";
 
 import {
@@ -8,6 +8,7 @@ import {
   invitation as invitationTable,
   link as linkTable,
   member as membershipTable,
+  organization as organizationTable,
   vault as vaultTable,
   visit as visitTable,
   visitEvent as visitEventTable,
@@ -19,6 +20,7 @@ import {
   createFixtureDocument,
   createFixtureInvitation,
   createFixtureLink,
+  createFixtureUploadedDocument,
   createFixtureVault,
   createFixtureVisit,
   createFixtureVisitEvent,
@@ -26,6 +28,8 @@ import {
   createOrganizationFixture,
   createOrganizationForFixtureUser,
   database,
+  fixtureObjectExists,
+  readUploadSample,
 } from "../fixtures";
 import { postAuth } from "./auth-journey";
 
@@ -48,6 +52,16 @@ function textOf(html: string) {
 
 async function ownFiveOrganizations(userId: string) {
   await Promise.all(Array.from({ length: 5 }, () => createOrganizationForFixtureUser(userId)));
+}
+
+async function createOrganizationsForRecoveryOrderTest(userId: string) {
+  await createOrganizationForFixtureUser(userId, "Zulu Organization");
+  const sameNamedOrganizations = await Promise.all([
+    createOrganizationForFixtureUser(userId, "alpha Organization"),
+    createOrganizationForFixtureUser(userId, "alpha Organization"),
+  ]);
+
+  return [...sameNamedOrganizations].sort((left, right) => left.id.localeCompare(right.id))[0]!;
 }
 
 test("a User who owns five Organizations cannot create another", async () => {
@@ -120,13 +134,171 @@ test("Memberships in other people's Organizations do not count against the cap",
   expect(await response.json()).toMatchObject({ name: `Owned Organization ${nonce}` });
 });
 
+test("deleting an Organization cascades its rows, leaves stored objects for Sweep, and recovers deterministically", async () => {
+  const fixture = await createOrganizationFixture();
+  const expectedRecoveryOrganization = await createOrganizationsForRecoveryOrderTest(
+    fixture.owner.user.id,
+  );
+  const documentRow = await createFixtureUploadedDocument({
+    organizationId: fixture.organization.id,
+    createdBy: fixture.owner.user.id,
+    contentType: "image/png",
+    fileName: "private-deletion-target.png",
+    bytes: readUploadSample("pixel.png"),
+  });
+  const vaultRow = await createFixtureVault({ organizationId: fixture.organization.id });
+  const [documentLink] = await Promise.all([
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.owner.user.id,
+      documentId: documentRow.id,
+    }),
+    createFixtureLink({
+      organizationId: fixture.organization.id,
+      createdBy: fixture.owner.user.id,
+      vaultId: vaultRow.id,
+    }),
+    createFixtureInvitation({
+      organizationId: fixture.organization.id,
+      inviter: fixture.owner,
+    }),
+  ]);
+  const now = new Date();
+  const visitRow = await createFixtureVisit({
+    linkId: documentLink.id,
+    visitorId: `visitor-${randomUUID()}`,
+    email: null,
+    emailVerified: false,
+    gateVersion: documentLink.gateVersion,
+    startedAt: now,
+    lastSeenAt: now,
+    expiresAt: new Date(now.getTime() + 60_000),
+    userAgent: "organization deletion fixture",
+    ipHash: "organization-deletion-fixture-ip",
+  });
+  const eventRow = await createFixtureVisitEvent({
+    visitId: visitRow.id,
+    documentId: documentRow.id,
+    type: "document_opened",
+    payload: null,
+    occurredAt: now,
+  });
+
+  const storageKey = documentRow.storageKey;
+  if (!storageKey) throw new Error("Uploaded Document fixture has no Storage key");
+  expect(await fixtureObjectExists(storageKey)).toBe(true);
+
+  const deleted = await postAuth(fixture.owner.http, `${organizationApi}/delete`, {
+    organizationId: fixture.organization.id,
+  });
+  expect(deleted.status).toBe(200);
+  expect(await deleted.json()).toMatchObject({ id: fixture.organization.id });
+
+  const deletedRows = await Promise.all([
+    database
+      .select()
+      .from(organizationTable)
+      .where(eq(organizationTable.id, fixture.organization.id)),
+    database
+      .select()
+      .from(membershipTable)
+      .where(eq(membershipTable.organizationId, fixture.organization.id)),
+    database
+      .select()
+      .from(invitationTable)
+      .where(eq(invitationTable.organizationId, fixture.organization.id)),
+    database
+      .select()
+      .from(documentTable)
+      .where(eq(documentTable.organizationId, fixture.organization.id)),
+    database
+      .select()
+      .from(vaultTable)
+      .where(eq(vaultTable.organizationId, fixture.organization.id)),
+    database.select().from(linkTable).where(eq(linkTable.organizationId, fixture.organization.id)),
+    database.select().from(visitTable).where(eq(visitTable.id, visitRow.id)),
+    database.select().from(visitEventTable).where(eq(visitEventTable.id, eventRow.id)),
+  ]);
+  for (const rows of deletedRows) expect(rows).toEqual([]);
+  expect(await fixtureObjectExists(storageKey)).toBe(true);
+
+  const formerLink = await fetch(new URL(`/v/${documentLink.slug}`, process.env.BETTER_AUTH_URL), {
+    redirect: "manual",
+  });
+  const formerLinkCopy = textOf(serverRenderedMarkupOf(await formerLink.text()));
+  expect(formerLink.status).toBe(404);
+  expect(formerLinkCopy).toContain(
+    "This link isn't available. Ask whoever sent it to you for a new one.",
+  );
+  expect(formerLinkCopy).not.toContain(fixture.organization.name);
+  expect(formerLinkCopy).not.toContain(documentRow.title);
+
+  const recovered = await callServerFunction(fixture.owner.http, {
+    modulePath: "/src/server/functions/dashboard.ts",
+    exportName: "getDashboardContext",
+    method: "GET",
+  });
+  expect(recovered.status).toBe(200);
+  expect(await recovered.json()).toMatchObject({
+    organization: { id: expectedRecoveryOrganization.id },
+  });
+});
+
+test("deleting a User's last Organization sends them to onboarding", async () => {
+  const fixture = await createOrganizationFixture();
+
+  const deleted = await postAuth(fixture.owner.http, `${organizationApi}/delete`, {
+    organizationId: fixture.organization.id,
+  });
+  expect(deleted.status).toBe(200);
+
+  const dashboard = await fixture.owner.http(
+    new URL("/dashboard/documents", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  expect(dashboard.status).toBe(307);
+  expect(dashboard.headers.get("location")).toBe("/onboarding");
+});
+
+test("Better Auth refuses Admins, members, and a freshly demoted Owner by stable code", async () => {
+  const fixture = await createOrganizationFixture();
+  const loadedAsOwner = await fixture.owner.http(
+    new URL("/dashboard/settings", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  expect(loadedAsOwner.status).toBe(200);
+
+  await database
+    .update(membershipTable)
+    .set({ role: "admin" })
+    .where(
+      and(
+        eq(membershipTable.organizationId, fixture.organization.id),
+        eq(membershipTable.userId, fixture.owner.user.id),
+      ),
+    );
+
+  const refusals = await Promise.all(
+    [fixture.owner, fixture.admin, fixture.member].map((actor) =>
+      postAuth(actor.http, `${organizationApi}/delete`, {
+        organizationId: fixture.organization.id,
+      }),
+    ),
+  );
+
+  for (const refusal of refusals) {
+    expect(refusal.status).toBe(403);
+    expect(await refusal.json()).toMatchObject({
+      code: "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION",
+    });
+  }
+});
+
 test("leaving recovers to the case-insensitive first Organization with id as the tie-breaker", async () => {
   const fixture = await createOrganizationFixture();
-  await createOrganizationForFixtureUser(fixture.member.user.id, "Zulu Organization");
-  const sameName = await Promise.all([
-    createOrganizationForFixtureUser(fixture.member.user.id, "alpha Organization"),
-    createOrganizationForFixtureUser(fixture.member.user.id, "alpha Organization"),
-  ]);
+  const expectedRecoveryOrganization = await createOrganizationsForRecoveryOrderTest(
+    fixture.member.user.id,
+  );
 
   const left = await postAuth(fixture.member.http, `${organizationApi}/leave`, {
     organizationId: fixture.organization.id,
@@ -138,10 +310,10 @@ test("leaving recovers to the case-insensitive first Organization with id as the
     exportName: "getDashboardContext",
     method: "GET",
   });
-  const expected = [...sameName].sort((left, right) => left.id.localeCompare(right.id))[0]!;
-
   expect(recovered.status).toBe(200);
-  expect(await recovered.json()).toMatchObject({ organization: { id: expected.id } });
+  expect(await recovered.json()).toMatchObject({
+    organization: { id: expectedRecoveryOrganization.id },
+  });
 });
 
 test("leaving removes only the caller's Membership and degrades retained Sender lines", async () => {
