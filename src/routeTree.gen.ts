@@ -13,13 +13,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as VRouteImport } from './routes/v'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
+import { Route as AuthTwoFactorRouteImport } from './routes/_auth/two-factor'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as OperationsEnrollRouteImport } from './routes/operations/enroll'
 import { Route as VSlugRouteImport } from './routes/v/$slug'
 import { Route as AuthAcceptInvitationInvitationIdRouteImport } from './routes/_auth/accept-invitation/$invitationId'
 import { Route as AuthenticatedDashboardDocumentsRouteRouteImport } from './routes/_authenticated/dashboard/documents/route'
@@ -59,6 +62,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OperationsRoute = OperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VRoute = VRouteImport.update({
   id: '/v',
   path: '/v',
@@ -89,10 +97,20 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthTwoFactorRoute = AuthTwoFactorRouteImport.update({
+  id: '/two-factor',
+  path: '/two-factor',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const OperationsEnrollRoute = OperationsEnrollRouteImport.update({
+  id: '/enroll',
+  path: '/enroll',
+  getParentRoute: () => OperationsRoute,
 } as any)
 const VSlugRoute = VSlugRouteImport.update({
   id: '/$slug',
@@ -212,13 +230,16 @@ const AuthenticatedDashboardDocumentsDocumentIdEditRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/operations': typeof OperationsRouteWithChildren
   '/v': typeof VRouteWithChildren
   '/verify-email': typeof VerifyEmailRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/two-factor': typeof AuthTwoFactorRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/operations/enroll': typeof OperationsEnrollRoute
   '/v/$slug': typeof VSlugRouteWithChildren
   '/dashboard/documents': typeof AuthenticatedDashboardDocumentsRouteRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
@@ -243,13 +264,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/operations': typeof OperationsRouteWithChildren
   '/v': typeof VRouteWithChildren
   '/verify-email': typeof VerifyEmailRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/two-factor': typeof AuthTwoFactorRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/operations/enroll': typeof OperationsEnrollRoute
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
@@ -275,13 +299,16 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/operations': typeof OperationsRouteWithChildren
   '/v': typeof VRouteWithChildren
   '/verify-email': typeof VerifyEmailRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
+  '/_auth/two-factor': typeof AuthTwoFactorRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/operations/enroll': typeof OperationsEnrollRoute
   '/v/$slug': typeof VSlugRouteWithChildren
   '/_authenticated/dashboard/documents': typeof AuthenticatedDashboardDocumentsRouteRouteWithChildren
   '/_auth/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
@@ -308,13 +335,16 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/onboarding'
+    | '/operations'
     | '/v'
     | '/verify-email'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/two-factor'
     | '/dashboard'
+    | '/operations/enroll'
     | '/v/$slug'
     | '/dashboard/documents'
     | '/accept-invitation/$invitationId'
@@ -339,13 +369,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/onboarding'
+    | '/operations'
     | '/v'
     | '/verify-email'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
+    | '/two-factor'
     | '/dashboard'
+    | '/operations/enroll'
     | '/accept-invitation/$invitationId'
     | '/dashboard/people'
     | '/dashboard/settings'
@@ -370,13 +403,16 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_authenticated'
     | '/onboarding'
+    | '/operations'
     | '/v'
     | '/verify-email'
     | '/_auth/forgot-password'
     | '/_auth/reset-password'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
+    | '/_auth/two-factor'
     | '/_authenticated/dashboard'
+    | '/operations/enroll'
     | '/v/$slug'
     | '/_authenticated/dashboard/documents'
     | '/_auth/accept-invitation/$invitationId'
@@ -404,6 +440,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
+  OperationsRoute: typeof OperationsRouteWithChildren
   VRoute: typeof VRouteWithChildren
   VerifyEmailRoute: typeof VerifyEmailRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -438,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operations': {
+      id: '/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof OperationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v': {
@@ -482,12 +526,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignUpRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/two-factor': {
+      id: '/_auth/two-factor'
+      path: '/two-factor'
+      fullPath: '/two-factor'
+      preLoaderRoute: typeof AuthTwoFactorRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/operations/enroll': {
+      id: '/operations/enroll'
+      path: '/enroll'
+      fullPath: '/operations/enroll'
+      preLoaderRoute: typeof OperationsEnrollRouteImport
+      parentRoute: typeof OperationsRoute
     }
     '/v/$slug': {
       id: '/v/$slug'
@@ -637,6 +695,7 @@ interface AuthRouteChildren {
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
+  AuthTwoFactorRoute: typeof AuthTwoFactorRoute
   AuthAcceptInvitationInvitationIdRoute: typeof AuthAcceptInvitationInvitationIdRoute
 }
 
@@ -645,6 +704,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
+  AuthTwoFactorRoute: AuthTwoFactorRoute,
   AuthAcceptInvitationInvitationIdRoute: AuthAcceptInvitationInvitationIdRoute,
 }
 
@@ -720,6 +780,18 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface OperationsRouteChildren {
+  OperationsEnrollRoute: typeof OperationsEnrollRoute
+}
+
+const OperationsRouteChildren: OperationsRouteChildren = {
+  OperationsEnrollRoute: OperationsEnrollRoute,
+}
+
+const OperationsRouteWithChildren = OperationsRoute._addFileChildren(
+  OperationsRouteChildren,
+)
+
 interface VSlugRouteChildren {
   VSlugDocumentIdRoute: typeof VSlugDocumentIdRoute
   VSlugBeaconRoute: typeof VSlugBeaconRoute
@@ -751,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
+  OperationsRoute: OperationsRouteWithChildren,
   VRoute: VRouteWithChildren,
   VerifyEmailRoute: VerifyEmailRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

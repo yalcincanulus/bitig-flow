@@ -43,3 +43,8 @@ export async function getRedis() {
   }
   return client;
 }
+
+export async function closeRedis() {
+  const client = redisGlobal.bitigFlowRedis;
+  if (client?.isOpen) await client.quit();
+}

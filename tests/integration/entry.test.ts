@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
 
 import { createCookieClient, createFixtureUser, createOrganizationFixture } from "../fixtures";
+import { deploymentPolicy } from "#/server/db/schema";
+import { database } from "../fixtures/services";
 import { postAuth, waitForVerificationOtp } from "./auth-journey";
 import { test } from "./http";
 
@@ -80,6 +82,7 @@ test("a signed-in User with an Organization requesting onboarding is sent to the
 });
 
 test("sign-up, OTP, sign-in, and a named Organization open the Dashboard", async () => {
+  await database.insert(deploymentPolicy).values({ signUpEnabled: true });
   const http = createCookieClient().http;
   const nonce = randomUUID();
   const email = `entry-${nonce}@example.com`;

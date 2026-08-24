@@ -11,6 +11,20 @@ export const signUpSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.email("Enter a valid email"),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmation: z.string(),
+  })
+  .refine(({ password, confirmation }) => password === confirmation, {
+    message: "Passwords must match",
+    path: ["confirmation"],
+  });
+
 export const otpSchema = z.object({
   otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
 });

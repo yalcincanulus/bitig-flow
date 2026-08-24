@@ -13,6 +13,7 @@ export {
   readUploadSample,
 } from "./documents";
 export { fixtureObjectExists, putFixtureObject, readFixtureObject } from "./storage";
+export { currentTotpCode } from "./totp";
 export { callServerFunction, createCookieClient } from "./http";
 export { createFixtureLink } from "./links";
 export { database, pool, redis } from "./services";

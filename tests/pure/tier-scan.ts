@@ -11,6 +11,8 @@ import {
 const functionTierNames: ReadonlySet<string> = new Set([
   "authedMiddleware",
   "orgMiddleware",
+  "operatorIdentityMiddleware",
+  "operatorMiddleware",
   // Possession of the emailed Invitation id, not a session (ADR-0066).
   "invitationRecipient",
 ]);

@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "#/lib/auth-client";
+import { platformOperatorRouteAccess } from "#/server/functions/operators";
 
 export async function goToDashboardOrOnboarding(
   navigate: ReturnType<typeof useNavigate>,
@@ -8,6 +9,14 @@ export async function goToDashboardOrOnboarding(
 ) {
   if (redirect) {
     await navigate({ href: redirect });
+    return;
+  }
+
+  const operatorAccess = await platformOperatorRouteAccess();
+  if (operatorAccess.isOperator) {
+    await navigate({
+      href: operatorAccess.twoFactorEnrolled ? "/operations" : "/operations/enroll",
+    });
     return;
   }
 

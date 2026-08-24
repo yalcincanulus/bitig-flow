@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, snakeCase, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  snakeCase,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 const timestampWithTimezone = () => timestamp({ withTimezone: true, mode: "date" });
 
@@ -13,6 +22,8 @@ export const user = snakeCase.table("user", {
   name: text().notNull(),
   email: text().notNull().unique(),
   emailVerified: boolean().default(false).notNull(),
+  isAnonymous: boolean().default(false).notNull(),
+  twoFactorEnabled: boolean().default(false).notNull(),
   image: text(),
   createdAt: timestampWithTimezone().defaultNow().notNull(),
   updatedAt: timestampWithTimezone()
@@ -79,6 +90,25 @@ export const verification = snakeCase.table(
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+export const twoFactor = snakeCase.table(
+  "two_factor",
+  {
+    id: primaryKey(),
+    secret: text().notNull(),
+    backupCodes: text().notNull(),
+    userId: uuid()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean().default(true).notNull(),
+    failedVerificationCount: integer().default(0).notNull(),
+    lockedUntil: timestampWithTimezone(),
+  },
+  (table) => [
+    index("two_factor_secret_idx").on(table.secret),
+    index("two_factor_user_id_idx").on(table.userId),
+  ],
 );
 
 export const organization = snakeCase.table(

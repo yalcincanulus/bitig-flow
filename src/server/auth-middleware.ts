@@ -5,6 +5,7 @@ import { hasPermission, roleSchema, type PermissionRequest } from "#/lib/access-
 import { byRecoveryOrder } from "#/lib/organization-recovery";
 import { auth, findOrganizationMembership } from "#/server/auth";
 import { organizationIdSchema } from "#/server/ids";
+import { findPlatformOperatorBindingForUser } from "#/server/repositories/platform-operator-binding";
 
 function signInRedirect(): never {
   throw redirect({ href: "/sign-in" });
@@ -35,6 +36,23 @@ export const authedMiddleware = createMiddleware().server(async ({ next, request
 
   return next({ context: { authSession, userId: authSession.user.id } });
 });
+
+export const operatorIdentityMiddleware = createMiddleware()
+  .middleware([authedMiddleware])
+  .server(async ({ next, context }) => {
+    const binding = await findPlatformOperatorBindingForUser(context.userId);
+    if (!binding) throw forbiddenError();
+    return next({ context: { operatorUserId: binding.userId } });
+  });
+
+export const operatorMiddleware = createMiddleware()
+  .middleware([operatorIdentityMiddleware])
+  .server(async ({ next, context }) => {
+    if (context.authSession.user.twoFactorEnabled !== true) {
+      throw redirect({ href: "/operations/enroll" });
+    }
+    return next();
+  });
 
 export const orgMiddleware = createMiddleware()
   .middleware([authedMiddleware])

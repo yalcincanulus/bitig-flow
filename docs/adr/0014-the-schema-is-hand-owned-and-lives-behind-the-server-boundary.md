@@ -1,6 +1,15 @@
 # The schema is hand-owned and lives behind the server boundary
 
-**The Drizzle schema lives in `src/server/db/schema/`, split by concern, and exports flat.** ADR-0011 already made `src/server/db/` the only place the client is constructed and fenced it off with an oxlint `no-restricted-imports` rule; the schema belongs on the same side of that fence. Five files divide it — `auth.ts` (better-auth's owned tables), `content.ts` (`document`, `vault`, `vault_item`, `document_reference`), `sharing.ts` (`link`), `analytics.ts` (`visit`, `visit_event`), and `index.ts` re-exporting everything. The re-export is **flat and stays flat**: `defineRelations` does not accept nested schema objects on `1.0.0-rc.4`, and grouping exports under namespaces is the kind of tidying that breaks the relations graph in a way the error message does not explain.
+**The Drizzle schema lives in `src/server/db/schema/`. It is split by concern and exports flat.** ADR-0011 limits database construction to `src/server/db/`. The same server boundary owns these schema files:
+
+- `auth.ts`: Better Auth tables.
+- `content.ts`: `document`, `vault`, `vault_item`, and `document_reference`.
+- `sharing.ts`: `link`.
+- `analytics.ts`: `visit` and `visit_event`.
+- `operations.ts`: `platform_operator`, `operator_audit_record`, and `deployment_policy`.
+- `index.ts`: flat re-exports from all schema files.
+
+The exports stay flat. `defineRelations` does not accept nested schema objects on `1.0.0-rc.4`. Grouped exports can break the relations graph without a clear error.
 
 **Column names come from `snakeCase.table`, not from hand-written SQL identifiers.** `drizzle({ casing: 'snake_case' })` was removed in the RC, so the mapping is per-table. Writing every name out — `text('storage_key')` — is sixty lines of noise that can silently disagree with the TypeScript key it sits beside. This is invisible to better-auth, which matches on **JavaScript property names** rather than SQL identifiers, so `userId` stays `userId` to the adapter while the column is `user_id`.
 

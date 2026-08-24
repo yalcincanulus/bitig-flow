@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { expect, test } from "vitest";
 
-import { invitation, member } from "#/server/db/schema";
+import { deploymentPolicy, invitation, member } from "#/server/db/schema";
 
 import {
   callServerFunction,
@@ -258,6 +258,8 @@ test("a signed-in recipient accepts and reaches the inviting Organization", asyn
 });
 
 test("a stranger signs up, verifies, accepts, and never receives onboarding", async () => {
+  await database.insert(deploymentPolicy).values({ signUpEnabled: true });
+
   const fixture = await createOrganizationFixture();
   const nonce = randomUUID();
   const email = `invitation-recipient-${nonce}@example.com`;

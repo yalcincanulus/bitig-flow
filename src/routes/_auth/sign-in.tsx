@@ -84,6 +84,9 @@ function SignInPage() {
         </form.Subscribe>
       </form>
       <p className="text-sm text-muted-foreground">
+        <Link to="/forgot-password">Forgot your password?</Link>
+      </p>
+      <p className="text-sm text-muted-foreground">
         No account?{" "}
         <Link to="/sign-up" search={search}>
           Sign up

@@ -8,6 +8,7 @@ const authRoutes = [
   { path: "/sign-up", heading: "Sign up" },
   { path: "/forgot-password", heading: "Forgot password" },
   { path: "/reset-password", heading: "Reset password" },
+  { path: "/two-factor", heading: "Two-factor authentication" },
   {
     path: "/accept-invitation/fixture-invitation-id",
     heading: "This Invitation isn't available.",

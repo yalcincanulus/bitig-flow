@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 
 import { currentSessionUser, listOrganizations } from "#/server/functions/auth";
+import { platformOperatorRouteAccess } from "#/server/functions/operators";
 
 export const Route = createFileRoute("/_auth")({
   beforeLoad: async ({ location }) => {
@@ -14,6 +15,13 @@ export const Route = createFileRoute("/_auth")({
 
     if (location.pathname.startsWith("/accept-invitation/")) {
       return { sessionUser };
+    }
+
+    const operatorAccess = await platformOperatorRouteAccess();
+    if (operatorAccess.isOperator) {
+      throw redirect({
+        href: operatorAccess.twoFactorEnrolled ? "/operations" : "/operations/enroll",
+      });
     }
 
     const organizations = (await listOrganizations()) ?? [];

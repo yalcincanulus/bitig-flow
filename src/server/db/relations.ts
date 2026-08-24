@@ -10,6 +10,27 @@ export const relations = defineRelations(schema, (relation) => ({
       optional: false,
     }),
   },
+  twoFactor: {
+    user: relation.one.user({
+      from: relation.twoFactor.userId,
+      to: relation.user.id,
+      optional: false,
+    }),
+  },
+  platformOperator: {
+    user: relation.one.user({
+      from: relation.platformOperator.userId,
+      to: relation.user.id,
+      optional: false,
+    }),
+  },
+  operatorAuditRecord: {
+    operator: relation.one.user({
+      from: relation.operatorAuditRecord.operatorUserId,
+      to: relation.user.id,
+      optional: false,
+    }),
+  },
   member: {
     user: relation.one.user({
       from: relation.member.userId,

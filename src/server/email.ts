@@ -1,17 +1,9 @@
 import nodemailer from "nodemailer";
 
+import { smtpConfiguration } from "#/server/email-config";
+
 export interface EmailTransport {
   send(message: { to: string; subject: string; text: string }): Promise<void>;
-}
-
-function requiredEnvironmentVariable(name: string): string {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-
-  return value;
 }
 
 const emailTransportGlobal = globalThis as typeof globalThis & {
@@ -19,17 +11,17 @@ const emailTransportGlobal = globalThis as typeof globalThis & {
 };
 
 export function getEmailTransport(): EmailTransport {
-  emailTransportGlobal.bitigFlowEmailTransport ??= createMailpitEmailTransport();
+  emailTransportGlobal.bitigFlowEmailTransport ??= createSmtpEmailTransport();
   return emailTransportGlobal.bitigFlowEmailTransport;
 }
 
-export function createMailpitEmailTransport(): EmailTransport {
-  const transporter = nodemailer.createTransport({
-    host: requiredEnvironmentVariable("SMTP_HOST"),
-    port: Number(requiredEnvironmentVariable("SMTP_PORT")),
-    secure: false,
-  });
-  const from = process.env.SMTP_FROM ?? "bitig-flow <no-reply@bitig.local>";
+export function createSmtpEmailTransport(): EmailTransport {
+  if (!smtpConfiguration.available) {
+    throw new Error("Mail is unavailable because SMTP configuration is incomplete");
+  }
+
+  const transporter = nodemailer.createTransport(smtpConfiguration.transport);
+  const { from } = smtpConfiguration;
 
   return {
     async send(message) {

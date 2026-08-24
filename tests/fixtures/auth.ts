@@ -83,6 +83,7 @@ export async function createFixtureUser() {
 
   return {
     user: signedIn.response.user,
+    password,
     ...client,
   };
 }
