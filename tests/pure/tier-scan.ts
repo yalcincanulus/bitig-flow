@@ -23,8 +23,12 @@ const functionTierNames: ReadonlySet<string> = new Set([
 // `orgMiddleware`. `server.middleware` takes request middleware so a route can name its credential.
 const dashboardRouteTierNames: ReadonlySet<string> = new Set(["orgMiddleware"]);
 const viewerRouteTierNames: ReadonlySet<string> = new Set(["gateCredential"]);
+const operationsRouteTierNames: ReadonlySet<string> = new Set(["operatorMiddleware"]);
 
 function routeTierNamesFor(name: string): ReadonlySet<string> {
+  if (/(?:^|\/)src\/routes\/api\/operations\//.test(name)) {
+    return operationsRouteTierNames;
+  }
   return /(?:^|\/)src\/routes\/v\//.test(name) ? viewerRouteTierNames : dashboardRouteTierNames;
 }
 

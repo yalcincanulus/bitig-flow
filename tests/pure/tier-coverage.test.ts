@@ -91,6 +91,23 @@ test("a server route declaring orgMiddleware passes", () => {
   ]);
 });
 
+test("an Operations server route requires the Operator tier", () => {
+  const source = `
+    import { createFileRoute } from "@tanstack/react-router";
+
+    export const Route = createFileRoute("/api/operations/policy")({
+      server: {
+        middleware: [operatorMiddleware],
+        handlers: { GET: () => new Response("ok") },
+      },
+    });
+  `;
+
+  expect(serverRoutesIn("src/routes/api/operations/policy.ts", source)).toEqual([
+    { name: "src/routes/api/operations/policy.ts", declaresTier: true },
+  ]);
+});
+
 test("being signed in is not a tier for a server route", () => {
   const source = `
     import { createFileRoute } from "@tanstack/react-router";

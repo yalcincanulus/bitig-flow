@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   ListObjectsV2Command,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
@@ -12,6 +13,15 @@ import { createStorageClients } from "#/server/storage-clients";
 export { createStorageClients } from "#/server/storage-clients";
 
 const { s3, presigner, bucket } = createStorageClients();
+
+export async function storageCapabilityHealthy() {
+  try {
+    await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export type StoredObject = Readonly<{
   bytes: Uint8Array;

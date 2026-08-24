@@ -29,6 +29,8 @@ import { Route as AuthenticatedDashboardDocumentsRouteRouteImport } from './rout
 import { Route as AuthenticatedDashboardPeopleRouteImport } from './routes/_authenticated/dashboard/people'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiOperationsDemoRecordsRouteImport } from './routes/api/operations/demo-records'
+import { Route as ApiOperationsPolicyRouteImport } from './routes/api/operations/policy'
 import { Route as VSlugIndexRouteImport } from './routes/v/$slug.index'
 import { Route as VSlugDocumentIdRouteImport } from './routes/v/$slug.$documentId'
 import { Route as VSlugBeaconRouteImport } from './routes/v/$slug.beacon'
@@ -146,6 +148,17 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOperationsDemoRecordsRoute =
+  ApiOperationsDemoRecordsRouteImport.update({
+    id: '/api/operations/demo-records',
+    path: '/api/operations/demo-records',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiOperationsPolicyRoute = ApiOperationsPolicyRouteImport.update({
+  id: '/api/operations/policy',
+  path: '/api/operations/policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VSlugIndexRoute = VSlugIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -246,6 +259,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
+  '/api/operations/policy': typeof ApiOperationsPolicyRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
@@ -278,6 +293,8 @@ export interface FileRoutesByTo {
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
+  '/api/operations/policy': typeof ApiOperationsPolicyRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug': typeof VSlugIndexRoute
@@ -315,6 +332,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
+  '/api/operations/policy': typeof ApiOperationsPolicyRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
@@ -351,6 +370,8 @@ export interface FileRouteTypes {
     | '/dashboard/people'
     | '/dashboard/settings'
     | '/api/auth/$'
+    | '/api/operations/demo-records'
+    | '/api/operations/policy'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug/'
@@ -383,6 +404,8 @@ export interface FileRouteTypes {
     | '/dashboard/people'
     | '/dashboard/settings'
     | '/api/auth/$'
+    | '/api/operations/demo-records'
+    | '/api/operations/policy'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug'
@@ -419,6 +442,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/people'
     | '/_authenticated/dashboard/settings'
     | '/api/auth/$'
+    | '/api/operations/demo-records'
+    | '/api/operations/policy'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug/'
@@ -444,6 +469,8 @@ export interface RootRouteChildren {
   VRoute: typeof VRouteWithChildren
   VerifyEmailRoute: typeof VerifyEmailRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiOperationsDemoRecordsRoute: typeof ApiOperationsDemoRecordsRoute
+  ApiOperationsPolicyRoute: typeof ApiOperationsPolicyRoute
   ApiDocumentsDocumentIdBytesRoute: typeof ApiDocumentsDocumentIdBytesRoute
 }
 
@@ -587,6 +614,20 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/operations/demo-records': {
+      id: '/api/operations/demo-records'
+      path: '/api/operations/demo-records'
+      fullPath: '/api/operations/demo-records'
+      preLoaderRoute: typeof ApiOperationsDemoRecordsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/operations/policy': {
+      id: '/api/operations/policy'
+      path: '/api/operations/policy'
+      fullPath: '/api/operations/policy'
+      preLoaderRoute: typeof ApiOperationsPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v/$slug/': {
@@ -827,6 +868,8 @@ const rootRouteChildren: RootRouteChildren = {
   VRoute: VRouteWithChildren,
   VerifyEmailRoute: VerifyEmailRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiOperationsDemoRecordsRoute: ApiOperationsDemoRecordsRoute,
+  ApiOperationsPolicyRoute: ApiOperationsPolicyRoute,
   ApiDocumentsDocumentIdBytesRoute: ApiDocumentsDocumentIdBytesRoute,
 }
 export const routeTree = rootRouteImport

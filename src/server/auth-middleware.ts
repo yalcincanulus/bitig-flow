@@ -1,5 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
+import { setResponseStatus } from "@tanstack/react-start/server";
 
 import { hasPermission, roleSchema, type PermissionRequest } from "#/lib/access-control";
 import { byRecoveryOrder } from "#/lib/organization-recovery";
@@ -41,7 +42,10 @@ export const operatorIdentityMiddleware = createMiddleware()
   .middleware([authedMiddleware])
   .server(async ({ next, context }) => {
     const binding = await findPlatformOperatorBindingForUser(context.userId);
-    if (!binding) throw forbiddenError();
+    if (!binding) {
+      setResponseStatus(403);
+      throw forbiddenError();
+    }
     return next({ context: { operatorUserId: binding.userId } });
   });
 

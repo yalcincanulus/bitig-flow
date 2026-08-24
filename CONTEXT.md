@@ -113,7 +113,7 @@ The one piece of context a page shows to someone holding an opaque identifier an
 _Avoid_: header, branding, attribution
 
 **Demo Report**:
-One public, fixed-category claim that a **Demo Environment** is serving abusive content. Three reports from distinct short-lived network hashes permanently pause the environment; reports contain no free text or reporter identity and are never analytics.
+One public, fixed-category claim that a **Demo Environment** is serving abusive content. It can include optional details of 280 characters or fewer. Three reports from distinct short-lived network hashes permanently pause the environment. Reports contain no reporter identity and are never analytics.
 _Avoid_: moderation ticket, complaint, abuse Event, feedback
 
 ### The people

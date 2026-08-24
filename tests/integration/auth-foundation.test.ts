@@ -85,6 +85,13 @@ test("the bound Operator is sent to TOTP enrollment without an Organization", as
   expect(response.status).toBe(307);
   expect(response.headers.get("location")).toBe("/operations/enroll");
 
+  const enrollment = await fixture.http(
+    new URL("/operations/enroll", process.env.BETTER_AUTH_URL),
+    { redirect: "manual" },
+  );
+  expect(enrollment.status).toBe(200);
+  expect(await enrollment.text()).toContain(">Secure Operations</h1>");
+
   const authEntry = await fixture.http(new URL("/sign-in", process.env.BETTER_AUTH_URL), {
     redirect: "manual",
   });
