@@ -2,6 +2,7 @@ import { Link, createFileRoute, isRedirect } from "@tanstack/react-router";
 import { ChartNoAxesCombinedIcon, FolderClosedIcon, LockIcon } from "lucide-react";
 
 import { ThemeToggle } from "#/components/theme-toggle";
+import { DemoEntryButton } from "#/components/demo-entry-button";
 import { Button } from "#/components/ui/button";
 import { hasAuthenticatedSession, listOrganizations } from "#/server/functions/auth";
 
@@ -94,9 +95,7 @@ function Home() {
               )
             ) : (
               <>
-                <Button size="lg" nativeButton={false} render={<Link to="/sign-up" />}>
-                  Get started
-                </Button>
+                <DemoEntryButton />
                 <Button
                   size="lg"
                   variant="outline"
@@ -105,9 +104,24 @@ function Home() {
                 >
                   Sign in
                 </Button>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link to="/sign-up" />}
+                >
+                  Create account
+                </Button>
               </>
             )}
           </nav>
+          {!hasSession && (
+            <p className="max-w-xl text-sm/relaxed text-muted-foreground">
+              Demo work is public only when you create a Link and is deleted after 24 hours. Do not
+              upload confidential, personal, or unlawful material. Anonymous feature-use totals are
+              retained after deletion.
+            </p>
+          )}
         </section>
 
         <section className="grid gap-10 border-t border-border pt-10 sm:grid-cols-3">

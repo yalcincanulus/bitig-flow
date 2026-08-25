@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
 import { DashboardSidebar } from "#/components/dashboard-sidebar";
 import { DashboardToolbar } from "#/components/dashboard-toolbar";
+import { DemoEnvironmentNotice } from "#/components/demo-environment-notice";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar";
 import { TooltipProvider } from "#/components/ui/tooltip";
 import { sidebarStartsOpen } from "#/lib/sidebar-preference";
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function DashboardChrome() {
-  const { organization, session, atOwnedOrganizationLimit } = Route.useRouteContext();
+  const { organization, session, demo, atOwnedOrganizationLimit } = Route.useRouteContext();
   const organizations = Route.useLoaderData();
 
   return (
@@ -33,12 +34,17 @@ function DashboardChrome() {
           organization={organization}
           organizations={organizations}
           atOwnedOrganizationLimit={atOwnedOrganizationLimit}
-          user={session.user}
+          user={{
+            name: session.user.name,
+            email: session.user.isAnonymous ? undefined : session.user.email,
+            canSignOut: !session.user.isAnonymous,
+          }}
         />
         {/* `min-w-0` is what lets a wide Page — the Links table, say — scroll inside the Chrome
             instead of pushing the whole window sideways. */}
         <SidebarInset className="min-w-0">
           <DashboardToolbar />
+          {demo && <DemoEnvironmentNotice expiresAt={demo.expiresAt} />}
           <Outlet />
         </SidebarInset>
       </SidebarProvider>

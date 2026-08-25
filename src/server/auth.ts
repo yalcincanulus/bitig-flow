@@ -90,7 +90,9 @@ export const auth = betterAuth({
       if (context.path === "/sign-up/email" && !(await signUpAvailable())) {
         throw new APIError("FORBIDDEN", { message: "Signup is not available" });
       }
-      if (context.path === "/sign-in/anonymous") {
+      // Anonymous identity is created only by the server-owned Demo entry orchestration. Direct
+      // HTTP access always has a request; internal `auth.api` calls do not.
+      if (context.path === "/sign-in/anonymous" && context.request) {
         throw new APIError("FORBIDDEN", { message: "Demo entry is not available" });
       }
       if (

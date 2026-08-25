@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, notFound, redirect, useLocation } from "@tanstack/react-router";
 
 import { DeploymentPolicyForm } from "#/components/deployment-policy-form";
+import { ReaperControl } from "#/components/reaper-control";
 import { SignOutButton } from "#/components/sign-out-button";
 import { operationsLanding, platformOperatorRouteAccess } from "#/server/functions/operators";
 
@@ -31,6 +32,15 @@ function OperationsRoute() {
         </div>
         <SignOutButton />
       </header>
+      <section className="flex flex-col gap-4 border-t border-border pt-8">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-medium">Demo cleanup</h2>
+          <p className="text-sm text-muted-foreground">
+            Run the distributed Reaper immediately. Scheduled runs continue every 15 minutes.
+          </p>
+        </div>
+        <ReaperControl />
+      </section>
       <section className="flex flex-col gap-6 border-t border-border pt-8">
         <div className="flex flex-col gap-2">
           <h2 className="text-lg font-medium">Deployment Policy</h2>

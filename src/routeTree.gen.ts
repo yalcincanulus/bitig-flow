@@ -29,8 +29,11 @@ import { Route as AuthenticatedDashboardDocumentsRouteRouteImport } from './rout
 import { Route as AuthenticatedDashboardPeopleRouteImport } from './routes/_authenticated/dashboard/people'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiDemoEndRouteImport } from './routes/api/demo/end'
+import { Route as ApiDemoEntryRouteImport } from './routes/api/demo/entry'
 import { Route as ApiOperationsDemoRecordsRouteImport } from './routes/api/operations/demo-records'
 import { Route as ApiOperationsPolicyRouteImport } from './routes/api/operations/policy'
+import { Route as ApiOperationsReaperRouteImport } from './routes/api/operations/reaper'
 import { Route as VSlugIndexRouteImport } from './routes/v/$slug.index'
 import { Route as VSlugDocumentIdRouteImport } from './routes/v/$slug.$documentId'
 import { Route as VSlugBeaconRouteImport } from './routes/v/$slug.beacon'
@@ -45,6 +48,7 @@ import { Route as ApiDocumentsDocumentIdBytesRouteImport } from './routes/api/do
 import { Route as VSlugBytesDocumentIdRouteImport } from './routes/v/$slug.bytes.$documentId'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/index'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdEditRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/edit'
+import { Route as ApiOperationsDemoEnvironmentsEnvironmentIdEndRouteImport } from './routes/api/operations/demo-environments/$environmentId/end'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -148,6 +152,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDemoEndRoute = ApiDemoEndRouteImport.update({
+  id: '/api/demo/end',
+  path: '/api/demo/end',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDemoEntryRoute = ApiDemoEntryRouteImport.update({
+  id: '/api/demo/entry',
+  path: '/api/demo/entry',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOperationsDemoRecordsRoute =
   ApiOperationsDemoRecordsRouteImport.update({
     id: '/api/operations/demo-records',
@@ -157,6 +171,11 @@ const ApiOperationsDemoRecordsRoute =
 const ApiOperationsPolicyRoute = ApiOperationsPolicyRouteImport.update({
   id: '/api/operations/policy',
   path: '/api/operations/policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOperationsReaperRoute = ApiOperationsReaperRouteImport.update({
+  id: '/api/operations/reaper',
+  path: '/api/operations/reaper',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VSlugIndexRoute = VSlugIndexRouteImport.update({
@@ -239,6 +258,12 @@ const AuthenticatedDashboardDocumentsDocumentIdEditRoute =
     path: '/$documentId/edit',
     getParentRoute: () => AuthenticatedDashboardDocumentsRouteRoute,
   } as any)
+const ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute =
+  ApiOperationsDemoEnvironmentsEnvironmentIdEndRouteImport.update({
+    id: '/api/operations/demo-environments/$environmentId/end',
+    path: '/api/operations/demo-environments/$environmentId/end',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -259,8 +284,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/demo/end': typeof ApiDemoEndRoute
+  '/api/demo/entry': typeof ApiDemoEntryRoute
   '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
   '/api/operations/policy': typeof ApiOperationsPolicyRoute
+  '/api/operations/reaper': typeof ApiOperationsReaperRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
@@ -274,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
   '/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
   '/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  '/api/operations/demo-environments/$environmentId/end': typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
   '/dashboard/documents/$documentId/': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -293,8 +322,11 @@ export interface FileRoutesByTo {
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/demo/end': typeof ApiDemoEndRoute
+  '/api/demo/entry': typeof ApiDemoEntryRoute
   '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
   '/api/operations/policy': typeof ApiOperationsPolicyRoute
+  '/api/operations/reaper': typeof ApiOperationsReaperRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug': typeof VSlugIndexRoute
@@ -308,6 +340,7 @@ export interface FileRoutesByTo {
   '/dashboard/links': typeof AuthenticatedDashboardLinksIndexRoute
   '/dashboard/vaults': typeof AuthenticatedDashboardVaultsIndexRoute
   '/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  '/api/operations/demo-environments/$environmentId/end': typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
   '/dashboard/documents/$documentId': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 export interface FileRoutesById {
@@ -332,8 +365,11 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/demo/end': typeof ApiDemoEndRoute
+  '/api/demo/entry': typeof ApiDemoEntryRoute
   '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
   '/api/operations/policy': typeof ApiOperationsPolicyRoute
+  '/api/operations/reaper': typeof ApiOperationsReaperRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
@@ -347,6 +383,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
   '/_authenticated/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
   '/_authenticated/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
+  '/api/operations/demo-environments/$environmentId/end': typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
   '/_authenticated/dashboard/documents/$documentId/': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -370,8 +407,11 @@ export interface FileRouteTypes {
     | '/dashboard/people'
     | '/dashboard/settings'
     | '/api/auth/$'
+    | '/api/demo/end'
+    | '/api/demo/entry'
     | '/api/operations/demo-records'
     | '/api/operations/policy'
+    | '/api/operations/reaper'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug/'
@@ -385,6 +425,7 @@ export interface FileRouteTypes {
     | '/dashboard/links/'
     | '/dashboard/vaults/'
     | '/dashboard/documents/$documentId/edit'
+    | '/api/operations/demo-environments/$environmentId/end'
     | '/dashboard/documents/$documentId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -404,8 +445,11 @@ export interface FileRouteTypes {
     | '/dashboard/people'
     | '/dashboard/settings'
     | '/api/auth/$'
+    | '/api/demo/end'
+    | '/api/demo/entry'
     | '/api/operations/demo-records'
     | '/api/operations/policy'
+    | '/api/operations/reaper'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug'
@@ -419,6 +463,7 @@ export interface FileRouteTypes {
     | '/dashboard/links'
     | '/dashboard/vaults'
     | '/dashboard/documents/$documentId/edit'
+    | '/api/operations/demo-environments/$environmentId/end'
     | '/dashboard/documents/$documentId'
   id:
     | '__root__'
@@ -442,8 +487,11 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/people'
     | '/_authenticated/dashboard/settings'
     | '/api/auth/$'
+    | '/api/demo/end'
+    | '/api/demo/entry'
     | '/api/operations/demo-records'
     | '/api/operations/policy'
+    | '/api/operations/reaper'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug/'
@@ -457,6 +505,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/links/'
     | '/_authenticated/dashboard/vaults/'
     | '/_authenticated/dashboard/documents/$documentId/edit'
+    | '/api/operations/demo-environments/$environmentId/end'
     | '/_authenticated/dashboard/documents/$documentId/'
   fileRoutesById: FileRoutesById
 }
@@ -469,9 +518,13 @@ export interface RootRouteChildren {
   VRoute: typeof VRouteWithChildren
   VerifyEmailRoute: typeof VerifyEmailRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDemoEndRoute: typeof ApiDemoEndRoute
+  ApiDemoEntryRoute: typeof ApiDemoEntryRoute
   ApiOperationsDemoRecordsRoute: typeof ApiOperationsDemoRecordsRoute
   ApiOperationsPolicyRoute: typeof ApiOperationsPolicyRoute
+  ApiOperationsReaperRoute: typeof ApiOperationsReaperRoute
   ApiDocumentsDocumentIdBytesRoute: typeof ApiDocumentsDocumentIdBytesRoute
+  ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute: typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -616,6 +669,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/demo/end': {
+      id: '/api/demo/end'
+      path: '/api/demo/end'
+      fullPath: '/api/demo/end'
+      preLoaderRoute: typeof ApiDemoEndRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/demo/entry': {
+      id: '/api/demo/entry'
+      path: '/api/demo/entry'
+      fullPath: '/api/demo/entry'
+      preLoaderRoute: typeof ApiDemoEntryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/operations/demo-records': {
       id: '/api/operations/demo-records'
       path: '/api/operations/demo-records'
@@ -628,6 +695,13 @@ declare module '@tanstack/react-router' {
       path: '/api/operations/policy'
       fullPath: '/api/operations/policy'
       preLoaderRoute: typeof ApiOperationsPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/operations/reaper': {
+      id: '/api/operations/reaper'
+      path: '/api/operations/reaper'
+      fullPath: '/api/operations/reaper'
+      preLoaderRoute: typeof ApiOperationsReaperRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v/$slug/': {
@@ -727,6 +801,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/documents/$documentId/edit'
       preLoaderRoute: typeof AuthenticatedDashboardDocumentsDocumentIdEditRouteImport
       parentRoute: typeof AuthenticatedDashboardDocumentsRouteRoute
+    }
+    '/api/operations/demo-environments/$environmentId/end': {
+      id: '/api/operations/demo-environments/$environmentId/end'
+      path: '/api/operations/demo-environments/$environmentId/end'
+      fullPath: '/api/operations/demo-environments/$environmentId/end'
+      preLoaderRoute: typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -868,9 +949,14 @@ const rootRouteChildren: RootRouteChildren = {
   VRoute: VRouteWithChildren,
   VerifyEmailRoute: VerifyEmailRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDemoEndRoute: ApiDemoEndRoute,
+  ApiDemoEntryRoute: ApiDemoEntryRoute,
   ApiOperationsDemoRecordsRoute: ApiOperationsDemoRecordsRoute,
   ApiOperationsPolicyRoute: ApiOperationsPolicyRoute,
+  ApiOperationsReaperRoute: ApiOperationsReaperRoute,
   ApiDocumentsDocumentIdBytesRoute: ApiDocumentsDocumentIdBytesRoute,
+  ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute:
+    ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

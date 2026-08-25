@@ -129,6 +129,7 @@ test("the TOTP-enrolled Operator receives Organization-blind Operations", async 
 
   expect(response.status).toBe(200);
   expect(html).toContain(">Operations</h1>");
+  expect(html).toContain(">Run Reaper now</button>");
   expect(html).toContain(fixture.user.email);
   expect(html).not.toContain("Impersonate");
 });

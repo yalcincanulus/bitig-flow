@@ -15,7 +15,8 @@ import { initials } from "#/lib/initials";
 
 export type UserSummary = Readonly<{
   name: string;
-  email: string;
+  email?: string;
+  canSignOut: boolean;
 }>;
 
 type UserMenuProps = Readonly<{
@@ -39,7 +40,7 @@ export function UserMenu({ user }: UserMenuProps) {
             </Avatar>
             <div className="grid flex-1 text-left leading-tight">
               <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-muted-foreground">{user.email}</span>
+              {user.email && <span className="truncate text-muted-foreground">{user.email}</span>}
             </div>
             <ChevronsUpDownIcon className="ml-auto" />
           </DropdownMenuTrigger>
@@ -47,11 +48,15 @@ export function UserMenu({ user }: UserMenuProps) {
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
                 <span className="block truncate font-medium">{user.name}</span>
-                <span className="block truncate text-muted-foreground">{user.email}</span>
+                {user.email && (
+                  <span className="block truncate text-muted-foreground">{user.email}</span>
+                )}
               </DropdownMenuLabel>
-              <DropdownMenuItem disabled={pending} onClick={() => void signOut()}>
-                Sign out
-              </DropdownMenuItem>
+              {user.canSignOut ? (
+                <DropdownMenuItem disabled={pending} onClick={() => void signOut()}>
+                  Sign out
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

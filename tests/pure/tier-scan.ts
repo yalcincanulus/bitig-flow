@@ -13,6 +13,7 @@ const functionTierNames: ReadonlySet<string> = new Set([
   "orgMiddleware",
   "operatorIdentityMiddleware",
   "operatorMiddleware",
+  "demoEntryMiddleware",
   // Possession of the emailed Invitation id, not a session (ADR-0066).
   "invitationRecipient",
 ]);
@@ -24,8 +25,10 @@ const functionTierNames: ReadonlySet<string> = new Set([
 const dashboardRouteTierNames: ReadonlySet<string> = new Set(["orgMiddleware"]);
 const viewerRouteTierNames: ReadonlySet<string> = new Set(["gateCredential"]);
 const operationsRouteTierNames: ReadonlySet<string> = new Set(["operatorMiddleware"]);
+const demoRouteTierNames: ReadonlySet<string> = new Set(["demoEntryMiddleware", "orgMiddleware"]);
 
 function routeTierNamesFor(name: string): ReadonlySet<string> {
+  if (/(?:^|\/)src\/routes\/api\/demo\//.test(name)) return demoRouteTierNames;
   if (/(?:^|\/)src\/routes\/api\/operations\//.test(name)) {
     return operationsRouteTierNames;
   }

@@ -24,6 +24,45 @@ export const relations = defineRelations(schema, (relation) => ({
       optional: false,
     }),
   },
+  demoSampleResource: {
+    environment: relation.one.demoEnvironment({
+      from: relation.demoSampleResource.environmentId,
+      to: relation.demoEnvironment.id,
+      optional: false,
+    }),
+    document: relation.one.document({
+      from: relation.demoSampleResource.documentId,
+      to: relation.document.id,
+      optional: true,
+    }),
+    vault: relation.one.vault({
+      from: relation.demoSampleResource.vaultId,
+      to: relation.vault.id,
+      optional: true,
+    }),
+    link: relation.one.link({
+      from: relation.demoSampleResource.linkId,
+      to: relation.link.id,
+      optional: true,
+    }),
+  },
+  demoProvisioningAttempt: {
+    user: relation.one.user({
+      from: relation.demoProvisioningAttempt.userId,
+      to: relation.user.id,
+      optional: true,
+    }),
+    organization: relation.one.organization({
+      from: relation.demoProvisioningAttempt.organizationId,
+      to: relation.organization.id,
+      optional: true,
+    }),
+    environment: relation.one.demoEnvironment({
+      from: relation.demoProvisioningAttempt.environmentId,
+      to: relation.demoEnvironment.id,
+      optional: true,
+    }),
+  },
   operatorAuditRecord: {
     operator: relation.one.user({
       from: relation.operatorAuditRecord.operatorUserId,

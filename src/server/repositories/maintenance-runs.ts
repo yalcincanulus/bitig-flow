@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "#/server/db/client";
@@ -15,10 +15,12 @@ export async function databaseCapabilityHealthy() {
   }
 }
 
-export async function latestSuccessfulMaintenanceObservation(
+async function queryLatestMaintenanceObservation(
   kind: z.input<typeof maintenanceKindSchema>,
+  status?: "succeeded",
 ) {
   try {
+    const parsedKind = maintenanceKindSchema.parse(kind);
     const [run] = await db
       .select({
         status: maintenanceRun.status,
@@ -27,10 +29,9 @@ export async function latestSuccessfulMaintenanceObservation(
       })
       .from(maintenanceRun)
       .where(
-        and(
-          eq(maintenanceRun.kind, maintenanceKindSchema.parse(kind)),
-          eq(maintenanceRun.status, "succeeded"),
-        ),
+        status
+          ? and(eq(maintenanceRun.kind, parsedKind), eq(maintenanceRun.status, status))
+          : and(eq(maintenanceRun.kind, parsedKind), ne(maintenanceRun.status, "running")),
       )
       .orderBy(desc(maintenanceRun.startedAt))
       .limit(1);
@@ -43,6 +44,16 @@ export async function latestSuccessfulMaintenanceObservation(
   } catch {
     return undefined;
   }
+}
+
+export function latestSuccessfulMaintenanceObservation(
+  kind: z.input<typeof maintenanceKindSchema>,
+) {
+  return queryLatestMaintenanceObservation(kind, "succeeded");
+}
+
+export function latestMaintenanceObservation(kind: z.input<typeof maintenanceKindSchema>) {
+  return queryLatestMaintenanceObservation(kind);
 }
 
 export async function startMaintenanceRun(

@@ -6,7 +6,9 @@ import { hasPermission, roleSchema, type PermissionRequest } from "#/lib/access-
 import { byRecoveryOrder } from "#/lib/organization-recovery";
 import { auth, findOrganizationMembership } from "#/server/auth";
 import { organizationIdSchema } from "#/server/ids";
+import { requiredEnv } from "#/server/runtime-env";
 import { findPlatformOperatorBindingForUser } from "#/server/repositories/platform-operator-binding";
+import { demoSessionAvailability } from "#/server/repositories/demo-lifecycle";
 
 function signInRedirect(): never {
   throw redirect({ href: "/sign-in" });
@@ -14,6 +16,10 @@ function signInRedirect(): never {
 
 function onboardingRedirect(): never {
   throw redirect({ href: "/onboarding" });
+}
+
+function demoEntryRedirect(): never {
+  throw redirect({ href: "/" });
 }
 
 export type ForbiddenError = Readonly<{
@@ -35,7 +41,28 @@ export const authedMiddleware = createMiddleware().server(async ({ next, request
   const authSession = await auth.api.getSession({ headers: request.headers });
   if (!authSession) return signInRedirect();
 
+  if (authSession.user.isAnonymous) {
+    const availability = await demoSessionAvailability(authSession.user.id);
+    if (!availability.available) {
+      return availability.reason === "missing" ? signInRedirect() : demoEntryRedirect();
+    }
+  }
+
   return next({ context: { authSession, userId: authSession.user.id } });
+});
+
+// Public Demo entry still names an explicit server-owned tier. Admission, readiness, and identity
+// creation are performed by its handler; this middleware prevents the route from becoming an
+// unclassified public server boundary in the tier audit.
+export const demoEntryMiddleware = createMiddleware().server(({ next, request }) => {
+  const origin = request.headers.get("origin");
+  if (origin !== new URL(requiredEnv("BETTER_AUTH_URL")).origin) {
+    return Response.json(
+      { error: "Demo entry requires the application origin" },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  return next();
 });
 
 export const operatorIdentityMiddleware = createMiddleware()

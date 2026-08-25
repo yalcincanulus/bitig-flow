@@ -1,0 +1,2 @@
+ALTER TABLE "demo_provisioning_attempt" ADD COLUMN "admission_reserved" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "demo_provisioning_attempt" DROP CONSTRAINT "demo_provisioning_attempt_T90F7HX7cuDt_fkey", ADD CONSTRAINT "demo_provisioning_attempt_T90F7HX7cuDt_fkey" FOREIGN KEY ("environment_id") REFERENCES "demo_environment"("id") ON DELETE CASCADE;

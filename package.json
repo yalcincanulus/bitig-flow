@@ -28,7 +28,9 @@
     "test:watch": "vitest",
     "sweep": "node --env-file=.env --import tsx src/server/sweep-cli.ts",
     "sweep:unconfirmed": "node --env-file=.env --import tsx src/server/sweep-cli.ts --unconfirmed",
-    "sweep:orphans": "node --env-file=.env --import tsx src/server/sweep-cli.ts --orphans"
+    "sweep:orphans": "node --env-file=.env --import tsx src/server/sweep-cli.ts --orphans",
+    "reaper": "node --env-file=.env --import tsx src/server/reaper-cli.ts",
+    "reaper:watch": "node --env-file=.env --import tsx src/server/reaper-cli.ts --watch"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1111.0",

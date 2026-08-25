@@ -1,0 +1,1 @@
+ALTER TABLE "demo_provisioning_attempt" ADD CONSTRAINT "demo_provisioning_attempt_admission_state_check" CHECK ("admission_reserved" = ("admission_key" IS NOT NULL));

@@ -11,7 +11,12 @@ import {
 } from "#/lib/demo-operations";
 import { storedDeploymentPolicySchema } from "#/lib/deployment-policy";
 import { db } from "#/server/db/client";
-import { demoEnvironment, demoGlobalUsage, deploymentPolicy } from "#/server/db/schema";
+import {
+  demoEnvironment,
+  demoGlobalUsage,
+  demoProvisioningAttempt,
+  deploymentPolicy,
+} from "#/server/db/schema";
 
 const globalReservation = {
   uploadBytes: { usage: "confirmedBytes", limit: "globalConfirmedBytes" },
@@ -227,7 +232,7 @@ export async function reserveDemoBudget(
   });
 }
 
-export async function reserveGlobalDemoEnvironment() {
+export async function reserveGlobalDemoEnvironment(provisioningAttemptId?: string) {
   return db.transaction(async (transaction) => {
     await transaction.execute(
       sql`SELECT id FROM ${deploymentPolicy} WHERE id = 'deployment' FOR SHARE`,
@@ -240,6 +245,10 @@ export async function reserveGlobalDemoEnvironment() {
     if (!policyRow) return { accepted: false as const, limit: "unavailable" as const };
 
     const policy = storedDeploymentPolicySchema.parse(policyRow);
+    await transaction
+      .insert(demoGlobalUsage)
+      .values({ id: "demo-global" })
+      .onConflictDoNothing({ target: demoGlobalUsage.id });
     const [reserved] = await transaction
       .update(demoGlobalUsage)
       .set({
@@ -253,25 +262,47 @@ export async function reserveGlobalDemoEnvironment() {
         ),
       )
       .returning({ id: demoGlobalUsage.id });
-    return reserved
-      ? { accepted: true as const }
-      : { accepted: false as const, limit: "activeEnvironmentCount" as const };
+    if (!reserved) return { accepted: false as const, limit: "activeEnvironmentCount" as const };
+    if (provisioningAttemptId) {
+      const [tracked] = await transaction
+        .update(demoProvisioningAttempt)
+        .set({ globalReserved: true, updatedAt: new Date() })
+        .where(eq(demoProvisioningAttempt.id, provisioningAttemptId))
+        .returning({ id: demoProvisioningAttempt.id });
+      if (!tracked) throw new Error("Demo provisioning attempt is unavailable");
+    }
+    return { accepted: true as const };
   });
 }
 
-export async function releaseGlobalDemoEnvironment() {
-  const [released] = await db
-    .update(demoGlobalUsage)
-    .set({
-      activeEnvironmentCount: sql`${demoGlobalUsage.activeEnvironmentCount} - 1`,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(demoGlobalUsage.id, "demo-global"), gte(demoGlobalUsage.activeEnvironmentCount, 1)),
-    )
-    .returning({ id: demoGlobalUsage.id });
-  if (!released) throw new Error("Cannot release an unreserved Demo Environment");
-  return { released: true as const };
+export async function releaseGlobalDemoEnvironment(provisioningAttemptId?: string) {
+  return db.transaction(async (transaction) => {
+    if (provisioningAttemptId) {
+      const [tracked] = await transaction
+        .update(demoProvisioningAttempt)
+        .set({ globalReserved: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(demoProvisioningAttempt.id, provisioningAttemptId),
+            eq(demoProvisioningAttempt.globalReserved, true),
+          ),
+        )
+        .returning({ id: demoProvisioningAttempt.id });
+      if (!tracked) throw new Error("Demo provisioning attempt has no global reservation");
+    }
+    const [released] = await transaction
+      .update(demoGlobalUsage)
+      .set({
+        activeEnvironmentCount: sql`${demoGlobalUsage.activeEnvironmentCount} - 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(demoGlobalUsage.id, "demo-global"), gte(demoGlobalUsage.activeEnvironmentCount, 1)),
+      )
+      .returning({ id: demoGlobalUsage.id });
+    if (!released) throw new Error("Cannot release an unreserved Demo Environment");
+    return { released: true as const };
+  });
 }
 
 type ReleasableReservationKind =

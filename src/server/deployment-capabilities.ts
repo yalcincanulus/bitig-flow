@@ -4,7 +4,7 @@ import { mailCapabilityAvailable } from "#/server/email-config";
 import { getRedis } from "#/server/redis";
 import {
   databaseCapabilityHealthy,
-  latestSuccessfulMaintenanceObservation,
+  latestMaintenanceObservation,
 } from "#/server/repositories/maintenance-runs";
 import { trustedProxyCount } from "#/server/runtime-env";
 import { storageCapabilityHealthy } from "#/server/storage";
@@ -41,8 +41,8 @@ export async function deploymentRuntimeCapabilities(
     databaseCapabilityHealthy(),
     redisHealthy(),
     storageCapabilityHealthy(),
-    latestSuccessfulMaintenanceObservation("reaper"),
-    latestSuccessfulMaintenanceObservation("sweep"),
+    latestMaintenanceObservation("reaper"),
+    latestMaintenanceObservation("sweep"),
   ]);
   const mail = mailCapabilityAvailable();
   const secureTransport = localOrSecureAuthUrl();

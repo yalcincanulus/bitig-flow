@@ -13,16 +13,18 @@ function expectRedirect(response: Response, location: string) {
   expect(response.headers.get("location")).toBe(location);
 }
 
-test("an anonymous User at / is sent to sign in and sign up", async () => {
+test("an anonymous User at / receives primary Demo entry and secondary account actions", async () => {
   const response = await createCookieClient().http(new URL("/", process.env.BETTER_AUTH_URL), {
     redirect: "manual",
   });
   const html = await response.text();
 
   expect(response.status).toBe(200);
+  expect(html).toContain(">Try the demo</button>");
+  expect(html).toContain("Demo work is public only when you create a Link");
   expect(html).toContain(">Sign in</a>");
   expect(html).toContain('href="/sign-up"');
-  expect(html).toContain(">Get started</a>");
+  expect(html).toContain(">Create account</a>");
   expect(html).not.toContain(">Go to Dashboard</a>");
   expect(html).not.toContain(">Continue setup</a>");
 });

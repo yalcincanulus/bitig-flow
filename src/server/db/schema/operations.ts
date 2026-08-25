@@ -18,6 +18,7 @@ import {
 import { initialDeploymentPolicy } from "#/lib/deployment-policy";
 
 import { organization, user } from "./auth";
+import { document, vault } from "./content";
 import { link } from "./sharing";
 
 const timestampWithTimezone = () => timestamp({ withTimezone: true, mode: "date" });
@@ -196,6 +197,7 @@ export const demoEnvironment = snakeCase.table(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     anonymousReference: varchar({ length: 12 }).notNull(),
+    entryKeyHash: text(),
     state: text().default("provisioning").notNull(),
     stateVersion: integer().default(0).notNull(),
     endReason: text(),
@@ -226,6 +228,7 @@ export const demoEnvironment = snakeCase.table(
     uniqueIndex("demo_environment_user_id_uidx").on(table.userId),
     uniqueIndex("demo_environment_organization_id_uidx").on(table.organizationId),
     uniqueIndex("demo_environment_anonymous_reference_uidx").on(table.anonymousReference),
+    uniqueIndex("demo_environment_entry_key_hash_uidx").on(table.entryKeyHash),
     index("demo_environment_state_expires_at_idx").on(table.state, table.expiresAt),
     check(
       "demo_environment_state_check",
@@ -256,6 +259,72 @@ export const demoEnvironment = snakeCase.table(
         AND ${table.eventLifetimeCount} >= 0
         AND ${table.reportCount} >= 0
         AND ${table.refusalCount} BETWEEN 0 AND 100`,
+    ),
+  ],
+);
+
+export const demoProvisioningAttempt = snakeCase.table(
+  "demo_provisioning_attempt",
+  {
+    id: primaryKey(),
+    entryKeyHash: text().notNull(),
+    state: text().default("provisioning").notNull(),
+    admissionKey: text(),
+    admissionReserved: boolean().default(false).notNull(),
+    globalReserved: boolean().default(false).notNull(),
+    userId: uuid().references(() => user.id, { onDelete: "set null" }),
+    organizationId: uuid().references(() => organization.id, { onDelete: "set null" }),
+    environmentId: uuid().references(() => demoEnvironment.id, { onDelete: "cascade" }),
+    recoveryExpiresAt: timestampWithTimezone().notNull(),
+    createdAt: timestampWithTimezone().defaultNow().notNull(),
+    updatedAt: timestampWithTimezone().defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("demo_provisioning_attempt_entry_key_hash_uidx").on(table.entryKeyHash),
+    uniqueIndex("demo_provisioning_attempt_environment_id_uidx").on(table.environmentId),
+    index("demo_provisioning_attempt_state_created_at_idx").on(table.state, table.createdAt),
+    check(
+      "demo_provisioning_attempt_state_check",
+      sql`${table.state} IN ('provisioning', 'ready')`,
+    ),
+    check(
+      "demo_provisioning_attempt_recovery_expiry_check",
+      sql`${table.recoveryExpiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      "demo_provisioning_attempt_admission_state_check",
+      sql`${table.admissionReserved} = (${table.admissionKey} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const demoSampleResource = snakeCase.table(
+  "demo_sample_resource",
+  {
+    id: primaryKey(),
+    environmentId: uuid()
+      .notNull()
+      .references(() => demoEnvironment.id, { onDelete: "cascade" }),
+    kind: text().notNull(),
+    documentId: uuid().references(() => document.id, { onDelete: "cascade" }),
+    vaultId: uuid().references(() => vault.id, { onDelete: "cascade" }),
+    linkId: uuid().references(() => link.id, { onDelete: "cascade" }),
+    createdAt: timestampWithTimezone().defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("demo_sample_resource_document_id_uidx").on(table.documentId),
+    uniqueIndex("demo_sample_resource_vault_id_uidx").on(table.vaultId),
+    uniqueIndex("demo_sample_resource_link_id_uidx").on(table.linkId),
+    index("demo_sample_resource_environment_id_idx").on(table.environmentId),
+    check(
+      "demo_sample_resource_typed_target_check",
+      sql`(
+        (${table.kind} = 'document' AND ${table.documentId} IS NOT NULL AND ${table.vaultId} IS NULL AND ${table.linkId} IS NULL)
+        OR
+        (${table.kind} = 'vault' AND ${table.documentId} IS NULL AND ${table.vaultId} IS NOT NULL AND ${table.linkId} IS NULL)
+        OR
+        (${table.kind} = 'link' AND ${table.documentId} IS NULL AND ${table.vaultId} IS NULL AND ${table.linkId} IS NOT NULL)
+      )`,
     ),
   ],
 );
