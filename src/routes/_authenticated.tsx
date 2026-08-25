@@ -34,6 +34,7 @@ function DashboardChrome() {
           organization={organization}
           organizations={organizations}
           atOwnedOrganizationLimit={atOwnedOrganizationLimit}
+          demo={Boolean(demo)}
           user={{
             name: session.user.name,
             email: session.user.isAnonymous ? undefined : session.user.email,
@@ -44,7 +45,15 @@ function DashboardChrome() {
             instead of pushing the whole window sideways. */}
         <SidebarInset className="min-w-0">
           <DashboardToolbar />
-          {demo && <DemoEnvironmentNotice expiresAt={demo.expiresAt} />}
+          {demo && (
+            <DemoEnvironmentNotice
+              expiresAt={demo.expiresAt}
+              confirmedBytes={demo.confirmedBytes}
+              storageLimit={demo.storageLimit}
+              usage={demo.usage}
+              limits={demo.limits}
+            />
+          )}
           <Outlet />
         </SidebarInset>
       </SidebarProvider>

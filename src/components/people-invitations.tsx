@@ -71,9 +71,11 @@ async function refreshPeople(router: ReturnType<typeof useRouter>) {
 export function InvitePersonDialog({
   organizationId,
   callerRole,
+  demo = false,
 }: Readonly<{
   organizationId: string;
   callerRole: OrganizationRole;
+  demo?: boolean;
 }>) {
   const router = useRouter();
   const roleChoices = invitationRoleChoices(callerRole);
@@ -83,6 +85,15 @@ export function InvitePersonDialog({
   const [role, setRole] = useState<OrganizationRole>("member");
   const [failure, setFailure] = useState<string>();
   const [pending, setPending] = useState(false);
+
+  if (demo) {
+    return (
+      <Button disabled>
+        <UserPlusIcon data-icon="inline-start" />
+        Disabled in demo
+      </Button>
+    );
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -192,13 +203,24 @@ export function InvitePersonDialog({
 
 export function CancelInvitationDialog({
   invitation,
+  demo = false,
 }: Readonly<{
   invitation: Readonly<{ id: string; email: string }>;
+  demo?: boolean;
 }>) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [failure, setFailure] = useState<string>();
   const [pending, setPending] = useState(false);
+
+  if (demo) {
+    return (
+      <Button variant="ghost" size="sm" disabled>
+        <XIcon data-icon="inline-start" />
+        Disabled in demo
+      </Button>
+    );
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);

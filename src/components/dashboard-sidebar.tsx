@@ -41,6 +41,7 @@ type DashboardSidebarProps = Readonly<{
   organization: OrganizationSummary;
   organizations: readonly OrganizationSummary[];
   atOwnedOrganizationLimit: boolean;
+  demo: boolean;
   user: UserSummary;
 }>;
 
@@ -78,6 +79,7 @@ export function DashboardSidebar({
   organization,
   organizations,
   atOwnedOrganizationLimit,
+  demo,
   user,
 }: DashboardSidebarProps) {
   return (
@@ -87,6 +89,7 @@ export function DashboardSidebar({
           activeOrganization={organization}
           organizations={organizations}
           atOwnedOrganizationLimit={atOwnedOrganizationLimit}
+          demo={demo}
         />
       </SidebarHeader>
       <SidebarContent>

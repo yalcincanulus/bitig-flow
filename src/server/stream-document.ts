@@ -1,4 +1,5 @@
 import { streamStoredObject } from "#/server/storage";
+import { reserveDemoBudget } from "#/server/repositories/demo-environments";
 
 export type StreamableDocument = Readonly<{
   id: string;
@@ -59,4 +60,22 @@ export async function streamDocument(options: {
     status: stored.contentRange ? 206 : 200,
     headers,
   });
+}
+
+export async function meterDemoDocumentResponse(
+  response: Response,
+  demoEnvironmentId: string | undefined,
+) {
+  if (!demoEnvironmentId || (response.status !== 200 && response.status !== 206)) return response;
+  const contentLength = Number(response.headers.get("content-length"));
+  if (!Number.isSafeInteger(contentLength) || contentLength < 1) {
+    await response.body?.cancel();
+    return byteErrorResponse(500);
+  }
+
+  const reservation = await reserveDemoBudget(demoEnvironmentId, "deliveredBytes", contentLength);
+  if (reservation.accepted) return response;
+
+  await response.body?.cancel();
+  return byteErrorResponse(429);
 }

@@ -41,14 +41,23 @@ export const authedMiddleware = createMiddleware().server(async ({ next, request
   const authSession = await auth.api.getSession({ headers: request.headers });
   if (!authSession) return signInRedirect();
 
+  let demoEnvironment;
   if (authSession.user.isAnonymous) {
     const availability = await demoSessionAvailability(authSession.user.id);
     if (!availability.available) {
       return availability.reason === "missing" ? signInRedirect() : demoEntryRedirect();
     }
+    demoEnvironment = availability.environment;
   }
 
-  return next({ context: { authSession, userId: authSession.user.id } });
+  return next({
+    context: {
+      authSession,
+      userId: authSession.user.id,
+      demoEnvironment,
+      demoEnvironmentId: demoEnvironment?.id,
+    },
+  });
 });
 
 // Public Demo entry still names an explicit server-owned tier. Admission, readiness, and identity
@@ -59,6 +68,19 @@ export const demoEntryMiddleware = createMiddleware().server(({ next, request })
   if (origin !== new URL(requiredEnv("BETTER_AUTH_URL")).origin) {
     return Response.json(
       { error: "Demo entry requires the application origin" },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  return next();
+});
+
+// Public safety reports are intentionally anonymous, but still name a distinct server-owned tier
+// and accept only requests made through this deployment's Viewer origin.
+export const demoReportMiddleware = createMiddleware().server(({ next, request }) => {
+  const origin = request.headers.get("origin");
+  if (origin !== new URL(requiredEnv("BETTER_AUTH_URL")).origin) {
+    return Response.json(
+      { error: "Demo reports require the application origin" },
       { status: 403, headers: { "Cache-Control": "no-store" } },
     );
   }

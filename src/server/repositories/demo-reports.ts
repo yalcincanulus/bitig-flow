@@ -1,4 +1,4 @@
-import { and, count, eq, gte, sql } from "drizzle-orm";
+import { and, count, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -7,7 +7,24 @@ import {
   transitionDemoState,
 } from "#/lib/demo-operations";
 import { db } from "#/server/db/client";
-import { demoEnvironment, demoReport } from "#/server/db/schema";
+import { demoEnvironment, demoReport, link } from "#/server/db/schema";
+
+export async function findDemoReportTarget(slug: string, now = new Date()) {
+  const [target] = await db
+    .select({ environmentId: demoEnvironment.id, linkId: link.id })
+    .from(link)
+    .innerJoin(demoEnvironment, eq(demoEnvironment.organizationId, link.organizationId))
+    .where(
+      and(
+        eq(link.slug, slug),
+        eq(link.isActive, true),
+        or(isNull(link.expiresAt), gt(link.expiresAt, now)),
+        gt(demoEnvironment.expiresAt, now),
+      ),
+    )
+    .limit(1);
+  return target;
+}
 
 const reportRequestSchema = demoReportInputSchema.extend({
   environmentId: z.string().uuid(),
@@ -33,7 +50,11 @@ export async function recordDemoReport(input: z.input<typeof reportRequestSchema
       .from(demoEnvironment)
       .where(eq(demoEnvironment.id, request.environmentId))
       .limit(1);
-    if (!environment || !["active", "global_paused", "report_paused"].includes(environment.state)) {
+    if (
+      !environment ||
+      environment.expiresAt <= now ||
+      !["active", "global_paused", "report_paused"].includes(environment.state)
+    ) {
       return { accepted: false as const, reason: "unavailable" as const };
     }
 

@@ -15,7 +15,10 @@ import {
 export const getAnalytics = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])
   .validator(analyticsRangeSchema)
-  .handler(({ context, data }) => readAnalyticsOverview(context.orgId, data));
+  .handler(async ({ context, data }) => ({
+    ...(await readAnalyticsOverview(context.orgId, data)),
+    ...(context.demoEnvironment?.analyticsIncomplete ? { analyticsIncomplete: true as const } : {}),
+  }));
 
 export const getAnalyticsLink = createServerFn({ method: "GET" })
   .middleware([orgMiddleware])
@@ -23,7 +26,12 @@ export const getAnalyticsLink = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const found = await readAnalyticsLink(context.orgId, data.linkId, data);
     if (!found) throw notFound();
-    return found;
+    return {
+      ...found,
+      ...(context.demoEnvironment?.analyticsIncomplete
+        ? { analyticsIncomplete: true as const }
+        : {}),
+    };
   });
 
 export const getAnalyticsDocument = createServerFn({ method: "GET" })
@@ -32,7 +40,12 @@ export const getAnalyticsDocument = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const found = await readAnalyticsDocument(context.orgId, data.documentId, data);
     if (!found) throw notFound();
-    return found;
+    return {
+      ...found,
+      ...(context.demoEnvironment?.analyticsIncomplete
+        ? { analyticsIncomplete: true as const }
+        : {}),
+    };
   });
 
 export const countLinkVisits = createServerFn({ method: "GET" })

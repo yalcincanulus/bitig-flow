@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
 import { ViewerPage } from "#/components/viewer-page";
-import { gateCredential } from "#/server/viewer/gate-credential";
+import { finishDemoViewerGet, gateCredential } from "#/server/viewer/gate-credential";
 import { loadVisitorPage } from "#/server/viewer/load-visitor-page";
 import { submitVisitorGate } from "#/server/viewer/submit-gate";
 import { finishVisitorGatePost } from "#/server/viewer/visitor-gate-post";
@@ -15,6 +15,8 @@ export const Route = createFileRoute("/v/$slug/$documentId")({
   server: {
     middleware: [gateCredential],
     handlers: {
+      GET: async ({ params, next }) =>
+        finishDemoViewerGet(params.slug, await Promise.resolve(next())),
       POST: async ({ params, next }) =>
         finishVisitorGatePost(await submitVisitorGate(params.slug), await Promise.resolve(next())),
     },

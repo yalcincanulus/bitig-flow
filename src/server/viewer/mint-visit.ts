@@ -22,8 +22,12 @@ import {
   visitorIdTtlSeconds,
 } from "#/server/viewer/visit-cookies";
 import { type VisitorLink, type VisitorRateLimitedPage } from "#/server/viewer/visitor-gate";
+import { consumeDemoAnalyticsBudget } from "#/server/demo-policy";
+import { rollbackDemoBudgets } from "#/server/repositories/demo-environments";
 
-export type MintedVisit = VisitorRateLimitedPage | Readonly<{ status: "minted"; visitId: VisitId }>;
+export type MintedVisit =
+  | VisitorRateLimitedPage
+  | Readonly<{ status: "minted"; visitId: VisitId | null }>;
 
 export function visitorRequestIp() {
   const request = getRequest();
@@ -40,6 +44,7 @@ export async function liveVisitForLink(link: Pick<VisitorLink, "id" | "gateVersi
   const redis = await getRedis();
   const live = await readLiveVisitRecord(redis, opaqueId);
   if (!live || live.linkId !== link.id || live.gateVersion !== link.gateVersion) return null;
+  if (live.visitId === null) return live;
 
   const [row] = await db
     .select({ expiresAt: visitTable.expiresAt })
@@ -63,6 +68,8 @@ export async function mintVisitorVisit(
     if (!limit.allowed) {
       return {
         status: "rate_limited",
+        slug: link.slug,
+        ...(link.demo ? { demo: link.demo } : {}),
         senderName: link.senderName,
         organizationName: link.organizationName,
         retryAfterSeconds: limit.retryAfterSeconds,
@@ -74,29 +81,40 @@ export async function mintVisitorVisit(
   const visitOpaqueId = randomBytes(32).toString("base64url");
   const now = new Date();
   const expiresAt = new Date(now.getTime() + visitTtlSeconds * 1000);
-
-  const [created] = await db
-    .insert(visitTable)
-    .values({
-      linkId: link.id,
-      visitorId,
-      email: options.email ?? null,
-      emailVerified: options.emailVerified === true,
-      gateVersion: link.gateVersion,
-      startedAt: now,
-      lastSeenAt: now,
-      expiresAt,
-      userAgent: request.headers.get("user-agent"),
-      ipHash: hashAnalyticsValue(requiredEnv("ANALYTICS_SALT"), ip),
-    })
-    .returning({ id: visitTable.id });
-
-  if (!created) throw new Error("Visit insert returned no row");
+  const demoEnvironmentId = link.demo?.environmentId;
+  const recordsAnalytics = await consumeDemoAnalyticsBudget(demoEnvironmentId, "visit");
+  let visitId: VisitId | null = null;
+  if (recordsAnalytics) {
+    try {
+      const [created] = await db
+        .insert(visitTable)
+        .values({
+          linkId: link.id,
+          visitorId,
+          email: options.email ?? null,
+          emailVerified: options.emailVerified === true,
+          gateVersion: link.gateVersion,
+          startedAt: now,
+          lastSeenAt: now,
+          expiresAt,
+          userAgent: request.headers.get("user-agent"),
+          ipHash: hashAnalyticsValue(requiredEnv("ANALYTICS_SALT"), ip),
+        })
+        .returning({ id: visitTable.id });
+      if (!created) throw new Error("Visit insert returned no row");
+      visitId = visitIdSchema.parse(created.id);
+    } catch (error) {
+      if (demoEnvironmentId) {
+        await rollbackDemoBudgets(demoEnvironmentId, [{ kind: "visit", amount: 1 }]);
+      }
+      throw error;
+    }
+  }
 
   await writeLiveVisitRecord(
     redis,
     visitOpaqueId,
-    { visitId: created.id, linkId: link.id, gateVersion: link.gateVersion },
+    { visitId, linkId: link.id, gateVersion: link.gateVersion },
     visitTtlSeconds,
   );
 
@@ -113,5 +131,5 @@ export async function mintVisitorVisit(
     );
   }
 
-  return { status: "minted", visitId: visitIdSchema.parse(created.id) };
+  return { status: "minted", visitId };
 }

@@ -32,7 +32,7 @@ type LinkCollection = ReturnType<typeof getCollections>["links"];
 
 function LinkPage() {
   const loaded = Route.useLoaderData();
-  const { organization, queryClient, session } = Route.useRouteContext();
+  const { organization, queryClient, session, demo } = Route.useRouteContext();
   const { links, documents, vaults } = getCollections(queryClient, organization.id);
   const link = links.get(loaded.id) ?? loaded;
   const { data: documentRows } = useLiveQuery({
@@ -77,6 +77,7 @@ function LinkPage() {
             link={link}
             links={links}
             watchPersistence={watchPersistence}
+            demo={Boolean(demo)}
           />
         </PageActions>
       </PageHeader>

@@ -14,9 +14,10 @@ export const Route = createFileRoute("/v")({
   },
   headers: () => ({
     "Content-Security-Policy": viewerContentSecurityPolicy(),
+    "X-Robots-Tag": "noindex, nofollow, noarchive",
   }),
   head: () => ({
-    meta: [{ name: "robots", content: "noindex, nofollow" }],
+    meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }],
   }),
   notFoundComponent: ViewerTerminal,
   component: ViewerLayout,

@@ -1,7 +1,7 @@
 import { redisCall } from "#/server/redis";
 
 export type LiveVisitRecord = Readonly<{
-  visitId: string;
+  visitId: string | null;
   linkId: string;
   gateVersion: number;
 }>;
@@ -29,7 +29,7 @@ export async function readLiveVisitRecord(
       gate_version?: unknown;
     };
     if (
-      typeof parsed.visit_id !== "string" ||
+      (typeof parsed.visit_id !== "string" && parsed.visit_id !== null) ||
       typeof parsed.link_id !== "string" ||
       typeof parsed.gate_version !== "number"
     ) {

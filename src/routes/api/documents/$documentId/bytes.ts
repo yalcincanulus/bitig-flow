@@ -4,7 +4,11 @@ import type {} from "@tanstack/react-start";
 import { orgMiddleware } from "#/server/auth-middleware";
 import { documentIdSchema } from "#/server/ids";
 import { findDocument } from "#/server/repositories/documents";
-import { byteErrorResponse, streamDocument } from "#/server/stream-document";
+import {
+  byteErrorResponse,
+  meterDemoDocumentResponse,
+  streamDocument,
+} from "#/server/stream-document";
 
 export const Route = createFileRoute("/api/documents/$documentId/bytes")({
   server: {
@@ -20,11 +24,14 @@ export const Route = createFileRoute("/api/documents/$documentId/bytes")({
         const disposition =
           new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
 
-        return streamDocument({
-          document: found,
-          range: request.headers.get("range"),
-          disposition,
-        });
+        return meterDemoDocumentResponse(
+          await streamDocument({
+            document: found,
+            range: request.headers.get("range"),
+            disposition,
+          }),
+          context.demoEnvironmentId,
+        );
       },
     },
   },

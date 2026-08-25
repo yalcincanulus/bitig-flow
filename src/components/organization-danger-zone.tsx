@@ -36,6 +36,7 @@ const deletionWarning =
 type OrganizationDangerZoneProps = Readonly<{
   organization: Readonly<{ id: string; name: string }>;
   role: OrganizationRole;
+  demo?: boolean;
 }>;
 
 type DeleteFailure = Readonly<{
@@ -61,7 +62,11 @@ function interpretDeleteFailure(code: string | undefined): DeleteFailure {
   }
 }
 
-export function OrganizationDangerZone({ organization, role }: OrganizationDangerZoneProps) {
+export function OrganizationDangerZone({
+  organization,
+  role,
+  demo = false,
+}: OrganizationDangerZoneProps) {
   const router = useRouter();
   const [confirmation, setConfirmation] = useState("");
   const [failure, setFailure] = useState<string>();
@@ -128,60 +133,67 @@ export function OrganizationDangerZone({ organization, role }: OrganizationDange
         <SettingsSectionContent>
           <p className="max-w-prose text-sm text-muted-foreground">{deletionWarning}</p>
 
-          <AlertDialog open={open} onOpenChange={handleOpenChange}>
-            <AlertDialogTrigger render={<Button variant="destructive" />}>
+          {demo ? (
+            <Button variant="destructive" disabled>
               <Trash2Icon data-icon="inline-start" />
-              Delete Organization
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete {organization.name}?</AlertDialogTitle>
-                <AlertDialogDescription>{deletionWarning}</AlertDialogDescription>
-              </AlertDialogHeader>
+              Disabled in demo
+            </Button>
+          ) : (
+            <AlertDialog open={open} onOpenChange={handleOpenChange}>
+              <AlertDialogTrigger render={<Button variant="destructive" />}>
+                <Trash2Icon data-icon="inline-start" />
+                Delete Organization
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {organization.name}?</AlertDialogTitle>
+                  <AlertDialogDescription>{deletionWarning}</AlertDialogDescription>
+                </AlertDialogHeader>
 
-              <FieldGroup>
-                <Field data-disabled={pending}>
-                  <FieldLabel htmlFor="delete-organization-name">Organization name</FieldLabel>
-                  <Input
-                    id="delete-organization-name"
-                    name="organizationName"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={confirmation}
-                    onChange={(event) => {
-                      setConfirmation(event.target.value);
-                      setFailure(undefined);
+                <FieldGroup>
+                  <Field data-disabled={pending}>
+                    <FieldLabel htmlFor="delete-organization-name">Organization name</FieldLabel>
+                    <Input
+                      id="delete-organization-name"
+                      name="organizationName"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={confirmation}
+                      onChange={(event) => {
+                        setConfirmation(event.target.value);
+                        setFailure(undefined);
+                      }}
+                      disabled={pending}
+                    />
+                    <FieldDescription>
+                      Enter <strong>{organization.name}</strong> exactly to confirm.
+                    </FieldDescription>
+                  </Field>
+                </FieldGroup>
+
+                {failure ? (
+                  <Alert variant="destructive" aria-live="polite">
+                    <AlertDescription>{failure}</AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={pending}>Keep Organization</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    disabled={!confirmed || pending}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void handleDelete();
                     }}
-                    disabled={pending}
-                  />
-                  <FieldDescription>
-                    Enter <strong>{organization.name}</strong> exactly to confirm.
-                  </FieldDescription>
-                </Field>
-              </FieldGroup>
-
-              {failure ? (
-                <Alert variant="destructive" aria-live="polite">
-                  <AlertDescription>{failure}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={pending}>Keep Organization</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  disabled={!confirmed || pending}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    void handleDelete();
-                  }}
-                >
-                  {pending ? <Spinner data-icon="inline-start" /> : null}
-                  Delete Organization
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  >
+                    {pending ? <Spinner data-icon="inline-start" /> : null}
+                    Delete Organization
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </SettingsSectionContent>
       </SettingsSection>
     </Fragment>

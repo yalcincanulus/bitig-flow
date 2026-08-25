@@ -67,10 +67,12 @@ function MembershipTable({
   memberships,
   callerRole,
   organizationId,
+  demo,
 }: Readonly<{
   memberships: readonly Membership[];
   callerRole: OrganizationRole;
   organizationId: string;
+  demo: boolean;
 }>) {
   const showsActions = hasPermission(callerRole, { member: ["update"] });
 
@@ -115,6 +117,7 @@ function MembershipTable({
                   memberships={memberships}
                   callerRole={callerRole}
                   organizationId={organizationId}
+                  demo={demo}
                 />
               </TableCell>
             ) : null}
@@ -133,7 +136,8 @@ function MembershipTable({
  */
 function OutstandingInvitations({
   invitations,
-}: Readonly<{ invitations: readonly OutstandingInvitation[] }>) {
+  demo,
+}: Readonly<{ invitations: readonly OutstandingInvitation[]; demo: boolean }>) {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="outstanding-invitations">
       <h2 id="outstanding-invitations" className="text-sm font-medium">
@@ -174,7 +178,7 @@ function OutstandingInvitations({
                   {new Date(invitation.expiresAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell className="pr-3 text-right">
-                  <CancelInvitationDialog invitation={invitation} />
+                  <CancelInvitationDialog invitation={invitation} demo={demo} />
                 </TableCell>
               </TableRow>
             ))}
@@ -187,7 +191,7 @@ function OutstandingInvitations({
 
 function PeoplePage() {
   const { memberships, invitations } = Route.useLoaderData();
-  const { organization, role } = Route.useRouteContext();
+  const { organization, role, demo } = Route.useRouteContext();
 
   return (
     <Page>
@@ -198,7 +202,11 @@ function PeoplePage() {
         </PageDescription>
         {invitations === undefined ? null : (
           <PageActions>
-            <InvitePersonDialog organizationId={organization.id} callerRole={role} />
+            <InvitePersonDialog
+              organizationId={organization.id}
+              callerRole={role}
+              demo={Boolean(demo)}
+            />
           </PageActions>
         )}
       </PageHeader>
@@ -207,9 +215,12 @@ function PeoplePage() {
         memberships={memberships}
         callerRole={role}
         organizationId={organization.id}
+        demo={Boolean(demo)}
       />
 
-      {invitations === undefined ? null : <OutstandingInvitations invitations={invitations} />}
+      {invitations === undefined ? null : (
+        <OutstandingInvitations invitations={invitations} demo={Boolean(demo)} />
+      )}
     </Page>
   );
 }

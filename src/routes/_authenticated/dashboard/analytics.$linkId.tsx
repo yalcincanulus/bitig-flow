@@ -5,6 +5,7 @@ import { SettingsIcon } from "lucide-react";
 import { AnalyticsDwellChart } from "#/components/analytics-dwell-chart";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { AnalyticsVisitTimeline } from "#/components/analytics-visit-timeline";
+import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
 import { DocumentKindIcon } from "#/components/document-kind";
 import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
@@ -113,6 +114,7 @@ function AnalyticsLinkPage() {
       </PageHeader>
 
       <AnalyticsRangeControls {...analytics.range} linkId={link.id} />
+      <DemoAnalyticsNotice incomplete={analytics.analyticsIncomplete} />
 
       {analytics.truncated ? (
         <Alert>

@@ -4,6 +4,7 @@ import { DownloadIcon, LinkIcon, PencilIcon } from "lucide-react";
 import { useState } from "react";
 
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
+import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
 import { DocumentKindBadge } from "#/components/document-kind";
 import { AnalyticsTrustMark, GateBadges } from "#/components/link-badges";
 import { LinkWriteDialog } from "#/components/link-write-dialog";
@@ -58,7 +59,7 @@ export const Route = createFileRoute("/_authenticated/dashboard/documents/$docum
 
 function DocumentPage() {
   const { document, html, analytics } = Route.useLoaderData();
-  const { organization, queryClient, session } = Route.useRouteContext();
+  const { organization, queryClient, session, demo } = Route.useRouteContext();
   const { links, documents, vaults } = getCollections(queryClient, organization.id);
   const { data: documentRows } = useLiveQuery({
     query: (query) => query.from({ document: documents }).select(({ document }) => document),
@@ -120,6 +121,7 @@ function DocumentPage() {
               }}
               lockedTarget={{ documentId: document.id }}
               triggerLabel="Create Link"
+              demo={Boolean(demo)}
             />
           ) : null}
         </PageActions>
@@ -163,6 +165,7 @@ function DocumentPage() {
         </header>
 
         <AnalyticsRangeControls {...analytics.range} documentId={document.id} />
+        <DemoAnalyticsNotice incomplete={analytics.analyticsIncomplete} />
 
         {analytics.links.length === 0 ? (
           <Empty>

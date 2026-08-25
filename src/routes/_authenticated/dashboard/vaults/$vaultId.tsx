@@ -69,7 +69,7 @@ type VaultDocumentRow = DocumentRow & { isVisible: boolean };
 
 function VaultPage() {
   const vault = Route.useLoaderData();
-  const { organization, queryClient, session } = Route.useRouteContext();
+  const { organization, queryClient, session, demo } = Route.useRouteContext();
   const { documents, vaultItems, links, vaults } = getCollections(queryClient, organization.id);
   const { data: documentsInVault } = useLiveQuery({
     query: (query) =>
@@ -144,6 +144,7 @@ function VaultPage() {
             }}
             lockedTarget={{ vaultId: vault.id }}
             triggerLabel="Create Link"
+            demo={Boolean(demo)}
           />
         </PageActions>
       </PageHeader>

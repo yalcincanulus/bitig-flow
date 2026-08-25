@@ -1,7 +1,7 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
-import { vault } from "#/server/db/schema";
+import { link, vault } from "#/server/db/schema";
 import type { OrganizationId, VaultId } from "#/server/ids";
 
 type NewVault = Readonly<{
@@ -50,10 +50,15 @@ export async function updateVault(orgId: OrganizationId, vaultId: VaultId, chang
 }
 
 export async function deleteVault(orgId: OrganizationId, vaultId: VaultId) {
-  const [deleted] = await db
-    .delete(vault)
-    .where(and(eq(vault.organizationId, orgId), eq(vault.id, vaultId)))
-    .returning();
-
-  return deleted;
+  return db.transaction(async (tx) => {
+    const [linked] = await tx
+      .select({ count: count() })
+      .from(link)
+      .where(and(eq(link.organizationId, orgId), eq(link.vaultId, vaultId)));
+    const [deleted] = await tx
+      .delete(vault)
+      .where(and(eq(vault.organizationId, orgId), eq(vault.id, vaultId)))
+      .returning();
+    return deleted ? { vault: deleted, cascadedLinkCount: linked?.count ?? 0 } : undefined;
+  });
 }

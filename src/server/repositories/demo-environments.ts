@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lt, lte, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 
 import {
   applyDemoReservation,
@@ -7,6 +7,7 @@ import {
   demoReservationLimits,
   transitionDemoState,
   type DemoReservationKind,
+  type DemoUsage,
   type DemoUsageCounter,
 } from "#/lib/demo-operations";
 import { storedDeploymentPolicySchema } from "#/lib/deployment-policy";
@@ -91,65 +92,51 @@ function environmentUsage(row: typeof demoEnvironment.$inferSelect) {
   };
 }
 
-function incrementChanges(kind: DemoReservationKind, amount: number) {
-  const changes: Record<string, SQL> = {};
-  for (const counter of demoReservationIncrements[kind]) {
-    changes[usageProperties[counter]] = sql`${usageColumns[counter]} + ${amount}`;
-  }
-  return changes;
-}
+export type DemoBudgetReservation = Readonly<{
+  kind: DemoReservationKind;
+  amount: number;
+}>;
 
-type StoredPolicy = ReturnType<typeof storedDeploymentPolicySchema.parse>;
+const globalUsageProperties = {
+  confirmedBytes: "confirmedBytes",
+  pendingUploadCount: "pendingUploadCount",
+  confirmationCount: "confirmationCount",
+} as const;
 
-function reservationConditions(kind: DemoReservationKind, amount: number, policy: StoredPolicy) {
-  const increments = demoReservationIncrements[kind] as ReadonlyArray<DemoUsageCounter>;
-  return demoReservationLimits(kind).map((check) => {
-    const maximum = policy[check.limit];
-    if (typeof maximum !== "number") throw new Error("Reservation limit must be numeric");
-    if (check.requestOnly) return lte(sql<number>`${amount}`, maximum);
-
-    const current = check.usage.reduce<SQL<number>>(
-      (total, counter) => sql<number>`${total} + ${usageColumns[counter]}`,
-      sql<number>`0`,
-    );
-    const increment = increments.filter((counter) => check.usage.includes(counter)).length * amount;
-    return lte(sql<number>`${current} + ${increment}`, maximum);
-  });
-}
-
-export async function reserveDemoBudget(
+export async function reserveDemoBudgets(
   environmentId: string,
-  kind: DemoReservationKind,
-  amount: number,
+  reservations: ReadonlyArray<DemoBudgetReservation>,
 ) {
-  if (!Number.isSafeInteger(amount) || amount < 1) {
-    throw new Error("Reservation amount must be a positive safe integer");
+  if (
+    reservations.length === 0 ||
+    reservations.some(({ amount }) => !Number.isSafeInteger(amount) || amount < 1)
+  ) {
+    throw new Error("Reservations must contain positive safe integers");
   }
 
   return db.transaction(async (transaction) => {
     await transaction.execute(
       sql`SELECT id FROM ${deploymentPolicy} WHERE id = 'deployment' FOR SHARE`,
     );
-    const [policyRow] = await transaction
-      .select()
-      .from(deploymentPolicy)
-      .where(eq(deploymentPolicy.id, "deployment"))
-      .limit(1);
-    const [environment] = await transaction
-      .select()
-      .from(demoEnvironment)
-      .where(eq(demoEnvironment.id, environmentId))
-      .limit(1);
+    await transaction.execute(
+      sql`SELECT id FROM ${demoEnvironment} WHERE id = ${environmentId} FOR UPDATE`,
+    );
+    const [[policyRow], [environment]] = await Promise.all([
+      transaction
+        .select()
+        .from(deploymentPolicy)
+        .where(eq(deploymentPolicy.id, "deployment"))
+        .limit(1),
+      transaction
+        .select()
+        .from(demoEnvironment)
+        .where(eq(demoEnvironment.id, environmentId))
+        .limit(1),
+    ]);
     if (!policyRow || !environment || environment.state !== "active") {
       return { accepted: false as const, limit: "environmentUnavailable" as const };
     }
 
-    const policy = storedDeploymentPolicySchema.parse(policyRow);
-    const preliminary = applyDemoReservation(
-      environmentUsage(environment),
-      { kind, amount },
-      policy,
-    );
     const recordRefusal = async () => {
       const now = new Date();
       await transaction
@@ -161,74 +148,178 @@ export async function reserveDemoBudget(
         })
         .where(eq(demoEnvironment.id, environmentId));
     };
-    if (!preliminary.accepted) {
-      await recordRefusal();
-      return { accepted: false as const, limit: preliminary.limit };
-    }
-
-    let globalFields: (typeof globalReservation)[GlobalReservationKind] | undefined;
-    if (isGlobalReservation(kind)) {
-      globalFields = globalReservation[kind];
-      const globalColumn = demoGlobalUsage[globalFields.usage];
-      const [reserved] = await transaction
-        .update(demoGlobalUsage)
-        .set({
-          [globalFields.usage]: sql`${globalColumn} + ${amount}`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(demoGlobalUsage.id, "demo-global"),
-            lte(sql<number>`${globalColumn} + ${amount}`, policy[globalFields.limit]),
-          ),
-        )
-        .returning({ id: demoGlobalUsage.id });
-      if (!reserved) {
+    const policy = storedDeploymentPolicySchema.parse(policyRow);
+    let nextUsage: DemoUsage = environmentUsage(environment);
+    for (const reservation of reservations) {
+      const result = applyDemoReservation(nextUsage, reservation, policy);
+      if (!result.accepted) {
         await recordRefusal();
-        return { accepted: false as const, limit: globalFields.limit };
+        const check = demoReservationLimits(reservation.kind).find(
+          (candidate) => candidate.limit === result.limit,
+        );
+        const usage = check?.usage.reduce((total, counter) => total + (nextUsage[counter] ?? 0), 0);
+        return {
+          accepted: false as const,
+          limit: result.limit,
+          ...(usage === undefined ? {} : { usage }),
+          limitValue: policy[result.limit],
+        };
       }
+      nextUsage = result.usage;
     }
 
-    const [reservedEnvironment] = await transaction
-      .update(demoEnvironment)
-      .set(incrementChanges(kind, amount))
-      .where(
-        and(
-          eq(demoEnvironment.id, environmentId),
-          eq(demoEnvironment.state, "active"),
-          ...reservationConditions(kind, amount, policy),
-        ),
-      )
-      .returning({ id: demoEnvironment.id });
-
-    if (!reservedEnvironment) {
-      if (globalFields) {
-        const globalColumn = demoGlobalUsage[globalFields.usage];
-        await transaction
-          .update(demoGlobalUsage)
-          .set({
-            [globalFields.usage]: sql`${globalColumn} - ${amount}`,
-            updatedAt: new Date(),
-          })
-          .where(and(eq(demoGlobalUsage.id, "demo-global"), gte(globalColumn, amount)));
-      }
-      const [current] = await transaction
+    const globalDeltas = {
+      confirmedBytes: 0,
+      pendingUploadCount: 0,
+      confirmationCount: 0,
+    };
+    for (const reservation of reservations) {
+      if (!isGlobalReservation(reservation.kind)) continue;
+      globalDeltas[globalReservation[reservation.kind].usage] += reservation.amount;
+    }
+    if (Object.values(globalDeltas).some((amount) => amount > 0)) {
+      await transaction.execute(
+        sql`SELECT id FROM ${demoGlobalUsage} WHERE id = 'demo-global' FOR UPDATE`,
+      );
+      const [globalUsage] = await transaction
         .select()
-        .from(demoEnvironment)
-        .where(eq(demoEnvironment.id, environmentId))
+        .from(demoGlobalUsage)
+        .where(eq(demoGlobalUsage.id, "demo-global"))
         .limit(1);
-      await recordRefusal();
-      if (!current || current.state !== "active") {
-        return { accepted: false as const, limit: "environmentUnavailable" as const };
+      if (!globalUsage) {
+        await recordRefusal();
+        return { accepted: false as const, limit: "globalUnavailable" as const };
       }
-      const refusal = applyDemoReservation(environmentUsage(current), { kind, amount }, policy);
-      return {
-        accepted: false as const,
-        limit: refusal.accepted ? "reservationConflict" : refusal.limit,
-      };
+      for (const reservation of reservations) {
+        if (!isGlobalReservation(reservation.kind)) continue;
+        const fields = globalReservation[reservation.kind];
+        if (globalUsage[fields.usage] + globalDeltas[fields.usage] > policy[fields.limit]) {
+          await recordRefusal();
+          return {
+            accepted: false as const,
+            limit: fields.limit,
+            usage: globalUsage[fields.usage],
+            limitValue: policy[fields.limit],
+          };
+        }
+      }
+      const globalChanges: Record<string, SQL | Date> = { updatedAt: new Date() };
+      for (const [usage, amount] of Object.entries(globalDeltas)) {
+        if (amount <= 0) continue;
+        const column = demoGlobalUsage[usage as keyof typeof globalUsageProperties];
+        globalChanges[globalUsageProperties[usage as keyof typeof globalUsageProperties]] =
+          sql`${column} + ${amount}`;
+      }
+      await transaction
+        .update(demoGlobalUsage)
+        .set(globalChanges)
+        .where(eq(demoGlobalUsage.id, "demo-global"));
     }
+
+    const environmentDeltas = new Map<DemoUsageCounter, number>();
+    for (const reservation of reservations) {
+      for (const counter of demoReservationIncrements[reservation.kind]) {
+        environmentDeltas.set(counter, (environmentDeltas.get(counter) ?? 0) + reservation.amount);
+      }
+    }
+    const environmentChanges: Record<string, SQL> = {};
+    for (const [counter, amount] of environmentDeltas) {
+      environmentChanges[usageProperties[counter]] = sql`${usageColumns[counter]} + ${amount}`;
+    }
+    await transaction
+      .update(demoEnvironment)
+      .set(environmentChanges)
+      .where(and(eq(demoEnvironment.id, environmentId), eq(demoEnvironment.state, "active")));
 
     return { accepted: true as const };
+  });
+}
+
+export async function reserveDemoBudget(
+  environmentId: string,
+  kind: DemoReservationKind,
+  amount: number,
+) {
+  return reserveDemoBudgets(environmentId, [{ kind, amount }]);
+}
+
+export async function rollbackDemoBudgets(
+  environmentId: string,
+  reservations: ReadonlyArray<DemoBudgetReservation>,
+) {
+  if (
+    reservations.length === 0 ||
+    reservations.some(({ amount }) => !Number.isSafeInteger(amount) || amount < 1)
+  ) {
+    throw new Error("Reservations must contain positive safe integers");
+  }
+
+  return db.transaction(async (transaction) => {
+    await transaction.execute(
+      sql`SELECT id FROM ${demoEnvironment} WHERE id = ${environmentId} FOR UPDATE`,
+    );
+    const [environment] = await transaction
+      .select()
+      .from(demoEnvironment)
+      .where(eq(demoEnvironment.id, environmentId))
+      .limit(1);
+    if (!environment) throw new Error("Demo Environment is unavailable");
+
+    const environmentDeltas = new Map<DemoUsageCounter, number>();
+    const globalDeltas = {
+      confirmedBytes: 0,
+      pendingUploadCount: 0,
+      confirmationCount: 0,
+    };
+    for (const reservation of reservations) {
+      for (const counter of demoReservationIncrements[reservation.kind]) {
+        environmentDeltas.set(counter, (environmentDeltas.get(counter) ?? 0) + reservation.amount);
+      }
+      if (isGlobalReservation(reservation.kind)) {
+        globalDeltas[globalReservation[reservation.kind].usage] += reservation.amount;
+      }
+    }
+    const usage = environmentUsage(environment);
+    for (const [counter, amount] of environmentDeltas) {
+      if ((usage[counter] ?? 0) < amount) {
+        throw new Error(`Cannot roll back more ${counter} than reserved`);
+      }
+    }
+
+    if (Object.values(globalDeltas).some((amount) => amount > 0)) {
+      await transaction.execute(
+        sql`SELECT id FROM ${demoGlobalUsage} WHERE id = 'demo-global' FOR UPDATE`,
+      );
+      const [globalUsage] = await transaction
+        .select()
+        .from(demoGlobalUsage)
+        .where(eq(demoGlobalUsage.id, "demo-global"))
+        .limit(1);
+      if (!globalUsage) throw new Error("Global Demo usage is unavailable");
+      const globalChanges: Record<string, SQL | Date> = { updatedAt: new Date() };
+      for (const [usageName, amount] of Object.entries(globalDeltas)) {
+        if (amount <= 0) continue;
+        const key = usageName as keyof typeof globalUsageProperties;
+        if (globalUsage[key] < amount) {
+          throw new Error(`Cannot roll back more global ${usageName} than reserved`);
+        }
+        globalChanges[globalUsageProperties[key]] = sql`${demoGlobalUsage[key]} - ${amount}`;
+      }
+      await transaction
+        .update(demoGlobalUsage)
+        .set(globalChanges)
+        .where(eq(demoGlobalUsage.id, "demo-global"));
+    }
+
+    const environmentChanges: Record<string, SQL> = {};
+    for (const [counter, amount] of environmentDeltas) {
+      environmentChanges[usageProperties[counter]] = sql`${usageColumns[counter]} - ${amount}`;
+    }
+    await transaction
+      .update(demoEnvironment)
+      .set(environmentChanges)
+      .where(eq(demoEnvironment.id, environmentId));
+    return { rolledBack: true as const };
   });
 }
 
@@ -336,6 +427,9 @@ export async function releaseDemoBudget(
   }
 
   return db.transaction(async (transaction) => {
+    await transaction.execute(
+      sql`SELECT id FROM ${demoEnvironment} WHERE id = ${environmentId} FOR UPDATE`,
+    );
     const globalFields = isGlobalReservation(kind) ? globalReservation[kind] : undefined;
     if (globalFields) {
       const globalColumn = demoGlobalUsage[globalFields.usage];
@@ -390,6 +484,9 @@ export async function confirmDemoUploadBytes(
   }
 
   return db.transaction(async (transaction) => {
+    await transaction.execute(
+      sql`SELECT id FROM ${demoEnvironment} WHERE id = ${environmentId} FOR UPDATE`,
+    );
     const unusedBytes = reservedAmount - confirmedAmount;
     if (unusedBytes > 0) {
       const [reconciledGlobal] = await transaction
@@ -451,4 +548,11 @@ export async function transitionPersistedDemoState(environmentId: string, reques
       .returning();
     return updated!;
   });
+}
+
+export async function markDemoAnalyticsIncomplete(environmentId: string) {
+  await db
+    .update(demoEnvironment)
+    .set({ analyticsIncomplete: true })
+    .where(eq(demoEnvironment.id, environmentId));
 }

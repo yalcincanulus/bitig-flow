@@ -4,6 +4,7 @@ import { ArrowDownIcon, ChartNoAxesCombinedIcon } from "lucide-react";
 import { useState } from "react";
 
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
+import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
 import { AnalyticsTrustMark, LinkStatusBadge } from "#/components/link-badges";
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { StatList } from "#/components/stat-list";
@@ -87,6 +88,7 @@ function AnalyticsPage() {
       </PageHeader>
 
       <AnalyticsRangeControls {...analytics.range} />
+      <DemoAnalyticsNotice incomplete={analytics.analyticsIncomplete} />
 
       {analytics.allTimeVisits === 0 ? (
         <Empty>

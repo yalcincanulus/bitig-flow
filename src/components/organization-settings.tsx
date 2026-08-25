@@ -22,6 +22,7 @@ import { authClient } from "#/lib/auth-client";
 type OrganizationSettingsProps = Readonly<{
   organization: Readonly<{ id: string; name: string }>;
   role: OrganizationRole;
+  demo?: boolean;
 }>;
 
 type Feedback = Readonly<{
@@ -63,8 +64,10 @@ function ReadOnlyOrganization({ name }: Readonly<{ name: string }>) {
 
 function OrganizationRenameForm({
   organization,
+  demo = false,
 }: Readonly<{
   organization: OrganizationSettingsProps["organization"];
+  demo?: boolean;
 }>) {
   const router = useRouter();
   const [name, setName] = useState(organization.name);
@@ -150,6 +153,7 @@ function OrganizationRenameForm({
                     setFeedback(undefined);
                   }}
                   aria-invalid={Boolean(validationError)}
+                  disabled={demo}
                 />
                 {validationError ? <FieldError>{validationError}</FieldError> : null}
                 <FieldDescription>
@@ -169,9 +173,9 @@ function OrganizationRenameForm({
               </Alert>
             ) : null}
 
-            <Button type="submit" disabled={pending || isNoOp}>
+            <Button type="submit" disabled={demo || pending || isNoOp}>
               {pending ? <Spinner data-icon="inline-start" /> : null}
-              Save changes
+              {demo ? "Disabled in demo" : "Save changes"}
             </Button>
           </SettingsSectionContent>
         </SettingsSection>
@@ -180,10 +184,10 @@ function OrganizationRenameForm({
   );
 }
 
-export function OrganizationSettings({ organization, role }: OrganizationSettingsProps) {
+export function OrganizationSettings({ organization, role, demo }: OrganizationSettingsProps) {
   if (!hasPermission(role, { organization: ["update"] })) {
     return <ReadOnlyOrganization name={organization.name} />;
   }
 
-  return <OrganizationRenameForm organization={organization} />;
+  return <OrganizationRenameForm organization={organization} demo={demo} />;
 }

@@ -16,6 +16,11 @@ import {
   type NewLink,
 } from "#/server/repositories/links";
 import { hashSharePassword } from "#/server/share-password-hash";
+import {
+  refuseDemoFeature,
+  releaseFailedDemoBudget,
+  reserveDemoBudgetOrThrow,
+} from "#/server/demo-policy";
 
 const timestampSchema = z
   .union([z.date(), z.iso.datetime()])
@@ -133,6 +138,9 @@ export const createLink = createServerFn({ method: "POST" })
   .middleware([permission({ link: ["create"] })])
   .validator(createLinkSchema)
   .handler(async ({ context, data }) => {
+    if (data.requiresEmail || data.requiresVerification) {
+      refuseDemoFeature(context.demoEnvironmentId);
+    }
     refuseVerificationWithoutEmail(data.requiresEmail, data.requiresVerification);
 
     const target = data.documentId ? { documentId: data.documentId } : { vaultId: data.vaultId! };
@@ -157,13 +165,22 @@ export const createLink = createServerFn({ method: "POST" })
       ...(owned.documentId ? { documentId: owned.documentId } : { vaultId: owned.vaultId! }),
     } satisfies NewLink;
 
-    return createLinkInRepository(context.orgId, newLink);
+    await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "link");
+    try {
+      return await createLinkInRepository(context.orgId, newLink);
+    } catch (error) {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "link");
+      throw error;
+    }
   });
 
 export const updateLink = createServerFn({ method: "POST" })
   .middleware([permission({ link: ["update"] })])
   .validator(updateLinkSchema)
   .handler(async ({ context, data }) => {
+    if (data.requiresEmail || data.requiresVerification) {
+      refuseDemoFeature(context.demoEnvironmentId);
+    }
     refuseVerificationWithoutEmail(data.requiresEmail, data.requiresVerification);
 
     let passwordHash: string | null | undefined;
@@ -203,5 +220,6 @@ export const deleteLink = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const deleted = await deleteLinkInRepository(context.orgId, data.linkId);
     if (!deleted) throw notFound();
+    await releaseFailedDemoBudget(context.demoEnvironmentId, "link");
     return deleted;
   });

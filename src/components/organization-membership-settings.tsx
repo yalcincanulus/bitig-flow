@@ -33,6 +33,7 @@ type OrganizationMembershipSettingsProps = Readonly<{
   organizationId: string;
   ownerCount: number;
   role: OrganizationRole;
+  demo?: boolean;
 }>;
 
 type LeaveFailure = Readonly<{
@@ -62,6 +63,7 @@ export function OrganizationMembershipSettings({
   organizationId,
   ownerCount,
   role,
+  demo = false,
 }: OrganizationMembershipSettingsProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -118,7 +120,7 @@ export function OrganizationMembershipSettings({
           </SettingsSectionDescription>
         </SettingsSectionHeader>
         <SettingsSectionContent>
-          {isSoleOwner ? (
+          {isSoleOwner && !demo ? (
             <Alert className="max-w-md">
               <CircleAlertIcon />
               <AlertTitle>Another Owner is required</AlertTitle>
@@ -129,7 +131,12 @@ export function OrganizationMembershipSettings({
             </Alert>
           ) : null}
 
-          {isSoleOwner ? (
+          {demo ? (
+            <Button variant="outline" disabled>
+              <LogOutIcon data-icon="inline-start" />
+              Disabled in demo
+            </Button>
+          ) : isSoleOwner ? (
             <Button variant="outline" disabled>
               <LogOutIcon data-icon="inline-start" />
               Leave Organization

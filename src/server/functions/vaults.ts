@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { permission } from "#/server/auth-middleware";
 import { vaultIdSchema } from "#/server/ids";
+import { releaseFailedDemoBudget, reserveDemoBudgetOrThrow } from "#/server/demo-policy";
 import {
   createVault as createVaultInRepository,
   deleteVault as deleteVaultInRepository,
@@ -32,13 +33,19 @@ export const listVaults = createServerFn({ method: "GET" })
 export const createVault = createServerFn({ method: "POST" })
   .middleware([permission({ vault: ["create"] })])
   .validator(createVaultSchema)
-  .handler(({ context, data }) =>
-    createVaultInRepository(context.orgId, {
-      id: data.vaultId,
-      name: data.name,
-      description: data.description || null,
-    }),
-  );
+  .handler(async ({ context, data }) => {
+    await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "vault");
+    try {
+      return await createVaultInRepository(context.orgId, {
+        id: data.vaultId,
+        name: data.name,
+        description: data.description || null,
+      });
+    } catch (error) {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "vault");
+      throw error;
+    }
+  });
 
 export const updateVault = createServerFn({ method: "POST" })
   .middleware([permission({ vault: ["update"] })])
@@ -58,5 +65,9 @@ export const deleteVault = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const deleted = await deleteVaultInRepository(context.orgId, data.vaultId);
     if (!deleted) throw notFound();
-    return deleted;
+    await releaseFailedDemoBudget(context.demoEnvironmentId, "vault");
+    if (deleted.cascadedLinkCount > 0) {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "link", deleted.cascadedLinkCount);
+    }
+    return deleted.vault;
   });

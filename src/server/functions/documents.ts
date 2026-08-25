@@ -28,15 +28,24 @@ import { documentIdSchema, userIdSchema } from "#/server/ids";
 import { countPdfPages } from "#/server/pdf-page-count";
 import {
   createDocument as createDocumentInRepository,
-  createPendingUpload as createPendingUploadInRepository,
+  createDocumentWithDisposition,
+  createPendingUploadWithDisposition,
   deleteDocument as deleteDocumentInRepository,
   findDocument,
   findStagedUpload,
   isDocumentWriteConflict,
   listDocuments as listDocumentsFromRepository,
   markDocumentReady as markDocumentReadyInRepository,
-  upsertDocument as upsertDocumentInRepository,
+  upsertDocumentWithDisposition,
 } from "#/server/repositories/documents";
+import {
+  releaseFailedDemoBudget,
+  requireFreshDemoSweep,
+  reserveDemoBudgetOrThrow,
+  reserveDemoBudgetsOrThrow,
+  rollbackFailedDemoBudgets,
+} from "#/server/demo-policy";
+import { confirmDemoUploadBytes } from "#/server/repositories/demo-environments";
 import {
   deleteStoredObject,
   getStoredObject,
@@ -184,8 +193,15 @@ async function refuseUpload(
   orgId: Parameters<typeof deleteDocumentInRepository>[0],
   documentId: z.infer<typeof documentIdSchema>,
   check: "type" | "size",
+  demoEnvironmentId?: string,
+  declaredByteSize?: number,
 ): Promise<never> {
   await deleteDocumentInRepository(orgId, documentId);
+  if (demoEnvironmentId && declaredByteSize) {
+    await releaseFailedDemoBudget(demoEnvironmentId, "uploadedDocument");
+    await releaseFailedDemoBudget(demoEnvironmentId, "pendingUpload");
+    await releaseFailedDemoBudget(demoEnvironmentId, "uploadBytes", declaredByteSize);
+  }
   await deleteObjectAfterRow(uploadKey);
   setResponseStatus(422);
   throw uploadConfirmationError(check);
@@ -221,26 +237,56 @@ export const renderMarkdown = createServerFn({ method: "GET" })
 export const createDocument = createServerFn({ method: "POST" })
   .middleware([permission({ document: ["create"] })])
   .validator(createDocumentSchema)
-  .handler(({ context, data }) =>
-    createDocumentInRepository(context.orgId, {
+  .handler(async ({ context, data }) => {
+    const write = {
       id: data.documentId,
       title: authoredTitle(data.title),
       createdBy: userIdSchema.parse(context.userId),
-    }),
-  );
+    };
+    if (!context.demoEnvironmentId) return createDocumentInRepository(context.orgId, write);
+
+    await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "document");
+    let result;
+    try {
+      result = await createDocumentWithDisposition(context.orgId, write);
+    } catch (error) {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "document");
+      throw error;
+    }
+    if (!result.created) {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "document");
+    }
+    return result.document;
+  });
 
 export const updateDocument = createServerFn({ method: "POST" })
   .middleware([permission({ document: ["update"] })])
   .validator(updateDocumentSchema)
   .handler(async ({ context, data }) => {
     const writtenBy = userIdSchema.parse(context.userId);
-    const result = await upsertDocumentInRepository(context.orgId, {
-      id: data.documentId,
-      title: authoredTitle(data.title),
-      content: data.content,
-      updatedAt: data.updatedAt,
-      writtenBy,
-    });
+    const wasMissing = !(await findDocument(context.orgId, data.documentId));
+    if (wasMissing) {
+      await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "document");
+    }
+    let disposition;
+    try {
+      disposition = await upsertDocumentWithDisposition(context.orgId, {
+        id: data.documentId,
+        title: authoredTitle(data.title),
+        content: data.content,
+        updatedAt: data.updatedAt,
+        writtenBy,
+      });
+    } catch (error) {
+      if (wasMissing) {
+        await releaseFailedDemoBudget(context.demoEnvironmentId, "document");
+      }
+      throw error;
+    }
+    if (wasMissing && !disposition.created) {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "document");
+    }
+    const result = disposition.document;
 
     if (!result) throw notFound();
     if (isDocumentWriteConflict(result)) {
@@ -265,16 +311,42 @@ export const createUpload = createServerFn({ method: "POST" })
       throw uploadRejectedError("size");
     }
 
+    await requireFreshDemoSweep(context.demoEnvironmentId);
+
     const fileName = sanitizeFileName(data.fileName);
-    const staged = await createPendingUploadInRepository(context.orgId, {
-      id: data.documentId,
-      title: authoredTitle(fileName).slice(0, documentTitleMaxLength),
-      kind: documentKindFromMimeType(data.contentType),
-      fileName: fileName || null,
-      uploadKey: uploadKeyForOrganization(context.orgId, randomUUID(), storageKeyPrefix()),
-      declaredByteSize: data.byteSize,
-      createdBy: userIdSchema.parse(context.userId),
-    });
+    const priorStaged = await findStagedUpload(context.orgId, data.documentId);
+    if (priorStaged) {
+      return {
+        document: priorStaged.document,
+        uploadUrl: await presignPutObject(priorStaged.uploadKey),
+      };
+    }
+    const demoReservations = [
+      { kind: "uploadedDocument" as const, amount: 1 },
+      { kind: "pendingUpload" as const, amount: 1 },
+      { kind: "uploadKey" as const, amount: 1 },
+      { kind: "uploadBytes" as const, amount: data.byteSize },
+    ];
+    await reserveDemoBudgetsOrThrow(context.demoEnvironmentId, demoReservations);
+    let result;
+    try {
+      result = await createPendingUploadWithDisposition(context.orgId, {
+        id: data.documentId,
+        title: authoredTitle(fileName).slice(0, documentTitleMaxLength),
+        kind: documentKindFromMimeType(data.contentType),
+        fileName: fileName || null,
+        uploadKey: uploadKeyForOrganization(context.orgId, randomUUID(), storageKeyPrefix()),
+        declaredByteSize: data.byteSize,
+        createdBy: userIdSchema.parse(context.userId),
+      });
+    } catch (error) {
+      await rollbackFailedDemoBudgets(context.demoEnvironmentId, demoReservations);
+      throw error;
+    }
+    if (context.demoEnvironmentId && !result.created) {
+      await rollbackFailedDemoBudgets(context.demoEnvironmentId, demoReservations);
+    }
+    const staged = result.staged;
 
     // No staging state means the id was taken by a row this call did not create. If this
     // Organization owns it, it is already confirmed and never gets another upload URL
@@ -303,49 +375,76 @@ export const confirmUpload = createServerFn({ method: "POST" })
     }
 
     const { uploadKey, declaredByteSize } = staged;
-    const stored = await getStoredObject(uploadKey);
-    if (!stored) {
-      setResponseStatus(409);
-      throw uploadIncompleteError();
+    await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "confirmation");
+    try {
+      const stored = await getStoredObject(uploadKey);
+      if (!stored) {
+        setResponseStatus(409);
+        throw uploadIncompleteError();
+      }
+      if (
+        stored.oversized ||
+        stored.bytes.byteLength === 0 ||
+        isUploadOverSizeCap(stored.bytes.byteLength) ||
+        stored.bytes.byteLength > declaredByteSize
+      ) {
+        return await refuseUpload(
+          uploadKey,
+          context.orgId,
+          data.documentId,
+          "size",
+          context.demoEnvironmentId,
+          declaredByteSize,
+        );
+      }
+
+      const sniffed = sniffUploadMimeType(stored.bytes);
+      if (!sniffed || sniffed !== data.contentType) {
+        return await refuseUpload(
+          uploadKey,
+          context.orgId,
+          data.documentId,
+          "type",
+          context.demoEnvironmentId,
+          declaredByteSize,
+        );
+      }
+
+      const checksum = createHash("sha256").update(stored.bytes).digest("hex");
+      const pageCount =
+        sniffed === "application/pdf" ? ((await countPdfPages(stored.bytes)) ?? null) : null;
+
+      // The verified bytes are written to the final Storage key, which no URL was ever signed
+      // for, and only then does the row become ready.
+      const storageKey = storageKeyForDocument(context.orgId, data.documentId, storageKeyPrefix());
+      await putStoredObject(storageKey, stored.bytes, sniffed);
+
+      const confirmed = await markDocumentReadyInRepository(context.orgId, data.documentId, {
+        storageKey,
+        mimeType: sniffed,
+        byteSize: stored.bytes.byteLength,
+        checksum,
+        pageCount,
+      });
+      if (!confirmed) {
+        const raced = await findDocument(context.orgId, data.documentId);
+        if (raced?.status === "ready") return raced;
+        throw notFound();
+      }
+
+      if (context.demoEnvironmentId) {
+        await confirmDemoUploadBytes(
+          context.demoEnvironmentId,
+          declaredByteSize,
+          stored.bytes.byteLength,
+        );
+        await releaseFailedDemoBudget(context.demoEnvironmentId, "pendingUpload");
+      }
+      await deleteObjectAfterRow(uploadKey);
+      return confirmed;
+    } finally {
+      await releaseFailedDemoBudget(context.demoEnvironmentId, "confirmation");
     }
-    if (
-      stored.oversized ||
-      stored.bytes.byteLength === 0 ||
-      isUploadOverSizeCap(stored.bytes.byteLength) ||
-      stored.bytes.byteLength > declaredByteSize
-    ) {
-      return await refuseUpload(uploadKey, context.orgId, data.documentId, "size");
-    }
-
-    const sniffed = sniffUploadMimeType(stored.bytes);
-    if (!sniffed || sniffed !== data.contentType) {
-      return await refuseUpload(uploadKey, context.orgId, data.documentId, "type");
-    }
-
-    const checksum = createHash("sha256").update(stored.bytes).digest("hex");
-    const pageCount =
-      sniffed === "application/pdf" ? ((await countPdfPages(stored.bytes)) ?? null) : null;
-
-    // The verified bytes are written to the final Storage key, which no URL was ever signed
-    // for, and only then does the row become ready.
-    const storageKey = storageKeyForDocument(context.orgId, data.documentId, storageKeyPrefix());
-    await putStoredObject(storageKey, stored.bytes, sniffed);
-
-    const confirmed = await markDocumentReadyInRepository(context.orgId, data.documentId, {
-      storageKey,
-      mimeType: sniffed,
-      byteSize: stored.bytes.byteLength,
-      checksum,
-      pageCount,
-    });
-    if (!confirmed) {
-      const raced = await findDocument(context.orgId, data.documentId);
-      if (raced?.status === "ready") return raced;
-      throw notFound();
-    }
-
-    await deleteObjectAfterRow(uploadKey);
-    return confirmed;
   });
 
 export const deleteDocument = createServerFn({ method: "POST" })
@@ -354,6 +453,30 @@ export const deleteDocument = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const deleted = await deleteDocumentInRepository(context.orgId, data.documentId);
     if (!deleted) throw notFound();
+    if (context.demoEnvironmentId) {
+      if (deleted.document.kind === "markdown") {
+        await releaseFailedDemoBudget(context.demoEnvironmentId, "document");
+      } else {
+        await releaseFailedDemoBudget(context.demoEnvironmentId, "uploadedDocument");
+        if (deleted.document.status === "ready" && deleted.document.byteSize) {
+          await releaseFailedDemoBudget(
+            context.demoEnvironmentId,
+            "confirmedBytes",
+            deleted.document.byteSize,
+          );
+        } else if (deleted.declaredByteSize) {
+          await releaseFailedDemoBudget(context.demoEnvironmentId, "pendingUpload");
+          await releaseFailedDemoBudget(
+            context.demoEnvironmentId,
+            "uploadBytes",
+            deleted.declaredByteSize,
+          );
+        }
+      }
+      if (deleted.cascadedLinkCount > 0) {
+        await releaseFailedDemoBudget(context.demoEnvironmentId, "link", deleted.cascadedLinkCount);
+      }
+    }
     for (const key of [deleted.document.storageKey, deleted.uploadKey]) {
       if (key) await deleteObjectAfterRow(key);
     }

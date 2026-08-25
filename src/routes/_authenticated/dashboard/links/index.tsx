@@ -47,7 +47,7 @@ const statusFilters = [
 function LinksPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { organization, queryClient, session } = Route.useRouteContext();
+  const { organization, queryClient, session, demo } = Route.useRouteContext();
   const { links, documents, vaults } = getCollections(queryClient, organization.id);
   const { data } = useLiveQuery({
     query: (query) => {
@@ -90,6 +90,7 @@ function LinksPage() {
       links={links}
       watchPersistence={watchPersistence}
       triggerLabel={triggerLabel}
+      demo={Boolean(demo)}
     />
   );
 
@@ -239,6 +240,7 @@ function LinksPage() {
                       link={link}
                       links={links}
                       watchPersistence={watchPersistence}
+                      demo={Boolean(demo)}
                     />
                   </div>
                 </TableCell>

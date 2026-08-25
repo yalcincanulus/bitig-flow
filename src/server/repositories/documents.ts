@@ -1,8 +1,8 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 
 import { extractDocumentReferences } from "#/lib/document-references";
 import { db } from "#/server/db/client";
-import { document, documentReference, documentUpload, user } from "#/server/db/schema";
+import { document, documentReference, documentUpload, link, user } from "#/server/db/schema";
 import { type DocumentId, type OrganizationId, type UserId } from "#/server/ids";
 
 type NewMarkdownDocument = Readonly<{
@@ -120,6 +120,13 @@ export async function findDocument(orgId: OrganizationId, documentId: DocumentId
 }
 
 export async function createDocument(orgId: OrganizationId, newDocument: NewMarkdownDocument) {
+  return (await createDocumentWithDisposition(orgId, newDocument)).document;
+}
+
+export async function createDocumentWithDisposition(
+  orgId: OrganizationId,
+  newDocument: NewMarkdownDocument,
+) {
   const now = new Date();
   const [created] = await db
     .insert(document)
@@ -138,10 +145,10 @@ export async function createDocument(orgId: OrganizationId, newDocument: NewMark
     .onConflictDoNothing()
     .returning();
 
-  if (created) return created;
+  if (created) return { document: created, created: true as const };
 
   const existing = await findDocument(orgId, newDocument.id);
-  if (existing) return existing;
+  if (existing) return { document: existing, created: false as const };
   throw new Error("Document insert returned no row");
 }
 
@@ -243,7 +250,10 @@ async function applyMarkdownWrite(
   return updated;
 }
 
-export async function upsertDocument(orgId: OrganizationId, write: MarkdownDocumentWrite) {
+export async function upsertDocumentWithDisposition(
+  orgId: OrganizationId,
+  write: MarkdownDocumentWrite,
+) {
   try {
     return await db.transaction(async (tx) => {
       const [existing] = await tx
@@ -252,17 +262,26 @@ export async function upsertDocument(orgId: OrganizationId, write: MarkdownDocum
         .where(and(eq(document.organizationId, orgId), eq(document.id, write.id)))
         .limit(1);
 
-      if (existing) return applyMarkdownWrite(tx, orgId, existing, write);
-      return await insertMarkdownDocument(tx, orgId, write);
+      if (existing) {
+        return { document: await applyMarkdownWrite(tx, orgId, existing, write), created: false };
+      }
+      return { document: await insertMarkdownDocument(tx, orgId, write), created: true };
     });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
 
     const raced = await findDocument(orgId, write.id);
-    if (!raced) return undefined;
+    if (!raced) return { document: undefined, created: false };
 
-    return db.transaction(async (tx) => applyMarkdownWrite(tx, orgId, raced, write));
+    return db.transaction(async (tx) => ({
+      document: await applyMarkdownWrite(tx, orgId, raced, write),
+      created: false,
+    }));
   }
+}
+
+export async function upsertDocument(orgId: OrganizationId, write: MarkdownDocumentWrite) {
+  return (await upsertDocumentWithDisposition(orgId, write)).document;
 }
 
 // The Document row and its staging state are written together: a pending upload with no
@@ -271,6 +290,13 @@ export async function createPendingUpload(
   orgId: OrganizationId,
   pending: NewPendingUpload,
 ): Promise<StagedUpload | undefined> {
+  return (await createPendingUploadWithDisposition(orgId, pending)).staged;
+}
+
+export async function createPendingUploadWithDisposition(
+  orgId: OrganizationId,
+  pending: NewPendingUpload,
+): Promise<{ staged: StagedUpload | undefined; created: boolean }> {
   const now = new Date();
   const created = await db.transaction(async (tx) => {
     const [inserted] = await tx
@@ -306,15 +332,18 @@ export async function createPendingUpload(
 
   if (created) {
     return {
-      document: created,
-      uploadKey: pending.uploadKey,
-      declaredByteSize: pending.declaredByteSize,
+      staged: {
+        document: created,
+        uploadKey: pending.uploadKey,
+        declaredByteSize: pending.declaredByteSize,
+      },
+      created: true,
     };
   }
 
   // A repeated call reuses the staging state it already issued, so a retry cannot strand a
   // second staged object, and a confirmed Document is never handed a fresh upload URL.
-  return findStagedUpload(orgId, pending.id);
+  return { staged: await findStagedUpload(orgId, pending.id), created: false };
 }
 
 export async function findStagedUpload(
@@ -375,12 +404,23 @@ export async function markDocumentReady(
 // Document cascades its staging state away.
 export async function deleteDocument(orgId: OrganizationId, documentId: DocumentId) {
   const staged = await findStagedUpload(orgId, documentId);
+  const result = await db.transaction(async (tx) => {
+    const [linked] = await tx
+      .select({ count: count() })
+      .from(link)
+      .where(and(eq(link.organizationId, orgId), eq(link.documentId, documentId)));
+    const [deleted] = await tx
+      .delete(document)
+      .where(and(eq(document.organizationId, orgId), eq(document.id, documentId)))
+      .returning();
+    return { deleted, cascadedLinkCount: linked?.count ?? 0 };
+  });
 
-  const [deleted] = await db
-    .delete(document)
-    .where(and(eq(document.organizationId, orgId), eq(document.id, documentId)))
-    .returning();
-
-  if (!deleted) return undefined;
-  return { document: deleted, uploadKey: staged?.uploadKey ?? null };
+  if (!result.deleted) return undefined;
+  return {
+    document: result.deleted,
+    uploadKey: staged?.uploadKey ?? null,
+    declaredByteSize: staged?.declaredByteSize ?? null,
+    cascadedLinkCount: result.cascadedLinkCount,
+  };
 }

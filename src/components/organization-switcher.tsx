@@ -37,6 +37,7 @@ type OrganizationSwitcherProps = Readonly<{
   activeOrganization: OrganizationSummary;
   organizations: readonly OrganizationSummary[];
   atOwnedOrganizationLimit: boolean;
+  demo: boolean;
 }>;
 
 function CreateOrganizationItem({
@@ -69,6 +70,7 @@ export function OrganizationSwitcher({
   activeOrganization,
   organizations,
   atOwnedOrganizationLimit,
+  demo,
 }: OrganizationSwitcherProps) {
   const router = useRouter();
   const matchRoute = useMatchRoute();
@@ -118,7 +120,9 @@ export function OrganizationSwitcher({
   }
 
   let createItem: ReactNode;
-  if (atOwnedOrganizationLimit) {
+  if (demo) {
+    createItem = <DisabledCreateItem reason="Disabled in demo" />;
+  } else if (atOwnedOrganizationLimit) {
     createItem = <DisabledCreateItem reason={ownedOrganizationCapReason} />;
   } else {
     createItem = (

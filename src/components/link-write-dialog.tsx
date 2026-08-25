@@ -151,6 +151,7 @@ export function LinkWriteDialog({
   triggerSize,
   open: openProp,
   onOpenChange,
+  demo = false,
 }: {
   organizationId: string;
   organizationName: string;
@@ -167,6 +168,7 @@ export function LinkWriteDialog({
   triggerSize?: "default" | "sm";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  demo?: boolean;
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = openProp ?? uncontrolledOpen;
@@ -362,6 +364,7 @@ export function LinkWriteDialog({
               <FieldLegend>Gate</FieldLegend>
               <FieldDescription>
                 What a Visitor has to satisfy before the Target is shown.
+                {demo ? " Email and Verified: Disabled in demo." : ""}
               </FieldDescription>
               <ToggleGroup
                 variant="outline"
@@ -384,6 +387,7 @@ export function LinkWriteDialog({
                       value={option.value}
                       className="flex-1"
                       aria-label={option.label}
+                      disabled={demo && (option.value === "email" || option.value === "verified")}
                     >
                       <Icon data-icon="inline-start" />
                       {option.label}
@@ -594,6 +598,7 @@ export function LinkActionsMenu({
   link,
   links,
   watchPersistence,
+  demo = false,
 }: {
   organizationId: string;
   organizationName: string;
@@ -603,6 +608,7 @@ export function LinkActionsMenu({
   link: LinkRow;
   links: LinkCollection;
   watchPersistence: WatchLinkPersistence;
+  demo?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -665,6 +671,7 @@ export function LinkActionsMenu({
         link={link}
         open={editing}
         onOpenChange={setEditing}
+        demo={demo}
       />
       <DeleteLinkDialog
         link={link}

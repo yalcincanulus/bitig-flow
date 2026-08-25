@@ -11,12 +11,22 @@ function unavailableDemoResponse() {
   );
 }
 
+function disabledDemoResponse() {
+  return Response.json(
+    {
+      code: "DEMO_FEATURE_DISABLED",
+      message: "Disabled in demo",
+    },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 export async function handleAuthRequest(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (session?.user.isAnonymous) {
     const availability = await demoSessionAvailability(session.user.id);
     if (!availability.available) return unavailableDemoResponse();
-    if (request.method !== "GET") return unavailableDemoResponse();
+    if (request.method !== "GET") return disabledDemoResponse();
   }
   return auth.handler(request);
 }

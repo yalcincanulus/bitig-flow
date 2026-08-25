@@ -17,6 +17,7 @@ import {
   currentGateRequirement,
   findVisitorLink,
   gatePage,
+  unavailableDemoViewerPage,
   type VisitorLink,
   type VisitorPage,
 } from "#/server/viewer/visitor-gate";
@@ -48,11 +49,26 @@ export const loadVisitorPage = createServerFn({ method: "GET" })
 
     const link = await findVisitorLink(data.slug);
     if (!link) throw notFound();
+    const unavailable = unavailableDemoViewerPage(link);
+    if (unavailable) {
+      setResponseStatus(
+        unavailable.reason === "expired"
+          ? 410
+          : unavailable.reason === "viewing_limited"
+            ? 429
+            : 503,
+      );
+      return unavailable;
+    }
     const memberDocumentId = await memberDocumentIdForLink(link.vaultId, data.documentId);
 
     const live = await liveVisitForLink(link);
     if (live) {
-      return loadVisitorContent(link, visitIdSchema.parse(live.visitId), memberDocumentId);
+      return loadVisitorContent(
+        link,
+        live.visitId === null ? null : visitIdSchema.parse(live.visitId),
+        memberDocumentId,
+      );
     }
 
     if (link.isPublic) {

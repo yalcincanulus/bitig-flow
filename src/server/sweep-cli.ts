@@ -1,4 +1,4 @@
-import { sweepOrphanedObjects, sweepUnconfirmedUploads } from "./sweep.ts";
+import { sweepExpiredDemoReports, sweepOrphanedObjects, sweepUnconfirmedUploads } from "./sweep.ts";
 import {
   completeMaintenanceRun,
   failMaintenanceRun,
@@ -12,6 +12,7 @@ const runOrphans = flags.size === 0 || flags.has("--orphans");
 const report: {
   unconfirmed?: Awaited<ReturnType<typeof sweepUnconfirmedUploads>>;
   orphans?: Awaited<ReturnType<typeof sweepOrphanedObjects>>;
+  reports?: Awaited<ReturnType<typeof sweepExpiredDemoReports>>;
 } = {};
 
 const tracksFleetHealth = flags.size === 0;
@@ -20,6 +21,7 @@ const maintenance = tracksFleetHealth ? await startMaintenanceRun("sweep") : und
 try {
   if (runUnconfirmed) report.unconfirmed = await sweepUnconfirmedUploads();
   if (runOrphans) report.orphans = await sweepOrphanedObjects();
+  if (flags.size === 0) report.reports = await sweepExpiredDemoReports();
 
   if (maintenance) {
     await completeMaintenanceRun(maintenance.id, {
@@ -28,6 +30,7 @@ try {
         (report.unconfirmed?.removedUploadKeys.length ?? 0) +
         (report.orphans?.removedUploadKeys.length ?? 0),
       removedStorageObjectCount: report.orphans?.removedStorageKeys.length ?? 0,
+      removedDemoReportCount: report.reports?.removedReportIds.length ?? 0,
     });
   }
 } catch (error) {

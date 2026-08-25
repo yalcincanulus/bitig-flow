@@ -1,7 +1,8 @@
 import { and, eq, isNotNull, lt } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
-import { document, documentUpload } from "#/server/db/schema";
+import { demoEnvironment, demoReport, document, documentUpload } from "#/server/db/schema";
+import { releaseDemoBudget } from "#/server/repositories/demo-environments";
 import { storageKeyPrefix, uploadKeyPrefix } from "#/lib/upload";
 import { deleteStoredObject, listStoredObjectKeys } from "#/server/storage";
 
@@ -22,9 +23,15 @@ export type OrphanSweepReport = Readonly<{
 export async function sweepUnconfirmedUploads(): Promise<UnconfirmedSweepReport> {
   const cutoff = new Date(Date.now() - unconfirmedOlderThanMs);
   const stale = await db
-    .select({ id: document.id, uploadKey: documentUpload.uploadKey })
+    .select({
+      id: document.id,
+      uploadKey: documentUpload.uploadKey,
+      declaredByteSize: documentUpload.declaredByteSize,
+      demoEnvironmentId: demoEnvironment.id,
+    })
     .from(document)
     .leftJoin(documentUpload, eq(documentUpload.documentId, document.id))
+    .leftJoin(demoEnvironment, eq(demoEnvironment.organizationId, document.organizationId))
     .where(and(eq(document.status, "pending"), lt(document.createdAt, cutoff)));
 
   const removedDocumentIds: string[] = [];
@@ -36,10 +43,25 @@ export async function sweepUnconfirmedUploads(): Promise<UnconfirmedSweepReport>
       removedUploadKeys.push(row.uploadKey);
     }
     await db.delete(document).where(eq(document.id, row.id));
+    if (row.demoEnvironmentId) {
+      await releaseDemoBudget(row.demoEnvironmentId, "uploadedDocument", 1);
+      await releaseDemoBudget(row.demoEnvironmentId, "pendingUpload", 1);
+      if (row.declaredByteSize) {
+        await releaseDemoBudget(row.demoEnvironmentId, "uploadBytes", row.declaredByteSize);
+      }
+    }
     removedDocumentIds.push(row.id);
   }
 
   return { removedDocumentIds, removedUploadKeys };
+}
+
+export async function sweepExpiredDemoReports(now = new Date()) {
+  const removed = await db
+    .delete(demoReport)
+    .where(lt(demoReport.expiresAt, now))
+    .returning({ id: demoReport.id });
+  return { removedReportIds: removed.map((row) => row.id) };
 }
 
 // The listing is taken before the rows it is judged against, never after: a key that appears

@@ -18,13 +18,31 @@ import { Spinner } from "#/components/ui/spinner";
 
 type DemoEnvironmentNoticeProps = Readonly<{
   expiresAt: Date | string;
+  confirmedBytes: number;
+  storageLimit?: number;
+  usage: Readonly<{ documents: number; vaults: number; links: number }>;
+  limits?: Readonly<{ documents: number; vaults: number; links: number }>;
 }>;
 
 function fixedExpiry(expiresAt: Date | string) {
   return new Date(expiresAt).toISOString().replace("T", " ").replace(".000Z", " UTC");
 }
 
-export function DemoEnvironmentNotice({ expiresAt }: DemoEnvironmentNoticeProps) {
+function formatBytes(bytes: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: "unit",
+    unit: "megabyte",
+    maximumFractionDigits: 1,
+  }).format(bytes / (1024 * 1024));
+}
+
+export function DemoEnvironmentNotice({
+  expiresAt,
+  confirmedBytes,
+  storageLimit,
+  usage,
+  limits,
+}: DemoEnvironmentNoticeProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -52,7 +70,11 @@ export function DemoEnvironmentNotice({ expiresAt }: DemoEnvironmentNoticeProps)
       <AlertDescription>
         Deleted at{" "}
         <time dateTime={new Date(expiresAt).toISOString()}>{fixedExpiry(expiresAt)}</time>. Do not
-        upload confidential or personal material.
+        upload confidential or personal material. Storage: {formatBytes(confirmedBytes)}
+        {storageLimit ? ` of ${formatBytes(storageLimit)}` : ""} used. Resources: {usage.documents}
+        {limits ? `/${limits.documents}` : ""} Documents, {usage.vaults}
+        {limits ? `/${limits.vaults}` : ""} Vaults, and {usage.links}
+        {limits ? `/${limits.links}` : ""} Links. Files can contain embedded metadata.
         {error && <span className="block text-destructive"> {error}</span>}
       </AlertDescription>
       <AlertAction>

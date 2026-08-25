@@ -44,6 +44,7 @@ import { Route as AuthenticatedDashboardLinksIndexRouteImport } from './routes/_
 import { Route as AuthenticatedDashboardLinksLinkIdRouteImport } from './routes/_authenticated/dashboard/links/$linkId'
 import { Route as AuthenticatedDashboardVaultsIndexRouteImport } from './routes/_authenticated/dashboard/vaults/index'
 import { Route as AuthenticatedDashboardVaultsVaultIdRouteImport } from './routes/_authenticated/dashboard/vaults/$vaultId'
+import { Route as ApiDemoReportsSlugRouteImport } from './routes/api/demo/reports/$slug'
 import { Route as ApiDocumentsDocumentIdBytesRouteImport } from './routes/api/documents/$documentId/bytes'
 import { Route as VSlugBytesDocumentIdRouteImport } from './routes/v/$slug.bytes.$documentId'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/index'
@@ -235,6 +236,11 @@ const AuthenticatedDashboardVaultsVaultIdRoute =
     path: '/vaults/$vaultId',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const ApiDemoReportsSlugRoute = ApiDemoReportsSlugRouteImport.update({
+  id: '/api/demo/reports/$slug',
+  path: '/api/demo/reports/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDocumentsDocumentIdBytesRoute =
   ApiDocumentsDocumentIdBytesRouteImport.update({
     id: '/api/documents/$documentId/bytes',
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/analytics/$linkId': typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/api/demo/reports/$slug': typeof ApiDemoReportsSlugRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
   '/v/$slug/bytes/$documentId': typeof VSlugBytesDocumentIdRoute
   '/dashboard/analytics/': typeof AuthenticatedDashboardAnalyticsIndexRoute
@@ -333,6 +340,7 @@ export interface FileRoutesByTo {
   '/dashboard/analytics/$linkId': typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/api/demo/reports/$slug': typeof ApiDemoReportsSlugRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
   '/v/$slug/bytes/$documentId': typeof VSlugBytesDocumentIdRoute
   '/dashboard/analytics': typeof AuthenticatedDashboardAnalyticsIndexRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/analytics/$linkId': typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   '/_authenticated/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
   '/_authenticated/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
+  '/api/demo/reports/$slug': typeof ApiDemoReportsSlugRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
   '/v/$slug/bytes/$documentId': typeof VSlugBytesDocumentIdRoute
   '/_authenticated/dashboard/analytics/': typeof AuthenticatedDashboardAnalyticsIndexRoute
@@ -418,6 +427,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics/$linkId'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
+    | '/api/demo/reports/$slug'
     | '/api/documents/$documentId/bytes'
     | '/v/$slug/bytes/$documentId'
     | '/dashboard/analytics/'
@@ -456,6 +466,7 @@ export interface FileRouteTypes {
     | '/dashboard/analytics/$linkId'
     | '/dashboard/links/$linkId'
     | '/dashboard/vaults/$vaultId'
+    | '/api/demo/reports/$slug'
     | '/api/documents/$documentId/bytes'
     | '/v/$slug/bytes/$documentId'
     | '/dashboard/analytics'
@@ -498,6 +509,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/analytics/$linkId'
     | '/_authenticated/dashboard/links/$linkId'
     | '/_authenticated/dashboard/vaults/$vaultId'
+    | '/api/demo/reports/$slug'
     | '/api/documents/$documentId/bytes'
     | '/v/$slug/bytes/$documentId'
     | '/_authenticated/dashboard/analytics/'
@@ -523,6 +535,7 @@ export interface RootRouteChildren {
   ApiOperationsDemoRecordsRoute: typeof ApiOperationsDemoRecordsRoute
   ApiOperationsPolicyRoute: typeof ApiOperationsPolicyRoute
   ApiOperationsReaperRoute: typeof ApiOperationsReaperRoute
+  ApiDemoReportsSlugRoute: typeof ApiDemoReportsSlugRoute
   ApiDocumentsDocumentIdBytesRoute: typeof ApiDocumentsDocumentIdBytesRoute
   ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute: typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
 }
@@ -774,6 +787,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardVaultsVaultIdRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/api/demo/reports/$slug': {
+      id: '/api/demo/reports/$slug'
+      path: '/api/demo/reports/$slug'
+      fullPath: '/api/demo/reports/$slug'
+      preLoaderRoute: typeof ApiDemoReportsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/documents/$documentId/bytes': {
       id: '/api/documents/$documentId/bytes'
       path: '/api/documents/$documentId/bytes'
@@ -954,6 +974,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOperationsDemoRecordsRoute: ApiOperationsDemoRecordsRoute,
   ApiOperationsPolicyRoute: ApiOperationsPolicyRoute,
   ApiOperationsReaperRoute: ApiOperationsReaperRoute,
+  ApiDemoReportsSlugRoute: ApiDemoReportsSlugRoute,
   ApiDocumentsDocumentIdBytesRoute: ApiDocumentsDocumentIdBytesRoute,
   ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute:
     ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute,

@@ -3,10 +3,16 @@ import { eq } from "drizzle-orm";
 import { db } from "#/server/db/client";
 import { document, visitEvent } from "#/server/db/schema";
 import { documentIdSchema, visitIdSchema, type DocumentId, type VisitId } from "#/server/ids";
-import { byteErrorResponse, streamDocument } from "#/server/stream-document";
+import {
+  byteErrorResponse,
+  meterDemoDocumentResponse,
+  streamDocument,
+} from "#/server/stream-document";
 import { liveVisitForLink } from "#/server/viewer/mint-visit";
 import { isDocumentReachableFromLink } from "#/server/viewer/reachability";
 import { findVisitorLink } from "#/server/viewer/visitor-gate";
+import { consumeDemoAnalyticsBudget } from "#/server/demo-policy";
+import { rollbackDemoBudgets } from "#/server/repositories/demo-environments";
 
 async function findVisitorDocument(documentId: DocumentId) {
   const [found] = await db
@@ -24,14 +30,27 @@ async function findVisitorDocument(documentId: DocumentId) {
   return found;
 }
 
-async function appendDownloadEvent(visitId: VisitId, documentId: DocumentId) {
-  await db.insert(visitEvent).values({
-    visitId,
-    documentId,
-    type: "download",
-    payload: { via: "button" },
-    occurredAt: new Date(),
-  });
+async function appendDownloadEvent(
+  environmentId: string | undefined,
+  visitId: VisitId | null,
+  documentId: DocumentId,
+) {
+  if (visitId === null) return;
+  if (!(await consumeDemoAnalyticsBudget(environmentId, "event"))) return;
+  try {
+    await db.insert(visitEvent).values({
+      visitId,
+      documentId,
+      type: "download",
+      payload: { via: "button" },
+      occurredAt: new Date(),
+    });
+  } catch (error) {
+    if (environmentId) {
+      await rollbackDemoBudgets(environmentId, [{ kind: "event", amount: 1 }]);
+    }
+    throw error;
+  }
 }
 
 export async function serveVisitorBytes(request: Request, slug: string, documentIdParam: string) {
@@ -53,14 +72,21 @@ export async function serveVisitorBytes(request: Request, slug: string, document
   const found = await findVisitorDocument(parsed.data);
   if (!found) return byteErrorResponse(404);
 
-  const response = await streamDocument({
-    document: found,
-    range: request.headers.get("range"),
-    disposition: downloadRequested ? "attachment" : "inline",
-  });
+  const response = await meterDemoDocumentResponse(
+    await streamDocument({
+      document: found,
+      range: request.headers.get("range"),
+      disposition: downloadRequested ? "attachment" : "inline",
+    }),
+    link.demo?.environmentId,
+  );
 
   if (downloadRequested && (response.status === 200 || response.status === 206)) {
-    await appendDownloadEvent(visitIdSchema.parse(live.visitId), parsed.data);
+    await appendDownloadEvent(
+      link.demo?.environmentId,
+      live.visitId === null ? null : visitIdSchema.parse(live.visitId),
+      parsed.data,
+    );
   }
 
   return response;

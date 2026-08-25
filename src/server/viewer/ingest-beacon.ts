@@ -3,13 +3,15 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "#/server/db/client";
-import { link, visit as visitTable, visitEvent } from "#/server/db/schema";
+import { demoEnvironment, link, visit as visitTable, visitEvent } from "#/server/db/schema";
 import { documentIdSchema, linkIdSchema, visitIdSchema } from "#/server/ids";
 import { getRedis, redisCall } from "#/server/redis";
 import { consumeBeaconLimit } from "#/server/viewer/beacon-limit";
 import { readLiveVisitRecord } from "#/server/viewer/live-visit-record";
 import { isDocumentReachableFromLink } from "#/server/viewer/reachability";
 import { visitCookieName } from "#/server/viewer/visit-cookies";
+import { consumeDemoAnalyticsBudget } from "#/server/demo-policy";
+import { rollbackDemoBudgets } from "#/server/repositories/demo-environments";
 
 export const pageDwellCapMs = 30 * 60 * 1000;
 export const beaconDedupeTtlSeconds = 5 * 60;
@@ -51,6 +53,7 @@ async function liveVisitFromCookie() {
   const redis = await getRedis();
   const live = await readLiveVisitRecord(redis, opaqueId);
   if (!live) return null;
+  if (live.visitId === null) return null;
 
   const linkId = linkIdSchema.safeParse(live.linkId);
   const visitId = visitIdSchema.safeParse(live.visitId);
@@ -62,6 +65,7 @@ async function liveVisitFromCookie() {
       gateVersion: link.gateVersion,
       isActive: link.isActive,
       expiresAt: link.expiresAt,
+      organizationId: link.organizationId,
     })
     .from(link)
     .where(eq(link.id, linkId.data))
@@ -80,7 +84,17 @@ async function liveVisitFromCookie() {
     .limit(1);
 
   if (!visitRow || visitRow.expiresAt <= now) return null;
-  return { visitId: visitId.data, linkId: linkId.data, redis };
+  const [demo] = await db
+    .select({ environmentId: demoEnvironment.id })
+    .from(demoEnvironment)
+    .where(eq(demoEnvironment.organizationId, linkRow.organizationId))
+    .limit(1);
+  return {
+    visitId: visitId.data,
+    linkId: linkId.data,
+    redis,
+    demoEnvironmentId: demo?.environmentId,
+  };
 }
 
 function existingDwellMs(
@@ -159,7 +173,25 @@ export async function ingestBeacon(request: Request) {
       }
     }
 
-    if (rows.length > 0) await tx.insert(visitEvent).values(rows);
+    if (rows.length > 0) {
+      const recordsEvents = await consumeDemoAnalyticsBudget(
+        live.demoEnvironmentId,
+        "event",
+        rows.length,
+      );
+      if (recordsEvents) {
+        try {
+          await tx.insert(visitEvent).values(rows);
+        } catch (error) {
+          if (live.demoEnvironmentId) {
+            await rollbackDemoBudgets(live.demoEnvironmentId, [
+              { kind: "event", amount: rows.length },
+            ]);
+          }
+          throw error;
+        }
+      }
+    }
     if (accepted) {
       await tx.update(visitTable).set({ lastSeenAt: now }).where(eq(visitTable.id, live.visitId));
     }

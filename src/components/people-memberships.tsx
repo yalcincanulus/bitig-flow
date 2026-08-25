@@ -101,12 +101,23 @@ export function MembershipActions({
   memberships,
   callerRole,
   organizationId,
+  demo = false,
 }: Readonly<{
   membership: Membership;
   memberships: readonly Membership[];
   callerRole: OrganizationRole;
   organizationId: string;
+  demo?: boolean;
 }>) {
+  if (demo) {
+    return (
+      <Button variant="ghost" size="sm" disabled>
+        <UserCogIcon data-icon="inline-start" />
+        Disabled in demo
+      </Button>
+    );
+  }
+
   return (
     <div className="flex items-center justify-end gap-1">
       <ChangeRoleDialog

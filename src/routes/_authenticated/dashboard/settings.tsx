@@ -55,7 +55,7 @@ function OrganizationIdentity({ name, role }: Readonly<{ name: string; role: Org
 }
 
 function SettingsPage() {
-  const { organization, role } = Route.useRouteContext();
+  const { organization, role, demo } = Route.useRouteContext();
   const { ownerCount } = Route.useLoaderData();
 
   return (
@@ -74,16 +74,19 @@ function SettingsPage() {
           key={`organization-settings-${organization.id}`}
           organization={organization}
           role={role}
+          demo={Boolean(demo)}
         />
         <OrganizationMembershipSettings
           organizationId={organization.id}
           ownerCount={ownerCount}
           role={role}
+          demo={Boolean(demo)}
         />
         <OrganizationDangerZone
           key={`organization-danger-zone-${organization.id}`}
           organization={organization}
           role={role}
+          demo={Boolean(demo)}
         />
       </div>
     </Page>
