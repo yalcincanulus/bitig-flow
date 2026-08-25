@@ -129,6 +129,11 @@ test("only the Platform Operator can read or change Deployment Policy over HTTP"
     redirect: "manual",
   });
   expect(anonymous.status).toBe(307);
+  const anonymousSummaryFold = await fetch(
+    new URL("/api/operations/summary-fold", process.env.BETTER_AUTH_URL),
+    { method: "POST", redirect: "manual" },
+  );
+  expect(anonymousSummaryFold.status).toBe(307);
 
   const durableUser = await createFixtureUser();
   const forbidden = await durableUser.http(
@@ -141,6 +146,11 @@ test("only the Platform Operator can read or change Deployment Policy over HTTP"
     { redirect: "manual" },
   );
   expect(forbiddenRecords.status).toBe(403);
+  const forbiddenSummaryFold = await durableUser.http(
+    new URL("/api/operations/summary-fold", process.env.BETTER_AUTH_URL),
+    { method: "POST", redirect: "manual" },
+  );
+  expect(forbiddenSummaryFold.status).toBe(403);
 
   const operator = await createOperator();
   const read = await operator.http(new URL("/api/operations/policy", process.env.BETTER_AUTH_URL));
@@ -148,6 +158,22 @@ test("only the Platform Operator can read or change Deployment Policy over HTTP"
   expect(await read.json()).toMatchObject({
     policy: { acceptNewDemos: false, signUpEnabled: false },
     effectiveAvailability: { demos: false, signUp: false },
+    readiness: {
+      canEnable: { demos: false, signUp: true },
+      checks: [
+        { id: "database", ready: true },
+        { id: "redis", ready: true },
+        { id: "storage", ready: true },
+        { id: "sweep", ready: false },
+        { id: "reaper", ready: false },
+        { id: "trustedProxy", ready: true },
+        { id: "secureTransport", ready: true },
+        { id: "secureCookies", ready: true },
+        { id: "operatorTotp", ready: true },
+        { id: "policy", ready: true },
+        { id: "mailRecovery", ready: true },
+      ],
+    },
   });
   const records = await operator.http(
     new URL("/api/operations/demo-records", process.env.BETTER_AUTH_URL),
@@ -171,6 +197,19 @@ test("only the Platform Operator can read or change Deployment Policy over HTTP"
     },
   );
   expect(invalid.status).toBe(422);
+
+  const unreadyDemoAdmission = await operator.http(
+    new URL("/api/operations/policy", process.env.BETTER_AUTH_URL),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...initialDeploymentPolicy, acceptNewDemos: true }),
+    },
+  );
+  expect(unreadyDemoAdmission.status).toBe(422);
+  expect(await unreadyDemoAdmission.json()).toEqual({
+    error: "Demo admission requires every Demo readiness check",
+  });
 
   const saved = await operator.http(
     new URL("/api/operations/policy", process.env.BETTER_AUTH_URL),
@@ -474,7 +513,6 @@ test("three deduplicated fixed-category reports permanently pause an environment
     recordDemoReport({
       environmentId: environment.id,
       category: "spam_or_phishing",
-      details: "Requests banking credentials",
       networkHash: "hash-a-0123456789",
       now,
     }),
@@ -629,12 +667,11 @@ test("Operations routes expose aggregate controls without Organization or report
   await ensureDeploymentOperationsSingletons();
   const operator = await createOperator();
   const environment = await createEnvironment();
-  const reportDetails = `private-report-detail-${randomUUID()}`;
+  const reportHash = `private-report-hash-${randomUUID()}`;
   await recordDemoReport({
     environmentId: environment.id,
     category: "spam_or_phishing",
-    details: reportDetails,
-    networkHash: "operations-route-hash",
+    networkHash: reportHash,
   });
 
   const overview = await operator.http(new URL("/operations", process.env.BETTER_AUTH_URL));
@@ -659,7 +696,7 @@ test("Operations routes expose aggregate controls without Organization or report
   expect(environmentsHtml).toContain("global paused");
   expect(environmentsHtml).not.toContain(environment.organizationId);
   expect(environmentsHtml).not.toContain(environment.userId);
-  expect(environmentsHtml).not.toContain(reportDetails);
+  expect(environmentsHtml).not.toContain(reportHash);
 
   const policy = await operator.http(new URL("/operations/policy", process.env.BETTER_AUTH_URL));
   expect(policy.status).toBe(200);
@@ -675,5 +712,5 @@ test("Operations routes expose aggregate controls without Organization or report
   const recordsJson = await records.text();
   expect(recordsJson).not.toContain(environment.organizationId);
   expect(recordsJson).not.toContain(environment.userId);
-  expect(recordsJson).not.toContain(reportDetails);
+  expect(recordsJson).not.toContain(reportHash);
 });

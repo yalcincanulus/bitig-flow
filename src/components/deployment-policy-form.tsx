@@ -3,6 +3,7 @@ import { CheckCircle2Icon, CircleAlertIcon, ShieldCheckIcon } from "lucide-react
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
+import { DeploymentReadinessList } from "#/components/deployment-readiness-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,7 @@ import {
   initialDeploymentPolicy,
   type DeploymentPolicyValues,
   type RuntimeCapabilities,
+  type DeploymentReadinessCheck,
 } from "#/lib/deployment-policy";
 import { policyChangeConfirmation } from "#/lib/operations";
 
@@ -48,6 +50,10 @@ type PolicyView = Readonly<{
   policy?: DeploymentPolicyValues;
   lastUpdated?: Readonly<{ at: Date | string; by: string | null }>;
   capability: RuntimeCapabilities;
+  readiness: Readonly<{
+    checks: ReadonlyArray<DeploymentReadinessCheck>;
+    canEnable: Readonly<{ demos: boolean; signUp: boolean }>;
+  }>;
   effectiveAvailability: Readonly<{ demos: boolean; signUp: boolean }>;
   impact: Readonly<{ writeLimitedEnvironmentCount: number }>;
 }>;
@@ -187,34 +193,16 @@ function PolicyNumberField({
 }
 
 function CapabilityCard({ view }: Readonly<{ view: PolicyView }>) {
-  const capabilityLabels: ReadonlyArray<readonly [keyof RuntimeCapabilities, string]> = [
-    ["database", "Database"],
-    ["redis", "Redis"],
-    ["storage", "Storage"],
-    ["reaperFresh", "Reaper"],
-    ["sweepFresh", "Sweep"],
-    ["trustedProxy", "Trusted proxy"],
-    ["secureTransport", "Transport"],
-    ["secureCookies", "Cookies"],
-    ["operatorEnrolled", "Operator TOTP"],
-    ["mail", "Mail"],
-    ["recovery", "Recovery"],
-  ];
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Runtime capability</CardTitle>
+        <CardTitle>Operator readiness checklist</CardTitle>
         <CardDescription>
-          Policy can restrict these capabilities. It cannot make an unhealthy dependency ready.
+          Every required check must be ready before Demo entry or signup can be enabled.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        {capabilityLabels.map(([key, label]) => (
-          <Badge key={key} variant={view.capability[key] ? "secondary" : "outline"}>
-            {label}: {view.capability[key] ? "Ready" : "Unavailable"}
-          </Badge>
-        ))}
+      <CardContent>
+        <DeploymentReadinessList checks={view.readiness.checks} />
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2 border-t">
         <Badge variant={view.effectiveAvailability.demos ? "default" : "outline"}>

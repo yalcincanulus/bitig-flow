@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
 import { CopyLinkSlugButton, LinkWriteDialog } from "#/components/link-write-dialog";
 import { DocumentThumbnail } from "#/components/document-kind";
+import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import { documentKindLabel } from "#/lib/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
@@ -52,6 +53,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 import { isLinkSlug } from "#/lib/link-slug";
+import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 import { cn } from "#/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard/vaults/$vaultId")({
@@ -112,13 +114,18 @@ function VaultPage() {
     message: string,
   ) {
     setMutationError(null);
-    void transaction.isPersisted.promise.catch(() => setMutationError(message));
+    void transaction.isPersisted.promise.catch((error: unknown) =>
+      setMutationError(demoMutationErrorMessage(error, message)),
+    );
   }
 
   return (
     <Page>
       <PageHeader>
-        <PageTitle>{vault.name}</PageTitle>
+        <PageTitle className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{vault.name}</span>
+          {demo?.samples.vaults.includes(vault.id) ? <DemoSampleBadge /> : null}
+        </PageTitle>
         <PageDescription>
           {vault.description || "Documents in this Vault are shared together."}
         </PageDescription>
@@ -140,7 +147,9 @@ function VaultPage() {
             links={links}
             watchPersistence={(transaction, message) => {
               setMutationError(null);
-              void transaction.isPersisted.promise.catch(() => setMutationError(message));
+              void transaction.isPersisted.promise.catch((error: unknown) =>
+                setMutationError(demoMutationErrorMessage(error, message)),
+              );
             }}
             lockedTarget={{ vaultId: vault.id }}
             triggerLabel="Create Link"
@@ -219,6 +228,7 @@ function VaultPage() {
                         Hidden
                       </Badge>
                     )}
+                    {demo?.samples.documents.includes(document.id) ? <DemoSampleBadge /> : null}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>

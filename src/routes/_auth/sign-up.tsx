@@ -11,16 +11,42 @@ import { goToDashboardOrOnboarding } from "#/lib/after-authentication";
 import { authRedirectSearchSchema } from "#/lib/auth-redirect";
 import { authClient } from "#/lib/auth-client";
 import { otpSchema, signUpSchema } from "#/lib/auth-form-schemas";
+import { publicPortfolioStatus } from "#/server/functions/public-portfolio";
 
 export const Route = createFileRoute("/_auth/sign-up")({
   validateSearch: authRedirectSearchSchema,
+  loader: () => publicPortfolioStatus(),
   component: SignUpPage,
 });
 
 function SignUpPage() {
+  const availability = Route.useLoaderData();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [credentials, setCredentials] = useState<{ email: string; password: string }>();
+
+  if (!availability.signUp) {
+    return (
+      <AuthPage title="Sign up is unavailable">
+        <p className="text-sm text-muted-foreground">
+          This deployment is not accepting durable sign-ups. You can return home to check Demo
+          availability or sign in with your existing credentials.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button nativeButton={false} render={<Link to="/" />}>
+            Return home
+          </Button>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link to="/sign-in" search={{ redirect: search.redirect }} />}
+          >
+            Sign in
+          </Button>
+        </div>
+      </AuthPage>
+    );
+  }
 
   if (credentials) {
     return (

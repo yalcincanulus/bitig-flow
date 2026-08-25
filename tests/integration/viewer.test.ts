@@ -102,13 +102,20 @@ test("unknown, expired, deactivated, rotated, and deleted-Target Slugs return by
   const deletedTargetSlug = deletedTarget.slug;
   await database.delete(document).where(eq(document.id, deletedDocument.id));
 
-  const slugs = ["unknownslug1", expired.slug, deactivated.slug, retiredSlug, deletedTargetSlug];
-  const responses = await Promise.all(slugs.map((slug) => getViewer(http, slug)));
+  const slugCases = [
+    ["unknown", "unknownslug1"],
+    ["expired", expired.slug],
+    ["deactivated", deactivated.slug],
+    ["rotated", retiredSlug],
+    ["deleted Target", deletedTargetSlug],
+  ] as const;
+  const responses = [];
+  for (const [, slug] of slugCases) responses.push(await getViewer(http, slug));
   const bodies = await Promise.all(responses.map((response) => response.text()));
   const markup = bodies.map(serverRenderedMarkupOf);
 
-  for (const response of responses) {
-    expect(response.status).toBe(404);
+  for (const [index, response] of responses.entries()) {
+    expect(response.status, slugCases[index]?.[0]).toBe(404);
   }
 
   expect(new Set(markup).size).toBe(1);

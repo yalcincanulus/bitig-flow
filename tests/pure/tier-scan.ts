@@ -9,6 +9,7 @@ import {
 } from "oxc-parser";
 
 const functionTierNames: ReadonlySet<string> = new Set([
+  "publicMiddleware",
   "authedMiddleware",
   "orgMiddleware",
   "operatorIdentityMiddleware",

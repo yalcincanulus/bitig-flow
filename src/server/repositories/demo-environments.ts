@@ -149,6 +149,18 @@ const globalUsageProperties = {
   confirmationCount: "confirmationCount",
 } as const;
 
+export async function readPublicDemoCapacityUsage() {
+  const [usage] = await db
+    .select({
+      activeEnvironmentCount: demoGlobalUsage.activeEnvironmentCount,
+      confirmedBytes: demoGlobalUsage.confirmedBytes,
+    })
+    .from(demoGlobalUsage)
+    .where(eq(demoGlobalUsage.id, "demo-global"))
+    .limit(1);
+  return usage;
+}
+
 export async function reserveDemoBudgets(
   environmentId: string,
   reservations: ReadonlyArray<DemoBudgetReservation>,

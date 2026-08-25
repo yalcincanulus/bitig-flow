@@ -106,27 +106,99 @@ export type RuntimeCapabilities = Readonly<{
   recovery: boolean;
 }>;
 
+export type DeploymentReadinessPurpose = "demos" | "signUp";
+
+export type DeploymentReadinessCheck = Readonly<{
+  id:
+    | "database"
+    | "redis"
+    | "storage"
+    | "sweep"
+    | "reaper"
+    | "trustedProxy"
+    | "secureTransport"
+    | "secureCookies"
+    | "operatorTotp"
+    | "policy"
+    | "mailRecovery";
+  label: string;
+  ready: boolean;
+  requiredFor: ReadonlyArray<DeploymentReadinessPurpose>;
+}>;
+
+export function deploymentReadiness(
+  policy: DeploymentPolicyValues | undefined,
+  capability: RuntimeCapabilities,
+) {
+  const checks: ReadonlyArray<DeploymentReadinessCheck> = [
+    {
+      id: "database",
+      label: "Database",
+      ready: capability.database,
+      requiredFor: ["demos", "signUp"],
+    },
+    { id: "redis", label: "Redis", ready: capability.redis, requiredFor: ["demos"] },
+    { id: "storage", label: "Storage", ready: capability.storage, requiredFor: ["demos"] },
+    { id: "sweep", label: "Sweep", ready: capability.sweepFresh, requiredFor: ["demos"] },
+    { id: "reaper", label: "Reaper", ready: capability.reaperFresh, requiredFor: ["demos"] },
+    {
+      id: "trustedProxy",
+      label: "Trusted proxy",
+      ready: capability.trustedProxy,
+      requiredFor: ["demos"],
+    },
+    {
+      id: "secureTransport",
+      label: "HTTPS transport",
+      ready: capability.secureTransport,
+      requiredFor: ["demos"],
+    },
+    {
+      id: "secureCookies",
+      label: "Secure Session cookies",
+      ready: capability.secureCookies,
+      requiredFor: ["demos"],
+    },
+    {
+      id: "operatorTotp",
+      label: "Operator TOTP",
+      ready: capability.operatorEnrolled,
+      requiredFor: ["demos"],
+    },
+    {
+      id: "policy",
+      label: "Deployment Policy",
+      ready: policy !== undefined,
+      requiredFor: ["demos", "signUp"],
+    },
+    {
+      id: "mailRecovery",
+      label: "Mail and recovery",
+      ready: capability.mail && capability.recovery,
+      requiredFor: ["signUp"],
+    },
+  ];
+
+  return {
+    checks,
+    canEnable: {
+      demos: checks.every((check) => !check.requiredFor.includes("demos") || check.ready),
+      signUp: checks.every((check) => !check.requiredFor.includes("signUp") || check.ready),
+    },
+  } as const;
+}
+
 export function effectiveDeploymentAvailability(
   policy: DeploymentPolicyValues | undefined,
   capability: RuntimeCapabilities,
 ) {
   if (!policy) return { demos: false, signUp: false } as const;
 
-  const demos =
-    policy.acceptNewDemos &&
-    !policy.pauseAllDemoAccess &&
-    capability.database &&
-    capability.redis &&
-    capability.storage &&
-    capability.reaperFresh &&
-    capability.sweepFresh &&
-    capability.trustedProxy &&
-    capability.secureTransport &&
-    capability.secureCookies &&
-    capability.operatorEnrolled;
+  const readiness = deploymentReadiness(policy, capability).canEnable;
 
-  const signUp =
-    policy.signUpEnabled && capability.database && capability.mail && capability.recovery;
+  const demos = policy.acceptNewDemos && !policy.pauseAllDemoAccess && readiness.demos;
+
+  const signUp = policy.signUpEnabled && readiness.signUp;
 
   return { demos, signUp } as const;
 }

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
+import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import { DocumentKindBadge } from "#/components/document-kind";
 import { AnalyticsTrustMark, GateBadges } from "#/components/link-badges";
 import { LinkWriteDialog } from "#/components/link-write-dialog";
@@ -28,6 +29,7 @@ import { resolveRow } from "#/db-collections/resolve";
 import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
 import { documentBytesUrl } from "#/lib/document-bytes";
+import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 import { previewQueryKey } from "#/lib/document-preview";
 import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
 import { getAnalyticsDocument } from "#/server/functions/analytics";
@@ -76,7 +78,10 @@ function DocumentPage() {
   return (
     <Page>
       <PageHeader>
-        <PageTitle>{document.title}</PageTitle>
+        <PageTitle className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{document.title}</span>
+          {demo?.samples.documents.includes(document.id) ? <DemoSampleBadge /> : null}
+        </PageTitle>
         <PageDescription className="flex flex-wrap items-center gap-2">
           <DocumentKindBadge kind={document.kind} />
           <span>What a Visitor gets for this Document.</span>
@@ -117,7 +122,9 @@ function DocumentPage() {
               links={links}
               watchPersistence={(transaction, message) => {
                 setMutationError(null);
-                void transaction.isPersisted.promise.catch(() => setMutationError(message));
+                void transaction.isPersisted.promise.catch((error: unknown) =>
+                  setMutationError(demoMutationErrorMessage(error, message)),
+                );
               }}
               lockedTarget={{ documentId: document.id }}
               triggerLabel="Create Link"

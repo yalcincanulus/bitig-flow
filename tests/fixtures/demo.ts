@@ -41,6 +41,7 @@ export async function enableFixtureDemoAdmission() {
       outcome: {},
     },
   ]);
+  return operator;
 }
 
 async function enterEnabledFixtureDemo(ip: string) {

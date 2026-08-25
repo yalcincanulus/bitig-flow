@@ -14,6 +14,7 @@ import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +66,7 @@ import {
 import { Textarea } from "#/components/ui/textarea";
 import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
+import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 
 export const Route = createFileRoute("/_authenticated/dashboard/vaults/")({
   component: VaultsPage,
@@ -101,7 +103,7 @@ function countPer(rows: ReadonlyArray<{ vaultId: string | null }>) {
 }
 
 function VaultsPage() {
-  const { organization, queryClient } = Route.useRouteContext();
+  const { organization, queryClient, demo } = Route.useRouteContext();
   const { vaults, vaultItems, links } = getCollections(queryClient, organization.id);
   const { data } = useLiveQuery({
     query: (query) =>
@@ -119,10 +121,13 @@ function VaultsPage() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const documentCounts = countPer(itemRows);
   const linkCounts = countPer(linkRows);
+  const sampleVaultIds = new Set(demo?.samples.vaults ?? []);
 
   function watchPersistence(transaction: ReturnType<VaultCollection["insert"]>, message: string) {
     setMutationError(null);
-    void transaction.isPersisted.promise.catch(() => setMutationError(message));
+    void transaction.isPersisted.promise.catch((error: unknown) =>
+      setMutationError(demoMutationErrorMessage(error, message)),
+    );
   }
 
   return (
@@ -169,6 +174,7 @@ function VaultsPage() {
             <VaultRowItem
               key={vault.id}
               vault={vault}
+              sample={sampleVaultIds.has(vault.id)}
               documentCount={documentCounts.get(vault.id) ?? 0}
               linkCount={linkCounts.get(vault.id) ?? 0}
               vaults={vaults}
@@ -189,12 +195,14 @@ function VaultsPage() {
  */
 function VaultRowItem({
   vault,
+  sample,
   documentCount,
   linkCount,
   vaults,
   watchPersistence,
 }: Readonly<{
   vault: VaultRow;
+  sample: boolean;
   documentCount: number;
   linkCount: number;
   vaults: VaultCollection;
@@ -222,6 +230,7 @@ function VaultRowItem({
           {vault.$synced ? null : (
             <span className="text-xs font-normal text-muted-foreground">Saving…</span>
           )}
+          {sample ? <DemoSampleBadge /> : null}
         </ItemTitle>
         <ItemDescription>{vault.description || "No description"}</ItemDescription>
       </ItemContent>

@@ -2,6 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 
 import {
   deploymentPolicySchema,
+  deploymentReadiness,
   effectiveDeploymentAvailability,
   policyImpact,
   storedDeploymentPolicySchema,
@@ -97,6 +98,7 @@ export async function deploymentPolicyView(capability: RuntimeCapabilities) {
     policy,
     lastUpdated: record ? { at: record.updatedAt, by: record.updatedBy } : undefined,
     capability,
+    readiness: deploymentReadiness(policy, capability),
     effectiveAvailability: effectiveDeploymentAvailability(policy, capability),
     impact: policy ? await deploymentPolicyImpact(policy) : { writeLimitedEnvironmentCount: 0 },
   };

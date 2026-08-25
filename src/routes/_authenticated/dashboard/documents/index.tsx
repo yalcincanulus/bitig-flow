@@ -20,6 +20,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import { FilterBar, FilterBarLabel, FilterBarSpacer } from "#/components/dashboard-filter-bar";
 import { DocumentKindBadge, DocumentThumbnail } from "#/components/document-kind";
+import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import { documentKindLabel } from "#/lib/document-kind";
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import {
@@ -77,6 +78,7 @@ import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { documentsSearchSchema, type DocumentsView } from "#/lib/dashboard-search";
 import { readDocumentsView, writeDocumentsView } from "#/lib/documents-view-preference";
 import { documentBytesUrl } from "#/lib/document-bytes";
+import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 import { formatAnalyticsInstant } from "#/lib/analytics-format";
 import { formatByteSize } from "#/lib/format-bytes";
 import { rememberDocumentInsert } from "#/lib/document-editor-lifecycle";
@@ -145,7 +147,7 @@ async function putThenConfirm(
 function DocumentsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { organization, queryClient, session } = Route.useRouteContext();
+  const { organization, queryClient, session, demo } = Route.useRouteContext();
   const { documents, vaults, vaultItems } = getCollections(queryClient, organization.id);
   const { data } = useLiveQuery({
     query: (query) => {
@@ -181,13 +183,16 @@ function DocumentsPage() {
   const filteredVault = search.vault
     ? vaultRows.find((vault) => vault.id === search.vault)
     : undefined;
+  const sampleDocumentIds = new Set(demo?.samples.documents ?? []);
 
   function watchPersistence(
     transaction: ReturnType<DocumentCollection["insert"]>,
     message: string,
   ) {
     setMutationError(null);
-    void transaction.isPersisted.promise.catch(() => setMutationError(message));
+    void transaction.isPersisted.promise.catch((error: unknown) =>
+      setMutationError(demoMutationErrorMessage(error, message)),
+    );
   }
 
   function setSearch(next: Partial<typeof search>) {
@@ -377,6 +382,7 @@ function DocumentsPage() {
               <DocumentRow
                 key={document.id}
                 document={document}
+                sample={sampleDocumentIds.has(document.id)}
                 documents={documents}
                 watchPersistence={watchPersistence}
               />
@@ -389,6 +395,7 @@ function DocumentsPage() {
             <DocumentTile
               key={document.id}
               document={document}
+              sample={sampleDocumentIds.has(document.id)}
               documents={documents}
               watchPersistence={watchPersistence}
             />
@@ -415,10 +422,12 @@ function documentProgress(document: DocumentRow) {
  */
 function DocumentTile({
   document,
+  sample,
   documents,
   watchPersistence,
 }: Readonly<{
   document: DocumentRow;
+  sample: boolean;
   documents: DocumentCollection;
   watchPersistence: WatchPersistence;
 }>) {
@@ -444,8 +453,9 @@ function DocumentTile({
             {document.title || "Untitled"}
           </Link>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="flex flex-wrap items-center gap-2">
           {documentProgress(document) ?? documentKindLabel(document.kind)}
+          {sample ? <DemoSampleBadge /> : null}
         </CardDescription>
         <CardAction>
           <DocumentActionsMenu document={document} onDelete={() => setDeleting(true)} />
@@ -471,10 +481,12 @@ function DocumentTile({
  */
 function DocumentRow({
   document,
+  sample,
   documents,
   watchPersistence,
 }: Readonly<{
   document: DocumentRow;
+  sample: boolean;
   documents: DocumentCollection;
   watchPersistence: WatchPersistence;
 }>) {
@@ -494,8 +506,11 @@ function DocumentRow({
             <DocumentThumbnail document={document} compact />
           </span>
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium group-hover/row:underline">
-              {document.title || "Untitled"}
+            <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+              <span className="truncate group-hover/row:underline">
+                {document.title || "Untitled"}
+              </span>
+              {sample ? <DemoSampleBadge /> : null}
             </span>
             {progress ? <span className="text-muted-foreground">{progress}</span> : null}
           </span>
@@ -660,7 +675,7 @@ function UploadDocumentButton({
       if (!persisted || isUploadConfirmationError(error)) {
         documents.utils.writeDelete(documentId);
       }
-      onError(`Could not upload “${fileName}”.`);
+      onError(demoMutationErrorMessage(error, `Could not upload “${fileName}”.`));
     }
   }
 

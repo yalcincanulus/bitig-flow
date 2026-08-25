@@ -126,7 +126,6 @@ export async function runDemoReaper(now = new Date()) {
         }
         await heartbeatMaintenanceRun(run.id);
       }
-
       const outcome = {
         expiredEnvironmentCount: candidates.filter(
           (candidate) => candidate.endReason === null && candidate.state !== "provisioning",

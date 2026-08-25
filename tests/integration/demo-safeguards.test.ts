@@ -600,16 +600,16 @@ test("public Demo Viewer content is temporary, noindexed, reportable, and paused
   expect(markup).toContain("Temporary demo content");
   expect(markup).toContain("Deleted at");
 
-  const oversized = await fetch(reportUrl, {
+  const freeText = await fetch(reportUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       origin: process.env.BETTER_AUTH_URL!,
       "x-forwarded-for": "198.51.100.120",
     },
-    body: JSON.stringify({ category: "spam_or_phishing", details: "x".repeat(281) }),
+    body: JSON.stringify({ category: "spam_or_phishing", details: "Requests credentials" }),
   });
-  expect(oversized.status).toBe(422);
+  expect(freeText.status).toBe(422);
 
   const first = await fetch(reportUrl, {
     method: "POST",
@@ -618,7 +618,7 @@ test("public Demo Viewer content is temporary, noindexed, reportable, and paused
       origin: process.env.BETTER_AUTH_URL!,
       "x-forwarded-for": "198.51.100.121",
     },
-    body: JSON.stringify({ category: "spam_or_phishing", details: "Requests credentials" }),
+    body: JSON.stringify({ category: "spam_or_phishing" }),
   });
   const duplicate = await fetch(reportUrl, {
     method: "POST",

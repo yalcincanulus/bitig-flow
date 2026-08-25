@@ -4,6 +4,7 @@ import { ChartNoAxesCombinedIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
+import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import {
   CopyLinkSlugButton,
   LinkActionsMenu,
@@ -18,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/com
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
 import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
+import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 
 export const Route = createFileRoute("/_authenticated/dashboard/links/$linkId")({
   loader: ({ context: { organization, queryClient }, params: { linkId } }) => {
@@ -45,14 +47,19 @@ function LinkPage() {
 
   function watchPersistence(transaction: ReturnType<LinkCollection["insert"]>, message: string) {
     setMutationError(null);
-    void transaction.isPersisted.promise.catch(() => setMutationError(message));
+    void transaction.isPersisted.promise.catch((error: unknown) =>
+      setMutationError(demoMutationErrorMessage(error, message)),
+    );
   }
 
   return (
     <Page>
       <PageHeader>
-        <PageTitle>
-          {link.name || (isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
+        <PageTitle className="flex min-w-0 items-center gap-2">
+          <span className="truncate">
+            {link.name || (isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
+          </span>
+          {demo?.samples.links.includes(link.id) ? <DemoSampleBadge /> : null}
         </PageTitle>
         <PageDescription>
           One public URL, one Gate, one analytics stream. Rotating the Slug retires the old URL and

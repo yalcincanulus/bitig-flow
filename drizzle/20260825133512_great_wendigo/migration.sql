@@ -1,0 +1,1 @@
+ALTER TABLE "demo_report" DROP COLUMN "details";

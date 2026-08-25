@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { FilterBar, FilterBarLabel, FilterBarSpacer } from "#/components/dashboard-filter-bar";
 import { GateBadges, LinkStatusBadge } from "#/components/link-badges";
+import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import {
   CopyLinkSlugButton,
   LinkActionsMenu,
@@ -28,6 +29,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/compon
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { getCollections } from "#/db-collections";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
+import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 import { linksSearchSchema } from "#/lib/dashboard-search";
 import { isLinkSlug } from "#/lib/link-slug";
 
@@ -74,10 +76,13 @@ function LinksPage() {
   });
   const [mutationError, setMutationError] = useState<string | null>(null);
   const isFiltered = Boolean(search.status || search.target);
+  const sampleLinkIds = new Set(demo?.samples.links ?? []);
 
   function watchPersistence(transaction: ReturnType<LinkCollection["insert"]>, message: string) {
     setMutationError(null);
-    void transaction.isPersisted.promise.catch(() => setMutationError(message));
+    void transaction.isPersisted.promise.catch((error: unknown) =>
+      setMutationError(demoMutationErrorMessage(error, message)),
+    );
   }
 
   const writeDialog = (triggerLabel: string) => (
@@ -215,6 +220,7 @@ function LinksPage() {
                   {link.$synced ? null : (
                     <span className="text-xs font-normal text-muted-foreground">Saving…</span>
                   )}
+                  {sampleLinkIds.has(link.id) ? <DemoSampleBadge /> : null}
                 </TableCell>
                 <TableCell className="max-w-48 text-muted-foreground">
                   <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />

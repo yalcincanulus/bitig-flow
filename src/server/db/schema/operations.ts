@@ -429,7 +429,6 @@ export const demoReport = snakeCase.table(
       .references(() => demoEnvironment.id, { onDelete: "cascade" }),
     linkId: uuid().references(() => link.id, { onDelete: "set null" }),
     category: text().notNull(),
-    details: varchar({ length: 280 }),
     networkHash: text().notNull(),
     rateLimitWindowStartedAt: timestampWithTimezone().notNull(),
     createdAt: timestampWithTimezone().defaultNow().notNull(),

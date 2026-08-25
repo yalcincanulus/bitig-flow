@@ -76,7 +76,6 @@ export async function recordDemoReport(input: z.input<typeof reportRequestSchema
       environmentId: request.environmentId,
       linkId: request.linkId,
       category: request.category,
-      details: request.details,
       networkHash: request.networkHash,
       rateLimitWindowStartedAt: dayAgo,
       createdAt: now,

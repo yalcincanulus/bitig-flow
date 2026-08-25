@@ -144,18 +144,16 @@ describe("privacy-safe operational records", () => {
     });
   });
 
-  test("accepts only fixed report categories and bounded details", () => {
-    expect(
+  test("accepts only fixed report categories without free text", () => {
+    expect(demoReportInputSchema.parse({ category: "spam_or_phishing" })).toEqual({
+      category: "spam_or_phishing",
+    });
+    expect(() => demoReportInputSchema.parse({ category: "other" })).toThrow();
+    expect(() =>
       demoReportInputSchema.parse({
         category: "spam_or_phishing",
         details: "The Link asks for banking credentials.",
       }),
-    ).toEqual({
-      category: "spam_or_phishing",
-      details: "The Link asks for banking credentials.",
-    });
-    expect(() =>
-      demoReportInputSchema.parse({ category: "other", details: "x".repeat(281) }),
     ).toThrow();
   });
 

@@ -5,7 +5,7 @@ import { test } from "./http";
 
 const authRoutes = [
   { path: "/sign-in", heading: "Sign in" },
-  { path: "/sign-up", heading: "Sign up" },
+  { path: "/sign-up", heading: "Sign up is unavailable" },
   { path: "/forgot-password", heading: "Forgot password" },
   { path: "/reset-password", heading: "Reset password" },
   { path: "/two-factor", heading: "Two-factor authentication" },

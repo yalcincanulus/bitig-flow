@@ -1,12 +1,27 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  deploymentReadiness,
   deploymentPolicySchema,
   effectiveDeploymentAvailability,
   hardDeploymentPolicy,
   initialDeploymentPolicy,
   policyImpact,
 } from "#/lib/deployment-policy";
+
+const readyCapabilities = {
+  database: true,
+  redis: true,
+  storage: true,
+  reaperFresh: true,
+  sweepFresh: true,
+  trustedProxy: true,
+  secureTransport: true,
+  secureCookies: true,
+  operatorEnrolled: true,
+  mail: true,
+  recovery: true,
+} as const;
 
 describe("Deployment Policy", () => {
   test("starts fail-closed at the reviewed hard ceilings", () => {
@@ -116,5 +131,46 @@ describe("runtime capability", () => {
         },
       ),
     ).toEqual({ demos: false, signUp: false });
+  });
+
+  test("readiness names every condition required before admission can be enabled", () => {
+    const readiness = deploymentReadiness(initialDeploymentPolicy, readyCapabilities);
+
+    expect(
+      readiness.checks.map(({ id, ready, requiredFor }) => ({ id, ready, requiredFor })),
+    ).toEqual([
+      { id: "database", ready: true, requiredFor: ["demos", "signUp"] },
+      { id: "redis", ready: true, requiredFor: ["demos"] },
+      { id: "storage", ready: true, requiredFor: ["demos"] },
+      { id: "sweep", ready: true, requiredFor: ["demos"] },
+      { id: "reaper", ready: true, requiredFor: ["demos"] },
+      { id: "trustedProxy", ready: true, requiredFor: ["demos"] },
+      { id: "secureTransport", ready: true, requiredFor: ["demos"] },
+      { id: "secureCookies", ready: true, requiredFor: ["demos"] },
+      { id: "operatorTotp", ready: true, requiredFor: ["demos"] },
+      { id: "policy", ready: true, requiredFor: ["demos", "signUp"] },
+      { id: "mailRecovery", ready: true, requiredFor: ["signUp"] },
+    ]);
+    expect(readiness.canEnable).toEqual({ demos: true, signUp: true });
+  });
+
+  test("Demo and sign-up readiness fail independently", () => {
+    expect(
+      deploymentReadiness(initialDeploymentPolicy, {
+        ...readyCapabilities,
+        reaperFresh: false,
+      }).canEnable,
+    ).toEqual({ demos: false, signUp: true });
+    expect(
+      deploymentReadiness(initialDeploymentPolicy, {
+        ...readyCapabilities,
+        mail: false,
+        recovery: false,
+      }).canEnable,
+    ).toEqual({ demos: true, signUp: false });
+    expect(deploymentReadiness(undefined, readyCapabilities).canEnable).toEqual({
+      demos: false,
+      signUp: false,
+    });
   });
 });

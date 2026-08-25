@@ -27,7 +27,12 @@ import {
   reserveDemoAdmission,
 } from "#/server/demo-admission";
 
-import { createCookieClient, createFixtureUser, fixtureObjectExists } from "../fixtures";
+import {
+  callServerFunction,
+  createCookieClient,
+  createFixtureUser,
+  fixtureObjectExists,
+} from "../fixtures";
 import { database, redis } from "../fixtures/services";
 import { test } from "./http";
 
@@ -150,6 +155,25 @@ test("Demo entry provisions one ready environment and resumes its Session", asyn
     "link",
     "vault",
   ]);
+  const dashboardContext = await callServerFunction(client.http, {
+    modulePath: "/src/server/functions/dashboard.ts",
+    exportName: "getDashboardContext",
+    method: "GET",
+  });
+  expect(dashboardContext.status).toBe(200);
+  expect(await dashboardContext.json()).toMatchObject({
+    demo: {
+      samples: {
+        documents: sampleResources
+          .flatMap((sample) => (sample.documentId ? [sample.documentId] : []))
+          .sort(),
+        vaults: sampleResources
+          .flatMap((sample) => (sample.vaultId ? [sample.vaultId] : []))
+          .sort(),
+        links: sampleResources.flatMap((sample) => (sample.linkId ? [sample.linkId] : [])).sort(),
+      },
+    },
+  });
   await expect(
     database.insert(demoSampleResource).values({
       environmentId: environments[0]!.id,

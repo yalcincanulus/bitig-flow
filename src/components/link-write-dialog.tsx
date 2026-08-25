@@ -3,6 +3,7 @@ import {
   AtSignIcon,
   CheckIcon,
   ChartNoAxesCombinedIcon,
+  CircleAlertIcon,
   CopyIcon,
   EllipsisIcon,
   ExternalLinkIcon,
@@ -22,6 +23,7 @@ import { v7 as uuidv7 } from "uuid";
 import { DocumentKindIcon } from "#/components/document-kind";
 import { DatePicker } from "#/components/date-picker";
 import { LinkTargetPicker } from "#/components/link-target-picker";
+import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -331,6 +333,16 @@ export function LinkWriteDialog({
                 : "Publish a Document or a Vault. The Slug is minted on the server."}
             </DialogDescription>
           </DialogHeader>
+          {demo ? (
+            <Alert>
+              <CircleAlertIcon />
+              <AlertTitle>Public and temporary</AlertTitle>
+              <AlertDescription>
+                Demo Links are public, temporary, reportable, and deleted with the Demo Environment.
+                Share only material you are allowed to publish.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <FieldGroup>
             {editing ? null : (
               <Field data-invalid={Boolean(targetError)}>

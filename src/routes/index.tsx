@@ -1,22 +1,37 @@
 import { Link, createFileRoute, isRedirect } from "@tanstack/react-router";
-import { ChartNoAxesCombinedIcon, FolderClosedIcon, LockIcon } from "lucide-react";
+import { ChartNoAxesCombinedIcon, CircleAlertIcon, FolderClosedIcon, LockIcon } from "lucide-react";
 
 import { ThemeToggle } from "#/components/theme-toggle";
 import { DemoEntryButton } from "#/components/demo-entry-button";
+import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
+import type { PublicDemoAvailability } from "#/lib/public-portfolio";
 import { hasAuthenticatedSession, listOrganizations } from "#/server/functions/auth";
+import { publicPortfolioStatus } from "#/server/functions/public-portfolio";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
+    const availability = await publicPortfolioStatus();
     try {
-      await hasAuthenticatedSession();
+      const session = await hasAuthenticatedSession();
+      const organizations = (await listOrganizations()) ?? [];
+      return {
+        ...availability,
+        hasSession: true,
+        isDemoSession: session.isAnonymous,
+        organizationCount: organizations.length,
+      };
     } catch (error) {
-      if (isRedirect(error)) return { hasSession: false, organizationCount: 0 };
+      if (isRedirect(error)) {
+        return {
+          ...availability,
+          hasSession: false,
+          isDemoSession: false,
+          organizationCount: 0,
+        };
+      }
       throw error;
     }
-
-    const organizations = (await listOrganizations()) ?? [];
-    return { hasSession: true, organizationCount: organizations.length };
   },
   head: () => ({
     meta: [
@@ -54,7 +69,7 @@ const propositions = [
 ] as const;
 
 function Home() {
-  const { hasSession, organizationCount } = Route.useRouteContext();
+  const { hasSession, isDemoSession, organizationCount, demo, signUp } = Route.useRouteContext();
 
   return (
     <main className="relative flex min-h-svh flex-col">
@@ -84,7 +99,11 @@ function Home() {
           </p>
           <nav className="flex flex-wrap items-center gap-2 pt-1">
             {hasSession ? (
-              organizationCount > 0 ? (
+              isDemoSession ? (
+                <Button size="lg" nativeButton={false} render={<Link to="/dashboard/documents" />}>
+                  Resume demo
+                </Button>
+              ) : organizationCount > 0 ? (
                 <Button size="lg" nativeButton={false} render={<Link to="/dashboard/documents" />}>
                   Go to Dashboard
                 </Button>
@@ -95,7 +114,7 @@ function Home() {
               )
             ) : (
               <>
-                <DemoEntryButton />
+                {demo === "available" ? <DemoEntryButton /> : null}
                 <Button
                   size="lg"
                   variant="outline"
@@ -104,17 +123,20 @@ function Home() {
                 >
                   Sign in
                 </Button>
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  nativeButton={false}
-                  render={<Link to="/sign-up" />}
-                >
-                  Create account
-                </Button>
+                {signUp ? (
+                  <Button
+                    size="lg"
+                    variant="ghost"
+                    nativeButton={false}
+                    render={<Link to="/sign-up" />}
+                  >
+                    Create account
+                  </Button>
+                ) : null}
               </>
             )}
           </nav>
+          {!hasSession && demo !== "available" ? <DemoAvailabilityNotice status={demo} /> : null}
           {!hasSession && (
             <p className="max-w-xl text-sm/relaxed text-muted-foreground">
               Demo work is public only when you create a Link and is deleted after 24 hours. Do not
@@ -135,5 +157,40 @@ function Home() {
         </section>
       </div>
     </main>
+  );
+}
+
+const demoAvailabilityCopy: Record<
+  Exclude<PublicDemoAvailability, "available">,
+  Readonly<{ title: string; description: string }>
+> = {
+  unavailable: {
+    title: "Demo entry is currently unavailable",
+    description: "The public Demo is closed. Sign in with your existing credentials.",
+  },
+  saturated: {
+    title: "All Demo Environments are currently in use",
+    description: "Capacity is released automatically. Try again later.",
+  },
+  paused: {
+    title: "Demo access is paused",
+    description: "New entry and existing Demo access remain closed until service is restored.",
+  },
+  maintenance: {
+    title: "Demo maintenance is in progress",
+    description: "Maintenance checks must finish before a Demo Environment can be prepared.",
+  },
+};
+
+function DemoAvailabilityNotice({
+  status,
+}: Readonly<{ status: Exclude<PublicDemoAvailability, "available"> }>) {
+  const copy = demoAvailabilityCopy[status];
+  return (
+    <Alert className="max-w-xl" role="status">
+      <CircleAlertIcon />
+      <AlertTitle>{copy.title}</AlertTitle>
+      <AlertDescription>{copy.description}</AlertDescription>
+    </Alert>
   );
 }

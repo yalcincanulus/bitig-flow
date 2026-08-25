@@ -37,6 +37,10 @@ export function isForbiddenError(error: unknown): error is ForbiddenError {
   );
 }
 
+// Public portfolio state exposes only coarse availability. Naming the tier keeps the server
+// function visible to the authorization audit without inventing a credential for public data.
+export const publicMiddleware = createMiddleware().server(({ next }) => next());
+
 export const authedMiddleware = createMiddleware().server(async ({ next, request }) => {
   const authSession = await auth.api.getSession({ headers: request.headers });
   if (!authSession) return signInRedirect();

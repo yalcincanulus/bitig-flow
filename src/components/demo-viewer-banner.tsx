@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "#/components/ui/dialog";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "#/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "#/components/ui/select";
-import { Textarea } from "#/components/ui/textarea";
 
 const reportCategories = {
   spam_or_phishing: "Spam or phishing",
@@ -40,7 +39,6 @@ function deletionTime(expiresAt: Date | string) {
 function DemoReportDialog({ slug }: Readonly<{ slug: string }>) {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<ReportCategory>("spam_or_phishing");
-  const [details, setDetails] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
 
@@ -52,7 +50,7 @@ function DemoReportDialog({ slug }: Readonly<{ slug: string }>) {
       const response = await fetch(`/api/demo/reports/${encodeURIComponent(slug)}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ category, ...(details.trim() ? { details: details.trim() } : {}) }),
+        body: JSON.stringify({ category }),
       });
       if (response.ok || response.status === 409) {
         setMessage("Report received. Thank you.");
@@ -78,7 +76,7 @@ function DemoReportDialog({ slug }: Readonly<{ slug: string }>) {
           <DialogHeader>
             <DialogTitle>Report temporary content</DialogTitle>
             <DialogDescription>
-              Choose a safety category. Do not include contact details or personal information.
+              Choose one safety category. Reports do not collect contact details or free text.
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
@@ -105,17 +103,6 @@ function DemoReportDialog({ slug }: Readonly<{ slug: string }>) {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-            </Field>
-            <Field data-disabled={pending}>
-              <FieldLabel htmlFor="demo-report-details">Details (optional)</FieldLabel>
-              <Textarea
-                id="demo-report-details"
-                value={details}
-                onChange={(event) => setDetails(event.target.value)}
-                maxLength={280}
-                disabled={pending}
-              />
-              <FieldDescription>{details.length}/280 characters</FieldDescription>
             </Field>
           </FieldGroup>
           {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}

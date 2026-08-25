@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CircleAlertIcon } from "lucide-react";
 
 import { MailTestControl } from "#/components/mail-test-control";
+import { DeploymentReadinessList } from "#/components/deployment-readiness-list";
 import { OperationsTrendChart } from "#/components/operations-trend-chart";
 import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
 import { ReaperControl } from "#/components/reaper-control";
@@ -217,22 +218,12 @@ function OperationsOverviewPage() {
               Requested policy cannot make an unavailable runtime dependency ready.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {(
-              [
-                ["database", "Database"],
-                ["redis", "Redis"],
-                ["storage", "Storage"],
-                ["mail", "Mail"],
-                ["reaperFresh", "Reaper freshness"],
-                ["sweepFresh", "Sweep freshness"],
-              ] as const
-            ).map(([key, label]) => (
-              <Badge key={key} variant={overview.policy.capability[key] ? "secondary" : "outline"}>
-                {label}: {overview.policy.capability[key] ? "Ready" : "Unavailable"}
-              </Badge>
-            ))}
-            <Badge variant={overview.policy.effectiveAvailability.demos ? "default" : "outline"}>
+          <CardContent className="flex flex-col gap-4">
+            <DeploymentReadinessList checks={overview.policy.readiness.checks} />
+            <Badge
+              className="self-start"
+              variant={overview.policy.effectiveAvailability.demos ? "default" : "outline"}
+            >
               Effective demo entry:{" "}
               {overview.policy.effectiveAvailability.demos ? "Open" : "Closed"}
             </Badge>

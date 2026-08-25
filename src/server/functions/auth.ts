@@ -6,7 +6,7 @@ import { auth } from "#/server/auth";
 
 export const hasAuthenticatedSession = createServerFn({ method: "GET" })
   .middleware([authedMiddleware])
-  .handler(() => true);
+  .handler(({ context }) => ({ isAnonymous: context.authSession.user.isAnonymous }));
 
 export const currentSessionUser = createServerFn({ method: "GET" })
   .middleware([authedMiddleware])

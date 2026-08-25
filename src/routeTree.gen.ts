@@ -37,6 +37,7 @@ import { Route as ApiDemoEntryRouteImport } from './routes/api/demo/entry'
 import { Route as ApiOperationsDemoRecordsRouteImport } from './routes/api/operations/demo-records'
 import { Route as ApiOperationsPolicyRouteImport } from './routes/api/operations/policy'
 import { Route as ApiOperationsReaperRouteImport } from './routes/api/operations/reaper'
+import { Route as ApiOperationsSummaryFoldRouteImport } from './routes/api/operations/summary-fold'
 import { Route as VSlugIndexRouteImport } from './routes/v/$slug.index'
 import { Route as VSlugDocumentIdRouteImport } from './routes/v/$slug.$documentId'
 import { Route as VSlugBeaconRouteImport } from './routes/v/$slug.beacon'
@@ -199,6 +200,12 @@ const ApiOperationsReaperRoute = ApiOperationsReaperRouteImport.update({
   path: '/api/operations/reaper',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOperationsSummaryFoldRoute =
+  ApiOperationsSummaryFoldRouteImport.update({
+    id: '/api/operations/summary-fold',
+    path: '/api/operations/summary-fold',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const VSlugIndexRoute = VSlugIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -329,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
   '/api/operations/policy': typeof ApiOperationsPolicyRoute
   '/api/operations/reaper': typeof ApiOperationsReaperRoute
+  '/api/operations/summary-fold': typeof ApiOperationsSummaryFoldRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
@@ -372,6 +380,7 @@ export interface FileRoutesByTo {
   '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
   '/api/operations/policy': typeof ApiOperationsPolicyRoute
   '/api/operations/reaper': typeof ApiOperationsReaperRoute
+  '/api/operations/summary-fold': typeof ApiOperationsSummaryFoldRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug': typeof VSlugIndexRoute
@@ -421,6 +430,7 @@ export interface FileRoutesById {
   '/api/operations/demo-records': typeof ApiOperationsDemoRecordsRoute
   '/api/operations/policy': typeof ApiOperationsPolicyRoute
   '/api/operations/reaper': typeof ApiOperationsReaperRoute
+  '/api/operations/summary-fold': typeof ApiOperationsSummaryFoldRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
   '/v/$slug/': typeof VSlugIndexRoute
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/api/operations/demo-records'
     | '/api/operations/policy'
     | '/api/operations/reaper'
+    | '/api/operations/summary-fold'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug/'
@@ -512,6 +523,7 @@ export interface FileRouteTypes {
     | '/api/operations/demo-records'
     | '/api/operations/policy'
     | '/api/operations/reaper'
+    | '/api/operations/summary-fold'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug'
@@ -560,6 +572,7 @@ export interface FileRouteTypes {
     | '/api/operations/demo-records'
     | '/api/operations/policy'
     | '/api/operations/reaper'
+    | '/api/operations/summary-fold'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
     | '/v/$slug/'
@@ -594,6 +607,7 @@ export interface RootRouteChildren {
   ApiOperationsDemoRecordsRoute: typeof ApiOperationsDemoRecordsRoute
   ApiOperationsPolicyRoute: typeof ApiOperationsPolicyRoute
   ApiOperationsReaperRoute: typeof ApiOperationsReaperRoute
+  ApiOperationsSummaryFoldRoute: typeof ApiOperationsSummaryFoldRoute
   ApiDemoReportsSlugRoute: typeof ApiDemoReportsSlugRoute
   ApiDocumentsDocumentIdBytesRoute: typeof ApiDocumentsDocumentIdBytesRoute
   ApiOperationsMailTestRoute: typeof ApiOperationsMailTestRoute
@@ -797,6 +811,13 @@ declare module '@tanstack/react-router' {
       path: '/api/operations/reaper'
       fullPath: '/api/operations/reaper'
       preLoaderRoute: typeof ApiOperationsReaperRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/operations/summary-fold': {
+      id: '/api/operations/summary-fold'
+      path: '/api/operations/summary-fold'
+      fullPath: '/api/operations/summary-fold'
+      preLoaderRoute: typeof ApiOperationsSummaryFoldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v/$slug/': {
@@ -1076,6 +1097,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOperationsDemoRecordsRoute: ApiOperationsDemoRecordsRoute,
   ApiOperationsPolicyRoute: ApiOperationsPolicyRoute,
   ApiOperationsReaperRoute: ApiOperationsReaperRoute,
+  ApiOperationsSummaryFoldRoute: ApiOperationsSummaryFoldRoute,
   ApiDemoReportsSlugRoute: ApiDemoReportsSlugRoute,
   ApiDocumentsDocumentIdBytesRoute: ApiDocumentsDocumentIdBytesRoute,
   ApiOperationsMailTestRoute: ApiOperationsMailTestRoute,

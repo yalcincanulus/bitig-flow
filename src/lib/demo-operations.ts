@@ -289,7 +289,6 @@ export const demoReportCategorySchema = z.enum([
 export const demoReportInputSchema = z
   .object({
     category: demoReportCategorySchema,
-    details: z.string().trim().min(1).max(280).optional(),
   })
   .strict();
 

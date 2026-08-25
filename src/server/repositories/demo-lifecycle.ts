@@ -363,6 +363,23 @@ export async function storeDemoSampleObjects(sampleObjects: ReadonlyArray<DemoSa
   }
 }
 
+export async function findDemoSampleResourceIds(environmentId: string) {
+  const rows = await db
+    .select({
+      documentId: demoSampleResource.documentId,
+      vaultId: demoSampleResource.vaultId,
+      linkId: demoSampleResource.linkId,
+    })
+    .from(demoSampleResource)
+    .where(eq(demoSampleResource.environmentId, environmentId));
+
+  return {
+    documents: rows.flatMap((row) => (row.documentId ? [row.documentId] : [])).sort(),
+    vaults: rows.flatMap((row) => (row.vaultId ? [row.vaultId] : [])).sort(),
+    links: rows.flatMap((row) => (row.linkId ? [row.linkId] : [])).sort(),
+  };
+}
+
 export async function activateDemoEnvironment(environmentId: string) {
   const [activated] = await db
     .update(demoEnvironment)

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-import { deploymentPolicySchema } from "#/lib/deployment-policy";
+import { deploymentPolicySchema, deploymentReadiness } from "#/lib/deployment-policy";
 import { operatorMiddleware } from "#/server/auth-middleware";
 import { deploymentRuntimeCapabilities } from "#/server/deployment-capabilities";
 import {
@@ -62,7 +62,14 @@ export const Route = createFileRoute("/api/operations/policy")({
         }
 
         const capability = await deploymentRuntimeCapabilities(true);
-        if (parsed.data.signUpEnabled && (!capability.mail || !capability.recovery)) {
+        const readiness = deploymentReadiness(parsed.data, capability).canEnable;
+        if (parsed.data.acceptNewDemos && !readiness.demos) {
+          return Response.json(
+            { error: "Demo admission requires every Demo readiness check" },
+            { status: 422, headers: noStoreHeaders },
+          );
+        }
+        if (parsed.data.signUpEnabled && !readiness.signUp) {
           return Response.json(
             { error: "Signup requires healthy mail and recovery capability" },
             { status: 422, headers: noStoreHeaders },

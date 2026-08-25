@@ -1,9 +1,17 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { expect } from "vitest";
 
-import { createCookieClient, createFixtureUser, createOrganizationFixture } from "../fixtures";
-import { deploymentPolicy } from "#/server/db/schema";
+import {
+  createCookieClient,
+  createFixtureUser,
+  createOrganizationFixture,
+  enableFixtureDemoAdmission,
+  enterFixtureDemo,
+} from "../fixtures";
+import { demoGlobalUsage, deploymentPolicy, maintenanceRun } from "#/server/db/schema";
+import { initialDeploymentPolicy } from "#/lib/deployment-policy";
 import { database } from "../fixtures/services";
 import { postAuth, waitForVerificationOtp } from "./auth-journey";
 import { test } from "./http";
@@ -13,20 +21,87 @@ function expectRedirect(response: Response, location: string) {
   expect(response.headers.get("location")).toBe(location);
 }
 
-test("an anonymous User at / receives primary Demo entry and secondary account actions", async () => {
+test("the closed default explains unavailable Demo entry and hides sign-up", async () => {
   const response = await createCookieClient().http(new URL("/", process.env.BETTER_AUTH_URL), {
     redirect: "manual",
   });
   const html = await response.text();
 
   expect(response.status).toBe(200);
-  expect(html).toContain(">Try the demo</button>");
+  expect(html).toContain("Demo entry is currently unavailable");
   expect(html).toContain("Demo work is public only when you create a Link");
   expect(html).toContain(">Sign in</a>");
-  expect(html).toContain('href="/sign-up"');
-  expect(html).toContain(">Create account</a>");
+  expect(html).not.toContain(">Try the demo</button>");
+  expect(html).not.toContain('href="/sign-up"');
   expect(html).not.toContain(">Go to Dashboard</a>");
   expect(html).not.toContain(">Continue setup</a>");
+});
+
+test("available Demo entry is primary and sign-up follows effective capability", async () => {
+  await enableFixtureDemoAdmission();
+  const closedSignup = await fetch(new URL("/", process.env.BETTER_AUTH_URL));
+  const closedSignupHtml = await closedSignup.text();
+  expect(closedSignupHtml).toContain(">Try the demo</button>");
+  expect(closedSignupHtml).not.toContain('href="/sign-up"');
+
+  await database
+    .update(deploymentPolicy)
+    .set({ signUpEnabled: true })
+    .where(eq(deploymentPolicy.id, "deployment"));
+  const openSignup = await fetch(new URL("/", process.env.BETTER_AUTH_URL));
+  expect(await openSignup.text()).toContain(">Create account</a>");
+});
+
+test("public Demo states distinguish saturation, pause, and maintenance", async () => {
+  await enableFixtureDemoAdmission();
+  await database
+    .update(demoGlobalUsage)
+    .set({ activeEnvironmentCount: initialDeploymentPolicy.activeEnvironmentCount })
+    .where(eq(demoGlobalUsage.id, "demo-global"));
+  expect(await (await fetch(new URL("/", process.env.BETTER_AUTH_URL))).text()).toContain(
+    "All Demo Environments are currently in use",
+  );
+
+  await database
+    .update(demoGlobalUsage)
+    .set({ activeEnvironmentCount: 0 })
+    .where(eq(demoGlobalUsage.id, "demo-global"));
+  await database
+    .update(deploymentPolicy)
+    .set({ pauseAllDemoAccess: true })
+    .where(eq(deploymentPolicy.id, "deployment"));
+  expect(await (await fetch(new URL("/", process.env.BETTER_AUTH_URL))).text()).toContain(
+    "Demo access is paused",
+  );
+
+  await database
+    .update(deploymentPolicy)
+    .set({ pauseAllDemoAccess: false })
+    .where(eq(deploymentPolicy.id, "deployment"));
+  await database.delete(maintenanceRun).where(eq(maintenanceRun.kind, "reaper"));
+  expect(await (await fetch(new URL("/", process.env.BETTER_AUTH_URL))).text()).toContain(
+    "Demo maintenance is in progress",
+  );
+});
+
+test("a valid Demo Session receives an accurate resume action", async () => {
+  const demo = await enterFixtureDemo();
+  const response = await demo.http(new URL("/", process.env.BETTER_AUTH_URL));
+  const html = await response.text();
+
+  expect(response.status).toBe(200);
+  expect(html).toContain(">Resume demo</a>");
+  expect(html).not.toContain(">Go to Dashboard</a>");
+  expect(html).not.toContain(">Try the demo</button>");
+});
+
+test("direct sign-up is refused while hidden", async () => {
+  const response = await fetch(new URL("/sign-up", process.env.BETTER_AUTH_URL));
+  const html = await response.text();
+
+  expect(response.status).toBe(200);
+  expect(html).toContain("Sign up is unavailable");
+  expect(html).not.toContain(">Continue</button>");
 });
 
 test("a signed-in User with no Organization sees continue setup at /", async () => {
