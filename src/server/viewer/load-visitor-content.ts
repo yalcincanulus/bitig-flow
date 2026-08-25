@@ -148,11 +148,7 @@ export async function loadVisitorContent(
         .where(eq(deploymentPolicy.id, "deployment"))
         .limit(1),
     ]);
-    if (
-      !environment ||
-      !policy ||
-      environment.deliveredBytes + found.byteSize > policy.deliveredBytes
-    ) {
+    if (!environment || !policy || environment.deliveredBytes >= policy.deliveredBytes) {
       return {
         status: "unavailable",
         reason: "viewing_limited",

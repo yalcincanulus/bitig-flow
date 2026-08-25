@@ -1,0 +1,1 @@
+ALTER TABLE "demo_environment" ADD COLUMN "refusal_counts" jsonb DEFAULT '{}' NOT NULL;

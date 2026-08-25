@@ -74,7 +74,7 @@ export function DemoEnvironmentNotice({
         {storageLimit ? ` of ${formatBytes(storageLimit)}` : ""} used. Resources: {usage.documents}
         {limits ? `/${limits.documents}` : ""} Documents, {usage.vaults}
         {limits ? `/${limits.vaults}` : ""} Vaults, and {usage.links}
-        {limits ? `/${limits.links}` : ""} Links. Files can contain embedded metadata.
+        {limits ? `/${limits.links}` : ""} Links. Uploaded Documents can contain embedded metadata.
         {error && <span className="block text-destructive"> {error}</span>}
       </AlertDescription>
       <AlertAction>

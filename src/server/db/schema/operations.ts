@@ -220,6 +220,10 @@ export const demoEnvironment = snakeCase.table(
     eventLifetimeCount: integer().default(0).notNull(),
     reportCount: integer().default(0).notNull(),
     refusalCount: integer().default(0).notNull(),
+    refusalCounts: jsonb()
+      .$type<Readonly<Record<string, number>>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
     refusalFirstAt: timestampWithTimezone(),
     refusalLastAt: timestampWithTimezone(),
     analyticsIncomplete: boolean().default(false).notNull(),

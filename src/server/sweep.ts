@@ -1,8 +1,13 @@
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
 
 import { db } from "#/server/db/client";
-import { demoEnvironment, demoReport, document, documentUpload } from "#/server/db/schema";
-import { releaseDemoBudget } from "#/server/repositories/demo-environments";
+import {
+  demoEnvironment,
+  demoGlobalUsage,
+  demoReport,
+  document,
+  documentUpload,
+} from "#/server/db/schema";
 import { storageKeyPrefix, uploadKeyPrefix } from "#/lib/upload";
 import { deleteStoredObject, listStoredObjectKeys } from "#/server/storage";
 
@@ -17,6 +22,79 @@ export type OrphanSweepReport = Readonly<{
   removedStorageKeys: ReadonlyArray<string>;
   removedUploadKeys: ReadonlyArray<string>;
 }>;
+
+type StaleUpload = Readonly<{
+  id: string;
+  declaredByteSize: number | null;
+  demoEnvironmentId: string | null;
+}>;
+
+async function removeStaleUploadRow(row: StaleUpload) {
+  return db.transaction(async (transaction) => {
+    const [environment] = row.demoEnvironmentId
+      ? await transaction
+          .select({ id: demoEnvironment.id })
+          .from(demoEnvironment)
+          .where(eq(demoEnvironment.id, row.demoEnvironmentId))
+          .for("update")
+      : [];
+    if (environment) {
+      await transaction.execute(
+        sql`SELECT id FROM ${demoGlobalUsage} WHERE id = 'demo-global' FOR UPDATE`,
+      );
+    }
+
+    const [removed] = await transaction
+      .delete(document)
+      .where(and(eq(document.id, row.id), eq(document.status, "pending")))
+      .returning({ id: document.id });
+    if (!removed) return false;
+    if (!environment) return true;
+
+    const declaredByteSize = row.declaredByteSize ?? 0;
+    const [releasedEnvironment] = await transaction
+      .update(demoEnvironment)
+      .set({
+        documentCount: sql`${demoEnvironment.documentCount} - 1`,
+        uploadedDocumentCount: sql`${demoEnvironment.uploadedDocumentCount} - 1`,
+        pendingUploadCount: sql`${demoEnvironment.pendingUploadCount} - 1`,
+        ...(declaredByteSize > 0
+          ? {
+              reservedUploadBytes: sql`${demoEnvironment.reservedUploadBytes} - ${declaredByteSize}`,
+            }
+          : {}),
+      })
+      .where(
+        and(
+          eq(demoEnvironment.id, environment.id),
+          gte(demoEnvironment.documentCount, 1),
+          gte(demoEnvironment.uploadedDocumentCount, 1),
+          gte(demoEnvironment.pendingUploadCount, 1),
+          gte(demoEnvironment.reservedUploadBytes, declaredByteSize),
+        ),
+      )
+      .returning({ id: demoEnvironment.id });
+    if (!releasedEnvironment) throw new Error("Demo Upload reservation is unavailable");
+
+    const [releasedGlobal] = await transaction
+      .update(demoGlobalUsage)
+      .set({
+        pendingUploadCount: sql`${demoGlobalUsage.pendingUploadCount} - 1`,
+        confirmedBytes: sql`${demoGlobalUsage.confirmedBytes} - ${declaredByteSize}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(demoGlobalUsage.id, "demo-global"),
+          gte(demoGlobalUsage.pendingUploadCount, 1),
+          gte(demoGlobalUsage.confirmedBytes, declaredByteSize),
+        ),
+      )
+      .returning({ id: demoGlobalUsage.id });
+    if (!releasedGlobal) throw new Error("Global Demo Upload reservation is unavailable");
+    return true;
+  });
+}
 
 // This is the bounded lifetime of an Upload key: while its pending row lives the staged
 // object is protected, and both go together once the row ages out.
@@ -38,17 +116,11 @@ export async function sweepUnconfirmedUploads(): Promise<UnconfirmedSweepReport>
   const removedUploadKeys: string[] = [];
 
   for (const row of stale) {
+    const removed = await removeStaleUploadRow(row);
+    if (!removed) continue;
     if (row.uploadKey) {
       await deleteStoredObject(row.uploadKey);
       removedUploadKeys.push(row.uploadKey);
-    }
-    await db.delete(document).where(eq(document.id, row.id));
-    if (row.demoEnvironmentId) {
-      await releaseDemoBudget(row.demoEnvironmentId, "uploadedDocument", 1);
-      await releaseDemoBudget(row.demoEnvironmentId, "pendingUpload", 1);
-      if (row.declaredByteSize) {
-        await releaseDemoBudget(row.demoEnvironmentId, "uploadBytes", row.declaredByteSize);
-      }
     }
     removedDocumentIds.push(row.id);
   }

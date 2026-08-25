@@ -60,6 +60,14 @@ export async function demoSessionAvailability(userId: string, now = new Date()) 
   if (environment.state === "terminating" || environment.state === "completed") {
     return { available: false as const, reason: "terminating" as const };
   }
+  const [policy] = await db
+    .select({ pauseAllDemoAccess: deploymentPolicy.pauseAllDemoAccess })
+    .from(deploymentPolicy)
+    .where(eq(deploymentPolicy.id, "deployment"))
+    .limit(1);
+  if (!policy || policy.pauseAllDemoAccess || environment.state === "global_paused") {
+    return { available: false as const, reason: "paused" as const };
+  }
   return { available: true as const, environment };
 }
 

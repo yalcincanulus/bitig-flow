@@ -133,16 +133,30 @@ export async function reserveDemoBudgets(
         .where(eq(demoEnvironment.id, environmentId))
         .limit(1),
     ]);
-    if (!policyRow || !environment || environment.state !== "active") {
+    if (
+      !policyRow ||
+      !environment ||
+      environment.state !== "active" ||
+      policyRow.pauseAllDemoAccess
+    ) {
       return { accepted: false as const, limit: "environmentUnavailable" as const };
     }
 
-    const recordRefusal = async () => {
+    const recordRefusal = async (dimension: string) => {
       const now = new Date();
       await transaction
         .update(demoEnvironment)
         .set({
           refusalCount: sql`least(100, ${demoEnvironment.refusalCount} + 1)`,
+          refusalCounts: sql`jsonb_set(
+            ${demoEnvironment.refusalCounts},
+            ARRAY[${dimension}],
+            to_jsonb(least(
+              100,
+              coalesce((${demoEnvironment.refusalCounts} ->> ${dimension})::integer, 0) + 1
+            )),
+            true
+          )`,
           refusalFirstAt: sql`coalesce(${demoEnvironment.refusalFirstAt}, ${now})`,
           refusalLastAt: now,
         })
@@ -153,7 +167,7 @@ export async function reserveDemoBudgets(
     for (const reservation of reservations) {
       const result = applyDemoReservation(nextUsage, reservation, policy);
       if (!result.accepted) {
-        await recordRefusal();
+        await recordRefusal(result.limit);
         const check = demoReservationLimits(reservation.kind).find(
           (candidate) => candidate.limit === result.limit,
         );
@@ -187,14 +201,14 @@ export async function reserveDemoBudgets(
         .where(eq(demoGlobalUsage.id, "demo-global"))
         .limit(1);
       if (!globalUsage) {
-        await recordRefusal();
+        await recordRefusal("globalUnavailable");
         return { accepted: false as const, limit: "globalUnavailable" as const };
       }
       for (const reservation of reservations) {
         if (!isGlobalReservation(reservation.kind)) continue;
         const fields = globalReservation[reservation.kind];
         if (globalUsage[fields.usage] + globalDeltas[fields.usage] > policy[fields.limit]) {
-          await recordRefusal();
+          await recordRefusal(fields.limit);
           return {
             accepted: false as const,
             limit: fields.limit,

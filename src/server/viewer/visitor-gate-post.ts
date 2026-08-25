@@ -30,3 +30,21 @@ export function finishVisitorGatePost<T>(
   }
   return new Response(current.body, { status: outcome.status, headers });
 }
+
+export function finishUnavailableViewerGet<T>(
+  deferred: T,
+  status: 410 | 503,
+  initiallyUnavailable: boolean,
+): T | Response {
+  const current = responseFromDeferred(deferred);
+  if (!current) return deferred;
+  if (initiallyUnavailable) {
+    return new Response(current.body, { status, headers: current.headers });
+  }
+  const headers = new Headers(current.headers);
+  headers.delete("Content-Length");
+  headers.delete("Content-Type");
+  headers.set("Cache-Control", "private, no-store");
+  headers.set("X-Content-Type-Options", "nosniff");
+  return new Response(null, { status, headers });
+}

@@ -84,10 +84,31 @@ test("Sweep releases abandoned Demo Upload reservations but not lifetime use", a
     .set({ createdAt: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
     .where(eq(document.id, pending.document.id));
 
-  await expect(sweepUnconfirmedUploads()).resolves.toEqual({
-    removedDocumentIds: [pending.document.id],
-    removedUploadKeys: expect.any(Array),
-  });
+  await database.execute(sql`
+    CREATE OR REPLACE FUNCTION test_slow_stale_upload_delete() RETURNS trigger AS $$
+    BEGIN
+      PERFORM pg_sleep(0.2);
+      RETURN OLD;
+    END;
+    $$ LANGUAGE plpgsql
+  `);
+  await database.execute(sql`DROP TRIGGER IF EXISTS test_slow_stale_upload_delete ON document`);
+  await database.execute(sql`
+    CREATE TRIGGER test_slow_stale_upload_delete
+    BEFORE DELETE ON document
+    FOR EACH ROW
+    EXECUTE FUNCTION test_slow_stale_upload_delete()
+  `);
+  let sweepReports;
+  try {
+    sweepReports = await Promise.all([sweepUnconfirmedUploads(), sweepUnconfirmedUploads()]);
+  } finally {
+    await database.execute(sql`DROP TRIGGER test_slow_stale_upload_delete ON document`);
+    await database.execute(sql`DROP FUNCTION test_slow_stale_upload_delete()`);
+  }
+  expect(sweepReports.flatMap((report) => report.removedDocumentIds)).toEqual([
+    pending.document.id,
+  ]);
   await expect(
     database.select().from(demoEnvironment).where(eq(demoEnvironment.id, demo.environment.id)),
   ).resolves.toEqual([
@@ -318,6 +339,13 @@ test("Demo Vault and Link simultaneous and lifetime quotas cannot be bypassed by
   await expect(
     database.select().from(link).where(eq(link.organizationId, demo.environment.organizationId)),
   ).resolves.toHaveLength(3);
+  await expect(
+    database.select().from(demoEnvironment).where(eq(demoEnvironment.id, demo.environment.id)),
+  ).resolves.toEqual([
+    expect.objectContaining({
+      refusalCounts: expect.objectContaining({ vaultCount: 5, linkCount: 5 }),
+    }),
+  ]);
 });
 
 test("Demo identity expansion and email-dependent Link gates are refused consistently", async () => {
@@ -364,6 +392,23 @@ test("Demo identity expansion and email-dependent Link gates are refused consist
   await expect(
     database.select().from(link).where(eq(link.organizationId, demo.environment.organizationId)),
   ).resolves.toHaveLength(1);
+});
+
+test("Pause all Demo access refuses authenticated Dashboard boundaries", async () => {
+  const demo = await enterFixtureDemo();
+  await database
+    .update(deploymentPolicy)
+    .set({ pauseAllDemoAccess: true })
+    .where(eq(deploymentPolicy.id, "deployment"));
+
+  const response = await callServerFunction(demo.http, {
+    modulePath: documentsModulePath,
+    exportName: "listDocuments",
+    method: "GET",
+  });
+
+  expect(response.status).toBe(307);
+  expect(response.headers.get("location")).toBe("/");
 });
 
 test("Demo Upload reservations are atomic and Upload key lifetime survives deletion", async () => {
@@ -618,6 +663,27 @@ test("public Demo Viewer content is temporary, noindexed, reportable, and paused
   await expect(database.select().from(demoReport)).resolves.toEqual([]);
 });
 
+test("Demo Viewer distinguishes terminating content after Links are disabled", async () => {
+  const demo = await enterFixtureDemo();
+  const [publicLink] = await database
+    .select({ slug: link.slug, id: link.id })
+    .from(link)
+    .where(eq(link.organizationId, demo.environment.organizationId))
+    .limit(1);
+  if (!publicLink) throw new Error("Demo Sample Link is unavailable");
+
+  await database
+    .update(demoEnvironment)
+    .set({ state: "terminating" })
+    .where(eq(demoEnvironment.id, demo.environment.id));
+  await database.update(link).set({ isActive: false }).where(eq(link.id, publicLink.id));
+  const terminating = await createCookieClient().http(
+    new URL(`/v/${publicLink.slug}`, process.env.BETTER_AUTH_URL),
+  );
+  expect(terminating.status).toBe(503);
+  expect(await terminating.text()).toContain("being removed");
+});
+
 test("Demo egress is charged before Viewer or Preview bytes stream", async () => {
   const demo = await enterFixtureDemo();
   const [publicLink] = await database
@@ -632,9 +698,10 @@ test("Demo egress is charged before Viewer or Preview bytes stream", async () =>
     .limit(3)
     .then((rows) => rows.filter((row) => row.byteSize !== null));
   if (!publicLink || !pdf?.byteSize) throw new Error("Demo Sample PDF is unavailable");
+  const rangeBytes = Math.min(10, pdf.byteSize);
   await database
     .update(deploymentPolicy)
-    .set({ deliveredBytes: pdf.byteSize })
+    .set({ deliveredBytes: rangeBytes })
     .where(eq(deploymentPolicy.id, "deployment"));
 
   const visitor = createCookieClient();
@@ -642,8 +709,12 @@ test("Demo egress is charged before Viewer or Preview bytes stream", async () =>
     (await visitor.http(new URL(`/v/${publicLink.slug}`, process.env.BETTER_AUTH_URL))).status,
   ).toBe(200);
   const bytesUrl = new URL(`/v/${publicLink.slug}/bytes/${pdf.id}`, process.env.BETTER_AUTH_URL);
-  const responses = await Promise.all(Array.from({ length: 6 }, () => visitor.http(bytesUrl)));
-  expect(responses.filter((response) => response.status === 200)).toHaveLength(1);
+  const responses = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      visitor.http(bytesUrl, { headers: { range: `bytes=0-${rangeBytes - 1}` } }),
+    ),
+  );
+  expect(responses.filter((response) => response.status === 206)).toHaveLength(1);
   const refusals = responses.filter((response) => response.status === 429);
   expect(refusals).toHaveLength(5);
   for (const refusal of refusals) {
@@ -657,7 +728,7 @@ test("Demo egress is charged before Viewer or Preview bytes stream", async () =>
   expect((await preview.arrayBuffer()).byteLength).toBe(0);
   await expect(
     database.select().from(demoEnvironment).where(eq(demoEnvironment.id, demo.environment.id)),
-  ).resolves.toEqual([expect.objectContaining({ deliveredBytes: pdf.byteSize })]);
+  ).resolves.toEqual([expect.objectContaining({ deliveredBytes: rangeBytes })]);
 });
 
 test("Demo Visit and Event caps preserve content and mark analytics incomplete", async () => {

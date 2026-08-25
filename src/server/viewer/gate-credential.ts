@@ -2,7 +2,7 @@ import { createMiddleware } from "@tanstack/react-start";
 import { setResponseStatus } from "@tanstack/react-start/server";
 
 import { findVisitorLink, unavailableDemoViewerPage } from "#/server/viewer/visitor-gate";
-import { responseFromDeferred } from "#/server/viewer/visitor-gate-post";
+import { finishUnavailableViewerGet } from "#/server/viewer/visitor-gate-post";
 
 function viewerSlug(pathname: string) {
   const [, surface, slug] = pathname.split("/");
@@ -25,17 +25,29 @@ export const gateCredential = createMiddleware().server(async ({ next, request }
     });
   }
   if (unavailable) setResponseStatus(unavailable.reason === "expired" ? 410 : 503);
-  return next();
+  return next({
+    context: {
+      demoViewerEnvironmentId: link?.demo?.environmentId,
+      demoViewerUnavailable: unavailable !== undefined,
+    },
+  });
 });
 
-export async function finishDemoViewerGet<T>(slug: string, deferred: T): Promise<T | Response> {
+export async function finishDemoViewerGet<T>(
+  slug: string,
+  deferred: T,
+  initiallyUnavailable = false,
+  initialDemoEnvironmentId?: string,
+): Promise<T | Response> {
   const link = await findVisitorLink(slug);
+  if (
+    initialDemoEnvironmentId &&
+    (!link?.demo || link.demo.environmentId !== initialDemoEnvironmentId)
+  ) {
+    return finishUnavailableViewerGet(deferred, 503, false);
+  }
   const unavailable = link ? unavailableDemoViewerPage(link) : undefined;
   if (!unavailable) return deferred;
-  const current = responseFromDeferred(deferred);
-  if (!current) return deferred;
-  return new Response(current.body, {
-    status: unavailable.reason === "expired" ? 410 : 503,
-    headers: current.headers,
-  });
+  const status = unavailable.reason === "expired" ? 410 : 503;
+  return finishUnavailableViewerGet(deferred, status, initiallyUnavailable);
 }

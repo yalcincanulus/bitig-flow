@@ -5,7 +5,8 @@ import { demoReportInputSchema } from "#/lib/demo-operations";
 import { hashAnalyticsValue } from "#/server/analytics-hash";
 import { demoReportMiddleware } from "#/server/auth-middleware";
 import { getClientIp } from "#/server/client-ip";
-import { findDemoReportTarget, recordDemoReport } from "#/server/repositories/demo-reports";
+import { recordDemoReport } from "#/server/repositories/demo-reports";
+import { findDemoReportTarget } from "#/server/viewer/demo-report-target";
 import { requiredEnv, trustedProxyCount } from "#/server/runtime-env";
 
 function response(body: unknown, status: number) {

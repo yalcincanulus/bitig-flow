@@ -236,12 +236,6 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     .limit(1);
 
   if (!row) return null;
-  if (!row.isActive) return null;
-  if (row.expiresAt !== null && row.expiresAt <= now) return null;
-
-  const targetTitle = row.documentTitle ?? row.vaultName;
-  if (!targetTitle) return null;
-
   let demo: DemoViewerContext | undefined;
   if (row.demoEnvironmentId && row.demoExpiresAt && row.demoState) {
     const [policy] = await db
@@ -256,6 +250,13 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
       policyPaused: policy?.pauseAllDemoAccess ?? true,
     };
   }
+
+  const terminalDemoState = demo?.state === "terminating" || demo?.state === "completed";
+  if (!row.isActive && !terminalDemoState) return null;
+  if (row.expiresAt !== null && row.expiresAt <= now && !terminalDemoState) return null;
+
+  const targetTitle = row.documentTitle ?? row.vaultName;
+  if (!targetTitle && !terminalDemoState) return null;
 
   return {
     id: linkIdSchema.parse(row.id),
@@ -275,7 +276,7 @@ export async function findVisitorLink(slug: string): Promise<VisitorLink | null>
     allowDownload: row.allowDownload,
     documentId: row.documentId ? documentIdSchema.parse(row.documentId) : null,
     vaultId: row.vaultId ? vaultIdSchema.parse(row.vaultId) : null,
-    targetTitle,
+    targetTitle: targetTitle ?? "",
     ...(demo ? { demo } : {}),
   };
 }
