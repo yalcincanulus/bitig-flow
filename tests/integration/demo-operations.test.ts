@@ -1,18 +1,21 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { expect } from "vitest";
 
 import { initialDeploymentPolicy } from "#/lib/deployment-policy";
 import { deploymentRuntimeCapabilities } from "#/server/deployment-capabilities";
 import {
   demoDailyAggregate,
+  document,
   demoEnvironment,
   demoGlobalUsage,
   demoReport,
+  demoSampleResource,
   demoSummary,
   deploymentPolicy,
   maintenanceRun,
+  link,
   organization,
   platformOperator,
   user,
@@ -34,9 +37,12 @@ import {
   readMaintenanceStatus,
   startMaintenanceRun,
 } from "#/server/repositories/maintenance-runs";
-import { createFixtureUser } from "../fixtures";
+import { callServerFunction, createFixtureUser, enterFixtureDemo } from "../fixtures";
 import { database } from "../fixtures/services";
 import { test } from "./http";
+import { mailpitBaseUrl } from "./environment";
+
+const mailpitUrl = mailpitBaseUrl(process.env);
 
 async function createOperator() {
   const fixture = await createFixtureUser();
@@ -65,6 +71,20 @@ async function createEnvironment() {
     })
     .returning();
   return environment!;
+}
+
+async function waitForMailTo(email: string) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const response = await fetch(
+      `${mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+    );
+    if (response.ok) {
+      const result = (await response.json()) as { messages: Array<{ Subject: string }> };
+      if (result.messages.length > 0) return result.messages;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return [];
 }
 
 test("operational records and fail-closed singletons are durable", async () => {
@@ -308,6 +328,107 @@ test("simultaneous reservations can be released without restoring lifetime capac
   ).resolves.toEqual([expect.objectContaining({ documentCount: 1, documentLifetimeCount: 2 })]);
 });
 
+test("Demo writes count non-Sample adoption without letting Sample edits fabricate it", async () => {
+  const demo = await enterFixtureDemo();
+  const documentId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af20801";
+  const vaultId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af10801";
+  const linkId = "0198b8f1-6ae4-7c39-9c3d-3cfd7af30801";
+
+  const createDocument = await callServerFunction(demo.http, {
+    modulePath: "/src/server/functions/documents.ts",
+    exportName: "createDocument",
+    method: "POST",
+    data: { documentId, title: "Reviewer notes" },
+  });
+  const createVault = await callServerFunction(demo.http, {
+    modulePath: "/src/server/functions/vaults.ts",
+    exportName: "createVault",
+    method: "POST",
+    data: { vaultId, name: "Reviewer collection", description: "Created in the demo" },
+  });
+  const createLink = await callServerFunction(demo.http, {
+    modulePath: "/src/server/functions/links.ts",
+    exportName: "createLink",
+    method: "POST",
+    data: {
+      linkId,
+      documentId,
+      name: "Reviewer link",
+      requiresEmail: false,
+      requiresVerification: false,
+      allowDownload: true,
+      expiresAt: null,
+    },
+  });
+  expect([createDocument.status, createVault.status, createLink.status]).toEqual([200, 200, 200]);
+
+  const samples = await database
+    .select()
+    .from(demoSampleResource)
+    .where(eq(demoSampleResource.environmentId, demo.environment.id));
+  const sampleVaultId = samples.find((sample) => sample.vaultId)?.vaultId;
+  const sampleLinkId = samples.find((sample) => sample.linkId)?.linkId;
+  const [sampleDocument] = await database
+    .select({
+      id: document.id,
+      title: document.title,
+      content: document.content,
+      updatedAt: document.updatedAt,
+    })
+    .from(document)
+    .innerJoin(demoSampleResource, eq(demoSampleResource.documentId, document.id))
+    .where(
+      and(eq(demoSampleResource.environmentId, demo.environment.id), eq(document.kind, "markdown")),
+    )
+    .limit(1);
+  if (!sampleDocument || !sampleVaultId || !sampleLinkId) throw new Error("Sample fixture missing");
+
+  const updateDocument = await callServerFunction(demo.http, {
+    modulePath: "/src/server/functions/documents.ts",
+    exportName: "updateDocument",
+    method: "POST",
+    data: {
+      documentId: sampleDocument.id,
+      title: sampleDocument.title,
+      content: sampleDocument.content ?? "",
+      updatedAt: sampleDocument.updatedAt,
+    },
+  });
+  const updateVault = await callServerFunction(demo.http, {
+    modulePath: "/src/server/functions/vaults.ts",
+    exportName: "updateVault",
+    method: "POST",
+    data: { vaultId: sampleVaultId, name: "Edited Sample", description: null },
+  });
+  const [sampleLink] = await database.select().from(link).where(eq(link.id, sampleLinkId));
+  const updateLink = await callServerFunction(demo.http, {
+    modulePath: "/src/server/functions/links.ts",
+    exportName: "updateLink",
+    method: "POST",
+    data: {
+      linkId: sampleLinkId,
+      name: "Edited Sample",
+      requiresEmail: false,
+      requiresVerification: false,
+      allowDownload: sampleLink!.allowDownload,
+      expiresAt: sampleLink!.expiresAt,
+      isActive: sampleLink!.isActive,
+    },
+  });
+  expect([updateDocument.status, updateVault.status, updateLink.status]).toEqual([200, 200, 200]);
+
+  await expect(
+    database.select().from(demoEnvironment).where(eq(demoEnvironment.id, demo.environment.id)),
+  ).resolves.toEqual([
+    expect.objectContaining({
+      documentLifetimeCount: 1,
+      documentActivityCount: 1,
+      vaultActivityCount: 1,
+      linkActivityCount: 1,
+    }),
+  ]);
+});
+
 test("expired raw Summaries fold into indefinite content-free daily totals", async () => {
   const endedAt = new Date("2026-07-01T12:00:00.000Z");
   await persistDemoSummary({
@@ -317,8 +438,12 @@ test("expired raw Summaries fold into indefinite content-free daily totals", asy
     documentCreatedCount: 2,
     vaultCreatedCount: 1,
     linkCreatedCount: 1,
+    documentActivityCount: 3,
+    vaultActivityCount: 2,
+    linkActivityCount: 1,
     visitCount: 4,
     eventCount: 10,
+    downloadCount: 2,
     deliveredBytes: 2_048,
     refusalCount: 1,
     analyticsIncomplete: false,
@@ -333,6 +458,9 @@ test("expired raw Summaries fold into indefinite content-free daily totals", asy
       environmentCount: 1,
       expiredCount: 1,
       documentCreatedCount: 2,
+      documentActivityCount: 3,
+      vaultActivityCount: 2,
+      linkActivityCount: 1,
       deliveredBytes: 2_048,
     }),
   ]);
@@ -415,4 +543,137 @@ test("maintenance status exposes the current run, heartbeat, outcome, and last r
     storage: true,
     reaperFresh: true,
   });
+});
+
+test("fleet deletion closes admission and resumes in bounded batches", async () => {
+  await ensureDeploymentOperationsSingletons();
+  const operator = await createOperator();
+  await database
+    .update(deploymentPolicy)
+    .set({ acceptNewDemos: true })
+    .where(eq(deploymentPolicy.id, "deployment"));
+  await Promise.all(Array.from({ length: 7 }, () => createEnvironment()));
+
+  const refused = await operator.http(
+    new URL("/api/operations/demo-environments", process.env.BETTER_AUTH_URL),
+    {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmation: "delete everything" }),
+    },
+  );
+  expect(refused.status).toBe(422);
+  await expect(database.select().from(demoEnvironment)).resolves.toHaveLength(7);
+  await expect(database.select().from(deploymentPolicy)).resolves.toEqual([
+    expect.objectContaining({ acceptNewDemos: true }),
+  ]);
+
+  const first = await operator.http(
+    new URL("/api/operations/demo-environments", process.env.BETTER_AUTH_URL),
+    {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmation: "DELETE ALL DEMO ENVIRONMENTS" }),
+    },
+  );
+  expect(first.status).toBe(200);
+  expect(await first.json()).toEqual({ processedCount: 5, remainingCount: 2, completed: false });
+  await expect(database.select().from(deploymentPolicy)).resolves.toEqual([
+    expect.objectContaining({ acceptNewDemos: false, updatedBy: operator.user.id }),
+  ]);
+
+  const resumed = await operator.http(
+    new URL("/api/operations/demo-environments", process.env.BETTER_AUTH_URL),
+    {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmation: "DELETE ALL DEMO ENVIRONMENTS" }),
+    },
+  );
+  expect(resumed.status).toBe(200);
+  expect(await resumed.json()).toEqual({ processedCount: 2, remainingCount: 0, completed: true });
+  await expect(database.select().from(demoEnvironment)).resolves.toEqual([]);
+  await expect(database.select().from(demoSummary)).resolves.toEqual(
+    Array.from({ length: 7 }, () => expect.objectContaining({ endReason: "fleet_deleted" })),
+  );
+});
+
+test("test mail is Operator-only and always targets the Operator address", async () => {
+  const durableUser = await createFixtureUser();
+  const forbidden = await durableUser.http(
+    new URL("/api/operations/mail/test", process.env.BETTER_AUTH_URL),
+    { method: "POST" },
+  );
+  expect(forbidden.status).toBe(403);
+
+  const operator = await createOperator();
+  const attemptedRecipient = `not-operator-${randomUUID()}@example.com`;
+  const response = await operator.http(
+    new URL("/api/operations/mail/test", process.env.BETTER_AUTH_URL),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ to: attemptedRecipient }),
+    },
+  );
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ sentTo: operator.user.email });
+  expect(await waitForMailTo(operator.user.email)).toEqual([
+    expect.objectContaining({ Subject: "bitig-flow Operations test email" }),
+  ]);
+  expect(await waitForMailTo(attemptedRecipient)).toEqual([]);
+});
+
+test("Operations routes expose aggregate controls without Organization or report content", async () => {
+  await ensureDeploymentOperationsSingletons();
+  const operator = await createOperator();
+  const environment = await createEnvironment();
+  const reportDetails = `private-report-detail-${randomUUID()}`;
+  await recordDemoReport({
+    environmentId: environment.id,
+    category: "spam_or_phishing",
+    details: reportDetails,
+    networkHash: "operations-route-hash",
+  });
+
+  const overview = await operator.http(new URL("/operations", process.env.BETTER_AUTH_URL));
+  expect(overview.status).toBe(200);
+  const overviewHtml = await overview.text();
+  expect(overviewHtml).toContain(">Overview</h1>");
+  expect(overviewHtml).toContain("Public analytics are best-effort");
+  expect(overviewHtml).toContain("30-day aggregate trend");
+
+  await database
+    .update(deploymentPolicy)
+    .set({ pauseAllDemoAccess: true })
+    .where(eq(deploymentPolicy.id, "deployment"));
+
+  const environments = await operator.http(
+    new URL("/operations/environments", process.env.BETTER_AUTH_URL),
+  );
+  expect(environments.status).toBe(200);
+  const environmentsHtml = await environments.text();
+  expect(environmentsHtml).toContain(">Demo Environments</h1>");
+  expect(environmentsHtml).toContain(environment.anonymousReference);
+  expect(environmentsHtml).toContain("global paused");
+  expect(environmentsHtml).not.toContain(environment.organizationId);
+  expect(environmentsHtml).not.toContain(environment.userId);
+  expect(environmentsHtml).not.toContain(reportDetails);
+
+  const policy = await operator.http(new URL("/operations/policy", process.env.BETTER_AUTH_URL));
+  expect(policy.status).toBe(200);
+  const policyHtml = await policy.text();
+  expect(policyHtml).toContain(">Deployment Policy</h1>");
+  expect(policyHtml).toContain("Accept new demos");
+  expect(policyHtml).toContain("Delete all Demo Environments");
+
+  const records = await operator.http(
+    new URL("/api/operations/demo-records", process.env.BETTER_AUTH_URL),
+  );
+  expect(records.status).toBe(200);
+  const recordsJson = await records.text();
+  expect(recordsJson).not.toContain(environment.organizationId);
+  expect(recordsJson).not.toContain(environment.userId);
+  expect(recordsJson).not.toContain(reportDetails);
 });

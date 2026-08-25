@@ -16,6 +16,7 @@ import {
   type NewLink,
 } from "#/server/repositories/links";
 import { hashSharePassword } from "#/server/share-password-hash";
+import { recordDemoActivity } from "#/server/repositories/demo-environments";
 import {
   refuseDemoFeature,
   releaseFailedDemoBudget,
@@ -167,7 +168,9 @@ export const createLink = createServerFn({ method: "POST" })
 
     await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "link");
     try {
-      return await createLinkInRepository(context.orgId, newLink);
+      const created = await createLinkInRepository(context.orgId, newLink);
+      await recordDemoActivity(context.demoEnvironmentId, "link", data.linkId);
+      return created;
     } catch (error) {
       await releaseFailedDemoBudget(context.demoEnvironmentId, "link");
       throw error;
@@ -202,6 +205,7 @@ export const updateLink = createServerFn({ method: "POST" })
       isActive: data.isActive,
     });
     if (!updated) throw notFound();
+    await recordDemoActivity(context.demoEnvironmentId, "link", data.linkId);
     return updated;
   });
 
@@ -211,6 +215,7 @@ export const rotateLinkSlug = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const rotated = await rotateLinkSlugInRepository(context.orgId, data.linkId);
     if (!rotated) throw notFound();
+    await recordDemoActivity(context.demoEnvironmentId, "link", data.linkId);
     return rotated;
   });
 

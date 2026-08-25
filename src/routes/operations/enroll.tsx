@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -47,9 +47,9 @@ function OperatorEnrollment() {
             </li>
           ))}
         </ul>
-        <Link to="/operations" className={buttonVariants()}>
+        <a href="/operations" className={buttonVariants()}>
           Continue to Operations
-        </Link>
+        </a>
       </AuthPage>
     );
   }

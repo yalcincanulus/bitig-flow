@@ -123,7 +123,7 @@ export async function rollbackFailedDemoBudgets(
 
 export async function consumeDemoAnalyticsBudget(
   environmentId: string | undefined,
-  kind: "visit" | "event",
+  kind: "visit" | "event" | "download",
   amount = 1,
 ) {
   if (!environmentId) return true;

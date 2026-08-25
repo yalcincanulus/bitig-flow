@@ -3,6 +3,16 @@ import { CheckCircle2Icon, CircleAlertIcon, ShieldCheckIcon } from "lucide-react
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "#/components/ui/alert-dialog";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
@@ -32,6 +42,7 @@ import {
   type DeploymentPolicyValues,
   type RuntimeCapabilities,
 } from "#/lib/deployment-policy";
+import { policyChangeConfirmation } from "#/lib/operations";
 
 type PolicyView = Readonly<{
   policy?: DeploymentPolicyValues;
@@ -52,6 +63,18 @@ type NumberField = Readonly<{
 }>;
 
 const MiB = 1024 * 1024;
+
+async function requestPolicyImpact(requested: DeploymentPolicyValues, signal?: AbortSignal) {
+  const response = await fetch("/api/operations/policy", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(requested),
+    signal,
+  });
+  const result = (await response.json()) as Pick<PolicyView, "impact"> & { error?: string };
+  if (!response.ok) throw new Error(result.error ?? "Could not preview policy impact");
+  return result.impact;
+}
 
 const environmentFields: ReadonlyArray<NumberField> = [
   {
@@ -214,6 +237,9 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>();
   const [draftImpact, setDraftImpact] = useState(initialView.impact);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [confirmationRequest, setConfirmationRequest] = useState<DeploymentPolicyValues>();
+  const [confirmationImpact, setConfirmationImpact] = useState(initialView.impact);
 
   useEffect(() => {
     const parsed = deploymentPolicySchema.safeParse(policy);
@@ -221,17 +247,8 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
 
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void fetch("/api/operations/policy", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(parsed.data),
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          if (!response.ok) return;
-          const result = (await response.json()) as Pick<PolicyView, "impact">;
-          setDraftImpact(result.impact);
-        })
+      void requestPolicyImpact(parsed.data, controller.signal)
+        .then(setDraftImpact)
         .catch(() => undefined);
     }, 250);
     return () => {
@@ -245,24 +262,13 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
     setFeedback(undefined);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFeedback(undefined);
-    const parsed = deploymentPolicySchema.safeParse(policy);
-    if (!parsed.success) {
-      setFeedback({
-        kind: "failure",
-        message: parsed.error.issues[0]?.message ?? "Deployment Policy is invalid.",
-      });
-      return;
-    }
-
+  async function savePolicy(requested: DeploymentPolicyValues) {
     setPending(true);
     try {
       const response = await fetch("/api/operations/policy", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(parsed.data),
+        body: JSON.stringify(requested),
       });
       const result = (await response.json()) as PolicyView & { error?: string };
       if (!response.ok) {
@@ -279,6 +285,40 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
     }
     setPending(false);
   }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFeedback(undefined);
+    const parsed = deploymentPolicySchema.safeParse(policy);
+    if (!parsed.success) {
+      setFeedback({
+        kind: "failure",
+        message: parsed.error.issues[0]?.message ?? "Deployment Policy is invalid.",
+      });
+      return;
+    }
+
+    const change = policyChangeConfirmation(view.policy ?? initialDeploymentPolicy, parsed.data);
+    if (change.required) {
+      setPending(true);
+      try {
+        const impact = await requestPolicyImpact(parsed.data);
+        setDraftImpact(impact);
+        setConfirmationImpact(impact);
+        setConfirmationRequest(parsed.data);
+        setConfirmationOpen(true);
+      } catch {
+        setFeedback({ kind: "failure", message: "Could not preview Deployment Policy impact." });
+      }
+      setPending(false);
+      return;
+    }
+    void savePolicy(parsed.data);
+  }
+
+  const confirmationChange = confirmationRequest
+    ? policyChangeConfirmation(view.policy ?? initialDeploymentPolicy, confirmationRequest)
+    : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -429,6 +469,42 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
           </Alert>
         ) : null}
       </form>
+
+      <AlertDialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply impactful policy reduction?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmationChange?.reducedFields.length
+                ? `${confirmationChange.reducedFields.length} hard-bounded ceilings will be lowered. `
+                : ""}
+              {confirmationImpact.writeLimitedEnvironmentCount} current Demo Environments will be
+              above the requested limits. Existing data is not deleted, but additional writes can be
+              refused.
+              {confirmationChange?.pausesAllDemoAccess
+                ? " All current Demo Environment access will also pause."
+                : ""}
+              {confirmationChange?.closesDemoAdmission ? " New demo admission will close." : ""}
+              {confirmationChange?.closesSignUp ? " Durable signup will close." : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              disabled={pending || !confirmationRequest}
+              onClick={() => {
+                if (!confirmationRequest) return;
+                setConfirmationOpen(false);
+                void savePolicy(confirmationRequest);
+              }}
+            >
+              {pending ? <Spinner data-icon="inline-start" /> : null}
+              Apply reduction
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

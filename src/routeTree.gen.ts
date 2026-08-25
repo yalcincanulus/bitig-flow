@@ -22,7 +22,10 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AuthTwoFactorRouteImport } from './routes/_auth/two-factor'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as OperationsIndexRouteImport } from './routes/operations/index'
 import { Route as OperationsEnrollRouteImport } from './routes/operations/enroll'
+import { Route as OperationsEnvironmentsRouteImport } from './routes/operations/environments'
+import { Route as OperationsPolicyRouteImport } from './routes/operations/policy'
 import { Route as VSlugRouteImport } from './routes/v/$slug'
 import { Route as AuthAcceptInvitationInvitationIdRouteImport } from './routes/_auth/accept-invitation/$invitationId'
 import { Route as AuthenticatedDashboardDocumentsRouteRouteImport } from './routes/_authenticated/dashboard/documents/route'
@@ -46,6 +49,8 @@ import { Route as AuthenticatedDashboardVaultsIndexRouteImport } from './routes/
 import { Route as AuthenticatedDashboardVaultsVaultIdRouteImport } from './routes/_authenticated/dashboard/vaults/$vaultId'
 import { Route as ApiDemoReportsSlugRouteImport } from './routes/api/demo/reports/$slug'
 import { Route as ApiDocumentsDocumentIdBytesRouteImport } from './routes/api/documents/$documentId/bytes'
+import { Route as ApiOperationsDemoEnvironmentsIndexRouteImport } from './routes/api/operations/demo-environments/index'
+import { Route as ApiOperationsMailTestRouteImport } from './routes/api/operations/mail/test'
 import { Route as VSlugBytesDocumentIdRouteImport } from './routes/v/$slug.bytes.$documentId'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdIndexRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/index'
 import { Route as AuthenticatedDashboardDocumentsDocumentIdEditRouteImport } from './routes/_authenticated/dashboard/documents/$documentId/edit'
@@ -114,9 +119,24 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const OperationsIndexRoute = OperationsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OperationsRoute,
+} as any)
 const OperationsEnrollRoute = OperationsEnrollRouteImport.update({
   id: '/enroll',
   path: '/enroll',
+  getParentRoute: () => OperationsRoute,
+} as any)
+const OperationsEnvironmentsRoute = OperationsEnvironmentsRouteImport.update({
+  id: '/environments',
+  path: '/environments',
+  getParentRoute: () => OperationsRoute,
+} as any)
+const OperationsPolicyRoute = OperationsPolicyRouteImport.update({
+  id: '/policy',
+  path: '/policy',
   getParentRoute: () => OperationsRoute,
 } as any)
 const VSlugRoute = VSlugRouteImport.update({
@@ -247,6 +267,17 @@ const ApiDocumentsDocumentIdBytesRoute =
     path: '/api/documents/$documentId/bytes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOperationsDemoEnvironmentsIndexRoute =
+  ApiOperationsDemoEnvironmentsIndexRouteImport.update({
+    id: '/api/operations/demo-environments/',
+    path: '/api/operations/demo-environments/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiOperationsMailTestRoute = ApiOperationsMailTestRouteImport.update({
+  id: '/api/operations/mail/test',
+  path: '/api/operations/mail/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VSlugBytesDocumentIdRoute = VSlugBytesDocumentIdRouteImport.update({
   id: '/bytes/$documentId',
   path: '/bytes/$documentId',
@@ -284,7 +315,10 @@ export interface FileRoutesByFullPath {
   '/two-factor': typeof AuthTwoFactorRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/operations/enroll': typeof OperationsEnrollRoute
+  '/operations/environments': typeof OperationsEnvironmentsRoute
+  '/operations/policy': typeof OperationsPolicyRoute
   '/v/$slug': typeof VSlugRouteWithChildren
+  '/operations/': typeof OperationsIndexRoute
   '/dashboard/documents': typeof AuthenticatedDashboardDocumentsRouteRouteWithChildren
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
@@ -303,11 +337,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
   '/api/demo/reports/$slug': typeof ApiDemoReportsSlugRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
+  '/api/operations/mail/test': typeof ApiOperationsMailTestRoute
   '/v/$slug/bytes/$documentId': typeof VSlugBytesDocumentIdRoute
   '/dashboard/analytics/': typeof AuthenticatedDashboardAnalyticsIndexRoute
   '/dashboard/documents/': typeof AuthenticatedDashboardDocumentsIndexRoute
   '/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
   '/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
+  '/api/operations/demo-environments/': typeof ApiOperationsDemoEnvironmentsIndexRoute
   '/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
   '/api/operations/demo-environments/$environmentId/end': typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
   '/dashboard/documents/$documentId/': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
@@ -315,7 +351,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
-  '/operations': typeof OperationsRouteWithChildren
   '/v': typeof VRouteWithChildren
   '/verify-email': typeof VerifyEmailRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -325,6 +360,9 @@ export interface FileRoutesByTo {
   '/two-factor': typeof AuthTwoFactorRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/operations/enroll': typeof OperationsEnrollRoute
+  '/operations/environments': typeof OperationsEnvironmentsRoute
+  '/operations/policy': typeof OperationsPolicyRoute
+  '/operations': typeof OperationsIndexRoute
   '/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
   '/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
@@ -342,11 +380,13 @@ export interface FileRoutesByTo {
   '/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
   '/api/demo/reports/$slug': typeof ApiDemoReportsSlugRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
+  '/api/operations/mail/test': typeof ApiOperationsMailTestRoute
   '/v/$slug/bytes/$documentId': typeof VSlugBytesDocumentIdRoute
   '/dashboard/analytics': typeof AuthenticatedDashboardAnalyticsIndexRoute
   '/dashboard/documents': typeof AuthenticatedDashboardDocumentsIndexRoute
   '/dashboard/links': typeof AuthenticatedDashboardLinksIndexRoute
   '/dashboard/vaults': typeof AuthenticatedDashboardVaultsIndexRoute
+  '/api/operations/demo-environments': typeof ApiOperationsDemoEnvironmentsIndexRoute
   '/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
   '/api/operations/demo-environments/$environmentId/end': typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
   '/dashboard/documents/$documentId': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
@@ -367,7 +407,10 @@ export interface FileRoutesById {
   '/_auth/two-factor': typeof AuthTwoFactorRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/operations/enroll': typeof OperationsEnrollRoute
+  '/operations/environments': typeof OperationsEnvironmentsRoute
+  '/operations/policy': typeof OperationsPolicyRoute
   '/v/$slug': typeof VSlugRouteWithChildren
+  '/operations/': typeof OperationsIndexRoute
   '/_authenticated/dashboard/documents': typeof AuthenticatedDashboardDocumentsRouteRouteWithChildren
   '/_auth/accept-invitation/$invitationId': typeof AuthAcceptInvitationInvitationIdRoute
   '/_authenticated/dashboard/people': typeof AuthenticatedDashboardPeopleRoute
@@ -386,11 +429,13 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/vaults/$vaultId': typeof AuthenticatedDashboardVaultsVaultIdRoute
   '/api/demo/reports/$slug': typeof ApiDemoReportsSlugRoute
   '/api/documents/$documentId/bytes': typeof ApiDocumentsDocumentIdBytesRoute
+  '/api/operations/mail/test': typeof ApiOperationsMailTestRoute
   '/v/$slug/bytes/$documentId': typeof VSlugBytesDocumentIdRoute
   '/_authenticated/dashboard/analytics/': typeof AuthenticatedDashboardAnalyticsIndexRoute
   '/_authenticated/dashboard/documents/': typeof AuthenticatedDashboardDocumentsIndexRoute
   '/_authenticated/dashboard/links/': typeof AuthenticatedDashboardLinksIndexRoute
   '/_authenticated/dashboard/vaults/': typeof AuthenticatedDashboardVaultsIndexRoute
+  '/api/operations/demo-environments/': typeof ApiOperationsDemoEnvironmentsIndexRoute
   '/_authenticated/dashboard/documents/$documentId/edit': typeof AuthenticatedDashboardDocumentsDocumentIdEditRoute
   '/api/operations/demo-environments/$environmentId/end': typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
   '/_authenticated/dashboard/documents/$documentId/': typeof AuthenticatedDashboardDocumentsDocumentIdIndexRoute
@@ -410,7 +455,10 @@ export interface FileRouteTypes {
     | '/two-factor'
     | '/dashboard'
     | '/operations/enroll'
+    | '/operations/environments'
+    | '/operations/policy'
     | '/v/$slug'
+    | '/operations/'
     | '/dashboard/documents'
     | '/accept-invitation/$invitationId'
     | '/dashboard/people'
@@ -429,11 +477,13 @@ export interface FileRouteTypes {
     | '/dashboard/vaults/$vaultId'
     | '/api/demo/reports/$slug'
     | '/api/documents/$documentId/bytes'
+    | '/api/operations/mail/test'
     | '/v/$slug/bytes/$documentId'
     | '/dashboard/analytics/'
     | '/dashboard/documents/'
     | '/dashboard/links/'
     | '/dashboard/vaults/'
+    | '/api/operations/demo-environments/'
     | '/dashboard/documents/$documentId/edit'
     | '/api/operations/demo-environments/$environmentId/end'
     | '/dashboard/documents/$documentId/'
@@ -441,7 +491,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/onboarding'
-    | '/operations'
     | '/v'
     | '/verify-email'
     | '/forgot-password'
@@ -451,6 +500,9 @@ export interface FileRouteTypes {
     | '/two-factor'
     | '/dashboard'
     | '/operations/enroll'
+    | '/operations/environments'
+    | '/operations/policy'
+    | '/operations'
     | '/accept-invitation/$invitationId'
     | '/dashboard/people'
     | '/dashboard/settings'
@@ -468,11 +520,13 @@ export interface FileRouteTypes {
     | '/dashboard/vaults/$vaultId'
     | '/api/demo/reports/$slug'
     | '/api/documents/$documentId/bytes'
+    | '/api/operations/mail/test'
     | '/v/$slug/bytes/$documentId'
     | '/dashboard/analytics'
     | '/dashboard/documents'
     | '/dashboard/links'
     | '/dashboard/vaults'
+    | '/api/operations/demo-environments'
     | '/dashboard/documents/$documentId/edit'
     | '/api/operations/demo-environments/$environmentId/end'
     | '/dashboard/documents/$documentId'
@@ -492,7 +546,10 @@ export interface FileRouteTypes {
     | '/_auth/two-factor'
     | '/_authenticated/dashboard'
     | '/operations/enroll'
+    | '/operations/environments'
+    | '/operations/policy'
     | '/v/$slug'
+    | '/operations/'
     | '/_authenticated/dashboard/documents'
     | '/_auth/accept-invitation/$invitationId'
     | '/_authenticated/dashboard/people'
@@ -511,11 +568,13 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/vaults/$vaultId'
     | '/api/demo/reports/$slug'
     | '/api/documents/$documentId/bytes'
+    | '/api/operations/mail/test'
     | '/v/$slug/bytes/$documentId'
     | '/_authenticated/dashboard/analytics/'
     | '/_authenticated/dashboard/documents/'
     | '/_authenticated/dashboard/links/'
     | '/_authenticated/dashboard/vaults/'
+    | '/api/operations/demo-environments/'
     | '/_authenticated/dashboard/documents/$documentId/edit'
     | '/api/operations/demo-environments/$environmentId/end'
     | '/_authenticated/dashboard/documents/$documentId/'
@@ -537,6 +596,8 @@ export interface RootRouteChildren {
   ApiOperationsReaperRoute: typeof ApiOperationsReaperRoute
   ApiDemoReportsSlugRoute: typeof ApiDemoReportsSlugRoute
   ApiDocumentsDocumentIdBytesRoute: typeof ApiDocumentsDocumentIdBytesRoute
+  ApiOperationsMailTestRoute: typeof ApiOperationsMailTestRoute
+  ApiOperationsDemoEnvironmentsIndexRoute: typeof ApiOperationsDemoEnvironmentsIndexRoute
   ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute: typeof ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute
 }
 
@@ -633,11 +694,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/operations/': {
+      id: '/operations/'
+      path: '/'
+      fullPath: '/operations/'
+      preLoaderRoute: typeof OperationsIndexRouteImport
+      parentRoute: typeof OperationsRoute
+    }
     '/operations/enroll': {
       id: '/operations/enroll'
       path: '/enroll'
       fullPath: '/operations/enroll'
       preLoaderRoute: typeof OperationsEnrollRouteImport
+      parentRoute: typeof OperationsRoute
+    }
+    '/operations/environments': {
+      id: '/operations/environments'
+      path: '/environments'
+      fullPath: '/operations/environments'
+      preLoaderRoute: typeof OperationsEnvironmentsRouteImport
+      parentRoute: typeof OperationsRoute
+    }
+    '/operations/policy': {
+      id: '/operations/policy'
+      path: '/policy'
+      fullPath: '/operations/policy'
+      preLoaderRoute: typeof OperationsPolicyRouteImport
       parentRoute: typeof OperationsRoute
     }
     '/v/$slug': {
@@ -801,6 +883,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDocumentsDocumentIdBytesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/operations/demo-environments/': {
+      id: '/api/operations/demo-environments/'
+      path: '/api/operations/demo-environments'
+      fullPath: '/api/operations/demo-environments/'
+      preLoaderRoute: typeof ApiOperationsDemoEnvironmentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/operations/mail/test': {
+      id: '/api/operations/mail/test'
+      path: '/api/operations/mail/test'
+      fullPath: '/api/operations/mail/test'
+      preLoaderRoute: typeof ApiOperationsMailTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v/$slug/bytes/$documentId': {
       id: '/v/$slug/bytes/$documentId'
       path: '/bytes/$documentId'
@@ -924,10 +1020,16 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface OperationsRouteChildren {
   OperationsEnrollRoute: typeof OperationsEnrollRoute
+  OperationsEnvironmentsRoute: typeof OperationsEnvironmentsRoute
+  OperationsPolicyRoute: typeof OperationsPolicyRoute
+  OperationsIndexRoute: typeof OperationsIndexRoute
 }
 
 const OperationsRouteChildren: OperationsRouteChildren = {
   OperationsEnrollRoute: OperationsEnrollRoute,
+  OperationsEnvironmentsRoute: OperationsEnvironmentsRoute,
+  OperationsPolicyRoute: OperationsPolicyRoute,
+  OperationsIndexRoute: OperationsIndexRoute,
 }
 
 const OperationsRouteWithChildren = OperationsRoute._addFileChildren(
@@ -976,6 +1078,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOperationsReaperRoute: ApiOperationsReaperRoute,
   ApiDemoReportsSlugRoute: ApiDemoReportsSlugRoute,
   ApiDocumentsDocumentIdBytesRoute: ApiDocumentsDocumentIdBytesRoute,
+  ApiOperationsMailTestRoute: ApiOperationsMailTestRoute,
+  ApiOperationsDemoEnvironmentsIndexRoute:
+    ApiOperationsDemoEnvironmentsIndexRoute,
   ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute:
     ApiOperationsDemoEnvironmentsEnvironmentIdEndRoute,
 }

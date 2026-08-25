@@ -45,7 +45,10 @@ import {
   reserveDemoBudgetsOrThrow,
   rollbackFailedDemoBudgets,
 } from "#/server/demo-policy";
-import { confirmDemoUploadBytes } from "#/server/repositories/demo-environments";
+import {
+  confirmDemoUploadBytes,
+  recordDemoActivity,
+} from "#/server/repositories/demo-environments";
 import {
   deleteStoredObject,
   getStoredObject,
@@ -255,6 +258,8 @@ export const createDocument = createServerFn({ method: "POST" })
     }
     if (!result.created) {
       await releaseFailedDemoBudget(context.demoEnvironmentId, "document");
+    } else {
+      await recordDemoActivity(context.demoEnvironmentId, "document", data.documentId);
     }
     return result.document;
   });
@@ -298,6 +303,8 @@ export const updateDocument = createServerFn({ method: "POST" })
         updatedAt: result.updatedAt,
       });
     }
+
+    await recordDemoActivity(context.demoEnvironmentId, "document", data.documentId);
 
     return result;
   });
@@ -355,6 +362,10 @@ export const createUpload = createServerFn({ method: "POST" })
       if (!(await findDocument(context.orgId, data.documentId))) throw notFound();
       setResponseStatus(409);
       throw uploadImmutableError();
+    }
+
+    if (result.created) {
+      await recordDemoActivity(context.demoEnvironmentId, "document", data.documentId);
     }
 
     const uploadUrl = await presignPutObject(staged.uploadKey);

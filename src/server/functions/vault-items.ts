@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { orgMiddleware, permission } from "#/server/auth-middleware";
 import { documentIdSchema, vaultIdSchema } from "#/server/ids";
+import { recordDemoActivity } from "#/server/repositories/demo-environments";
 import {
   addVaultItem as addVaultItemInRepository,
   listVaultItems as listVaultItemsFromRepository,
@@ -36,6 +37,7 @@ export const addVaultItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const added = await addVaultItemInRepository(context.orgId, data);
     if (!added) throw notFound();
+    await recordDemoActivity(context.demoEnvironmentId, "vault", data.vaultId);
     return added;
   });
 
@@ -45,6 +47,7 @@ export const removeVaultItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const removed = await removeVaultItemInRepository(context.orgId, data);
     if (!removed) throw notFound();
+    await recordDemoActivity(context.demoEnvironmentId, "vault", data.vaultId);
     return removed;
   });
 
@@ -54,5 +57,6 @@ export const setVaultItemVisibility = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const updated = await setVaultItemVisibilityInRepository(context.orgId, data);
     if (!updated) throw notFound();
+    await recordDemoActivity(context.demoEnvironmentId, "vault", data.vaultId);
     return updated;
   });

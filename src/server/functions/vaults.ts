@@ -5,6 +5,7 @@ import { z } from "zod";
 import { permission } from "#/server/auth-middleware";
 import { vaultIdSchema } from "#/server/ids";
 import { releaseFailedDemoBudget, reserveDemoBudgetOrThrow } from "#/server/demo-policy";
+import { recordDemoActivity } from "#/server/repositories/demo-environments";
 import {
   createVault as createVaultInRepository,
   deleteVault as deleteVaultInRepository,
@@ -36,11 +37,13 @@ export const createVault = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await reserveDemoBudgetOrThrow(context.demoEnvironmentId, "vault");
     try {
-      return await createVaultInRepository(context.orgId, {
+      const created = await createVaultInRepository(context.orgId, {
         id: data.vaultId,
         name: data.name,
         description: data.description || null,
       });
+      await recordDemoActivity(context.demoEnvironmentId, "vault", data.vaultId);
+      return created;
     } catch (error) {
       await releaseFailedDemoBudget(context.demoEnvironmentId, "vault");
       throw error;
@@ -56,6 +59,7 @@ export const updateVault = createServerFn({ method: "POST" })
       description: data.description || null,
     });
     if (!updated) throw notFound();
+    await recordDemoActivity(context.demoEnvironmentId, "vault", data.vaultId);
     return updated;
   });
 

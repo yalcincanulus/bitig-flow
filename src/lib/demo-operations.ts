@@ -46,7 +46,8 @@ export type DemoReservationKind =
   | "confirmedBytes"
   | "deliveredBytes"
   | "visit"
-  | "event";
+  | "event"
+  | "download";
 
 type DemoReservation = Readonly<{
   kind: DemoReservationKind;
@@ -68,7 +69,8 @@ export type DemoUsageCounter =
   | "reservedUploadBytes"
   | "deliveredBytes"
   | "visitLifetimeCount"
-  | "eventLifetimeCount";
+  | "eventLifetimeCount"
+  | "downloadLifetimeCount";
 
 export type DemoUsage = Readonly<Partial<Record<DemoUsageCounter | "refusalCount", number>>>;
 
@@ -85,6 +87,7 @@ export const demoReservationIncrements = {
   deliveredBytes: ["deliveredBytes"],
   visit: ["visitLifetimeCount"],
   event: ["eventLifetimeCount"],
+  download: ["eventLifetimeCount", "downloadLifetimeCount"],
 } as const satisfies Record<DemoReservation["kind"], ReadonlyArray<DemoUsageCounter>>;
 
 type ReservationLimit = Readonly<{
@@ -104,6 +107,7 @@ const directReservationLimits = {
   deliveredBytes: ["deliveredBytes"],
   visit: ["visitLifetimeCount"],
   event: ["eventLifetimeCount"],
+  download: ["eventLifetimeCount"],
 } as const;
 
 export function demoReservationLimits(kind: DemoReservationKind): ReadonlyArray<ReservationLimit> {
@@ -165,6 +169,8 @@ export const demoEndReasonSchema = z.enum([
   "fleet_deleted",
 ]);
 
+export type DemoEndReason = z.infer<typeof demoEndReasonSchema>;
+
 const demoSummaryInputSchema = z
   .object({
     startedAt: z.date(),
@@ -173,8 +179,12 @@ const demoSummaryInputSchema = z
     documentCreatedCount: z.number().int().nonnegative(),
     vaultCreatedCount: z.number().int().nonnegative(),
     linkCreatedCount: z.number().int().nonnegative(),
+    documentActivityCount: z.number().int().nonnegative().default(0),
+    vaultActivityCount: z.number().int().nonnegative().default(0),
+    linkActivityCount: z.number().int().nonnegative().default(0),
     visitCount: z.number().int().nonnegative(),
     eventCount: z.number().int().nonnegative(),
+    downloadCount: z.number().int().nonnegative(),
     deliveredBytes: z.number().int().nonnegative(),
     refusalCount: z.number().int().min(0).max(100),
     analyticsIncomplete: z.boolean(),
@@ -206,8 +216,12 @@ export type DemoDailyAggregate = Readonly<{
   documentCreatedCount: number;
   vaultCreatedCount: number;
   linkCreatedCount: number;
+  documentActivityCount: number;
+  vaultActivityCount: number;
+  linkActivityCount: number;
   visitCount: number;
   eventCount: number;
+  downloadCount: number;
   deliveredBytes: number;
   refusalCount: number;
 }>;
@@ -230,8 +244,12 @@ export function foldDemoSummary(
       documentCreatedCount: 0,
       vaultCreatedCount: 0,
       linkCreatedCount: 0,
+      documentActivityCount: 0,
+      vaultActivityCount: 0,
+      linkActivityCount: 0,
       visitCount: 0,
       eventCount: 0,
+      downloadCount: 0,
       deliveredBytes: 0,
       refusalCount: 0,
     } satisfies DemoDailyAggregate);
@@ -251,8 +269,12 @@ export function foldDemoSummary(
     documentCreatedCount: current.documentCreatedCount + summary.documentCreatedCount,
     vaultCreatedCount: current.vaultCreatedCount + summary.vaultCreatedCount,
     linkCreatedCount: current.linkCreatedCount + summary.linkCreatedCount,
+    documentActivityCount: current.documentActivityCount + summary.documentActivityCount,
+    vaultActivityCount: current.vaultActivityCount + summary.vaultActivityCount,
+    linkActivityCount: current.linkActivityCount + summary.linkActivityCount,
     visitCount: current.visitCount + summary.visitCount,
     eventCount: current.eventCount + summary.eventCount,
+    downloadCount: current.downloadCount + summary.downloadCount,
     deliveredBytes: current.deliveredBytes + summary.deliveredBytes,
     refusalCount: current.refusalCount + summary.refusalCount,
   };

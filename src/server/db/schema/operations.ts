@@ -213,11 +213,15 @@ export const demoEnvironment = snakeCase.table(
     documentLifetimeCount: integer().default(0).notNull(),
     vaultLifetimeCount: integer().default(0).notNull(),
     linkLifetimeCount: integer().default(0).notNull(),
+    documentActivityCount: integer().default(0).notNull(),
+    vaultActivityCount: integer().default(0).notNull(),
+    linkActivityCount: integer().default(0).notNull(),
     confirmedBytes: bigint({ mode: "number" }).default(0).notNull(),
     reservedUploadBytes: bigint({ mode: "number" }).default(0).notNull(),
     deliveredBytes: bigint({ mode: "number" }).default(0).notNull(),
     visitLifetimeCount: integer().default(0).notNull(),
     eventLifetimeCount: integer().default(0).notNull(),
+    downloadLifetimeCount: integer().default(0).notNull(),
     reportCount: integer().default(0).notNull(),
     refusalCount: integer().default(0).notNull(),
     refusalCounts: jsonb()
@@ -256,11 +260,15 @@ export const demoEnvironment = snakeCase.table(
         AND ${table.documentLifetimeCount} >= 0
         AND ${table.vaultLifetimeCount} >= 0
         AND ${table.linkLifetimeCount} >= 0
+        AND ${table.documentActivityCount} >= 0
+        AND ${table.vaultActivityCount} >= 0
+        AND ${table.linkActivityCount} >= 0
         AND ${table.confirmedBytes} >= 0
         AND ${table.reservedUploadBytes} >= 0
         AND ${table.deliveredBytes} >= 0
         AND ${table.visitLifetimeCount} >= 0
         AND ${table.eventLifetimeCount} >= 0
+        AND ${table.downloadLifetimeCount} >= 0
         AND ${table.reportCount} >= 0
         AND ${table.refusalCount} BETWEEN 0 AND 100`,
     ),
@@ -345,8 +353,12 @@ export const demoSummary = snakeCase.table(
     documentCreatedCount: integer().default(0).notNull(),
     vaultCreatedCount: integer().default(0).notNull(),
     linkCreatedCount: integer().default(0).notNull(),
+    documentActivityCount: integer().default(0).notNull(),
+    vaultActivityCount: integer().default(0).notNull(),
+    linkActivityCount: integer().default(0).notNull(),
     visitCount: integer().default(0).notNull(),
     eventCount: integer().default(0).notNull(),
+    downloadCount: integer().default(0).notNull(),
     deliveredBytes: bigint({ mode: "number" }).default(0).notNull(),
     peakDocumentCount: integer().default(0).notNull(),
     peakVaultCount: integer().default(0).notNull(),
@@ -369,6 +381,10 @@ export const demoSummary = snakeCase.table(
         AND ${table.documentCreatedCount} >= 0
         AND ${table.vaultCreatedCount} >= 0
         AND ${table.linkCreatedCount} >= 0
+        AND ${table.documentActivityCount} >= 0
+        AND ${table.vaultActivityCount} >= 0
+        AND ${table.linkActivityCount} >= 0
+        AND ${table.downloadCount} >= 0
         AND ${table.visitCount} >= 0
         AND ${table.eventCount} >= 0
         AND ${table.deliveredBytes} >= 0
@@ -393,8 +409,12 @@ export const demoDailyAggregate = snakeCase.table("demo_daily_aggregate", {
   documentCreatedCount: integer().default(0).notNull(),
   vaultCreatedCount: integer().default(0).notNull(),
   linkCreatedCount: integer().default(0).notNull(),
+  documentActivityCount: integer().default(0).notNull(),
+  vaultActivityCount: integer().default(0).notNull(),
+  linkActivityCount: integer().default(0).notNull(),
   visitCount: integer().default(0).notNull(),
   eventCount: integer().default(0).notNull(),
+  downloadCount: integer().default(0).notNull(),
   deliveredBytes: bigint({ mode: "number" }).default(0).notNull(),
   refusalCount: integer().default(0).notNull(),
   aggregatedAt: timestampWithTimezone().defaultNow().notNull(),

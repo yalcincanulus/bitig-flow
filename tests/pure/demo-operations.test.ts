@@ -84,6 +84,27 @@ describe("Demo reservations", () => {
       ),
     ).toMatchObject({ accepted: false, limit: "uploadBytes" });
   });
+
+  test("counts a download as an Event and as a download without adding a second limit", () => {
+    expect(
+      applyDemoReservation(
+        { eventLifetimeCount: 4_999, downloadLifetimeCount: 7, refusalCount: 0 },
+        { kind: "download", amount: 1 },
+        initialDeploymentPolicy,
+      ),
+    ).toEqual({
+      accepted: true,
+      usage: { eventLifetimeCount: 5_000, downloadLifetimeCount: 8, refusalCount: 0 },
+    });
+
+    expect(
+      applyDemoReservation(
+        { eventLifetimeCount: 5_000, downloadLifetimeCount: 8, refusalCount: 0 },
+        { kind: "download", amount: 1 },
+        initialDeploymentPolicy,
+      ),
+    ).toMatchObject({ accepted: false, limit: "eventLifetimeCount" });
+  });
 });
 
 describe("privacy-safe operational records", () => {
@@ -95,8 +116,12 @@ describe("privacy-safe operational records", () => {
       documentCreatedCount: 3,
       vaultCreatedCount: 1,
       linkCreatedCount: 1,
+      documentActivityCount: 4,
+      vaultActivityCount: 2,
+      linkActivityCount: 3,
       visitCount: 2,
       eventCount: 9,
+      downloadCount: 1,
       deliveredBytes: 1_024,
       refusalCount: 2,
       analyticsIncomplete: false,
@@ -111,6 +136,10 @@ describe("privacy-safe operational records", () => {
       environmentCount: 1,
       expiredCount: 1,
       documentCreatedCount: 3,
+      documentActivityCount: 4,
+      vaultActivityCount: 2,
+      linkActivityCount: 3,
+      downloadCount: 1,
       deliveredBytes: 1_024,
     });
   });

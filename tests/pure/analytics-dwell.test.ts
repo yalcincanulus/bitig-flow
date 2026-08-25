@@ -75,16 +75,20 @@ test("the Dwell chart is pinned at exact Charts 0.14.0 and adds no d3 package", 
   expect(declared.filter((name) => name === "d3" || name.startsWith("d3-"))).toEqual([]);
 });
 
-test("exactly one component imports Charts, and its props are page and millisecond pairs", () => {
+test("the Dwell chart keeps its page and millisecond seam as Charts gains an Operations chart", () => {
   const importers = sourceFilePaths(`${projectDirectory}src`).filter((path) =>
     /from\s+["']@tanstack\/charts(?:\/[^"']*)?["']/.test(readFileSync(path, "utf8")),
   );
 
   expect(importers.map((path) => relative(projectDirectory, path))).toEqual([
     "src/components/analytics-dwell-chart.tsx",
+    "src/components/operations-trend-chart.tsx",
   ]);
 
-  const chartSource = readFileSync(importers[0]!, "utf8");
+  const chartSource = readFileSync(
+    `${projectDirectory}src/components/analytics-dwell-chart.tsx`,
+    "utf8",
+  );
   expect(chartSource).toMatch(/pages:\s*ReadonlyArray<\{\s*page:\s*number;\s*ms:\s*number\s*\}>/);
   expect(chartSource).toMatch(/useMemo\(\(\)\s*=>\s*\{[\s\S]*defineChart\(/);
   expect(chartSource).toMatch(/row\.page === .*page && row\.ms === .*ms/);

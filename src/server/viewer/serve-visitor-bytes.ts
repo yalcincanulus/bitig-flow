@@ -36,7 +36,7 @@ async function appendDownloadEvent(
   documentId: DocumentId,
 ) {
   if (visitId === null) return;
-  if (!(await consumeDemoAnalyticsBudget(environmentId, "event"))) return;
+  if (!(await consumeDemoAnalyticsBudget(environmentId, "download"))) return;
   try {
     await db.insert(visitEvent).values({
       visitId,
@@ -47,7 +47,7 @@ async function appendDownloadEvent(
     });
   } catch (error) {
     if (environmentId) {
-      await rollbackDemoBudgets(environmentId, [{ kind: "event", amount: 1 }]);
+      await rollbackDemoBudgets(environmentId, [{ kind: "download", amount: 1 }]);
     }
     throw error;
   }

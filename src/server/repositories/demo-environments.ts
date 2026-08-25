@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, notExists, sql, type SQL } from "drizzle-orm";
 
 import {
   applyDemoReservation,
@@ -16,6 +16,7 @@ import {
   demoEnvironment,
   demoGlobalUsage,
   demoProvisioningAttempt,
+  demoSampleResource,
   deploymentPolicy,
 } from "#/server/db/schema";
 
@@ -48,6 +49,7 @@ const usageColumns = {
   deliveredBytes: demoEnvironment.deliveredBytes,
   visitLifetimeCount: demoEnvironment.visitLifetimeCount,
   eventLifetimeCount: demoEnvironment.eventLifetimeCount,
+  downloadLifetimeCount: demoEnvironment.downloadLifetimeCount,
 } as const satisfies Record<
   DemoUsageCounter,
   (typeof demoEnvironment)[keyof typeof demoEnvironment]
@@ -69,6 +71,7 @@ const usageProperties = {
   deliveredBytes: "deliveredBytes",
   visitLifetimeCount: "visitLifetimeCount",
   eventLifetimeCount: "eventLifetimeCount",
+  downloadLifetimeCount: "downloadLifetimeCount",
 } as const satisfies Record<DemoUsageCounter, keyof typeof demoEnvironment.$inferInsert>;
 
 function environmentUsage(row: typeof demoEnvironment.$inferSelect) {
@@ -88,8 +91,51 @@ function environmentUsage(row: typeof demoEnvironment.$inferSelect) {
     deliveredBytes: row.deliveredBytes,
     visitLifetimeCount: row.visitLifetimeCount,
     eventLifetimeCount: row.eventLifetimeCount,
+    downloadLifetimeCount: row.downloadLifetimeCount,
     refusalCount: row.refusalCount,
   };
+}
+
+export type DemoActivityKind = "document" | "vault" | "link";
+
+const activityIncrements = {
+  document: {
+    documentActivityCount: sql`${demoEnvironment.documentActivityCount} + 1`,
+  },
+  vault: { vaultActivityCount: sql`${demoEnvironment.vaultActivityCount} + 1` },
+  link: { linkActivityCount: sql`${demoEnvironment.linkActivityCount} + 1` },
+} as const;
+
+export async function recordDemoActivity(
+  environmentId: string | undefined,
+  kind: DemoActivityKind,
+  resourceId: string,
+) {
+  if (!environmentId) return;
+  const sampleResourceColumn = {
+    document: demoSampleResource.documentId,
+    vault: demoSampleResource.vaultId,
+    link: demoSampleResource.linkId,
+  }[kind];
+  await db
+    .update(demoEnvironment)
+    .set(activityIncrements[kind])
+    .where(
+      and(
+        eq(demoEnvironment.id, environmentId),
+        notExists(
+          db
+            .select({ id: demoSampleResource.id })
+            .from(demoSampleResource)
+            .where(
+              and(
+                eq(demoSampleResource.environmentId, environmentId),
+                eq(sampleResourceColumn, resourceId),
+              ),
+            ),
+        ),
+      ),
+    );
 }
 
 export type DemoBudgetReservation = Readonly<{
