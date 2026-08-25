@@ -24,6 +24,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
+    "react-compiler:check": "mkdir -p .logs && node scripts/react-compiler-check.mjs 2>&1 | tee .logs/react-compiler.log",
     "test": "vitest run",
     "test:watch": "vitest",
     "sweep": "node --env-file=.env --import tsx src/server/sweep-cli.ts",
