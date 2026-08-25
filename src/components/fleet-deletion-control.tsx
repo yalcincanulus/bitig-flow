@@ -28,6 +28,20 @@ type BatchResult = Readonly<{
   error?: string;
 }>;
 
+async function deleteFleetBatch(confirmation: string): Promise<BatchResult> {
+  const response = await fetch("/api/operations/demo-environments", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ confirmation }),
+  });
+  const result = (await response.json()) as BatchResult;
+  if (!response.ok) throw new Error(result.error ?? "Fleet deletion failed");
+  if (!result.completed && result.processedCount === 0) {
+    throw new Error("Fleet deletion made no progress");
+  }
+  return result;
+}
+
 export function FleetDeletionControl() {
   const router = useRouter();
   const [confirmation, setConfirmation] = useState("");
@@ -44,14 +58,8 @@ export function FleetDeletionControl() {
     setFeedback(undefined);
     let processedCount = 0;
     try {
-      for (;;) {
-        const response = await fetch("/api/operations/demo-environments", {
-          method: "DELETE",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ confirmation }),
-        });
-        const result = (await response.json()) as BatchResult;
-        if (!response.ok) throw new Error(result.error ?? "Fleet deletion failed");
+      while (true) {
+        const result = await deleteFleetBatch(confirmation);
         processedCount += result.processedCount;
         setFeedback({
           kind: "success",
@@ -59,7 +67,6 @@ export function FleetDeletionControl() {
           message: `Terminated ${processedCount} Demo Environments; ${result.remainingCount} remain. Admission is closed.`,
         });
         if (result.completed) break;
-        if (result.processedCount === 0) throw new Error("Fleet deletion made no progress");
       }
       setConfirmation("");
       setOpen(false);

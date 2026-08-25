@@ -21,6 +21,25 @@ const observerThresholds = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
 
 type PdfEngine = typeof import("#/components/viewer-pdf-engine");
 
+function loadPdfEngine() {
+  return import("#/components/viewer-pdf-engine");
+}
+
+async function fetchPdfBytes(bytesUrl: string, signal: AbortSignal) {
+  const response = await fetch(bytesUrl, {
+    credentials: "same-origin",
+    signal,
+  });
+  if (!response.ok) throw new Error("bytes");
+  return response.arrayBuffer();
+}
+
+function getCanvasContext(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("canvas");
+  return context;
+}
+
 export default function ViewerPdf({
   bytesUrl,
   pageCount,
@@ -59,13 +78,8 @@ export default function ViewerPdf({
 
     void (async () => {
       try {
-        const loaded = await import("#/components/viewer-pdf-engine");
-        const response = await fetch(bytesUrl, {
-          credentials: "same-origin",
-          signal: abort.signal,
-        });
-        if (!response.ok) throw new Error("bytes");
-        const data = await response.arrayBuffer();
+        const loaded = await loadPdfEngine();
+        const data = await fetchPdfBytes(bytesUrl, abort.signal);
         const task = loaded.getDocument({
           data,
           cMapUrl: "/pdfjs/cmaps/",
@@ -228,8 +242,7 @@ function PdfPageCanvas({
         const transform = outputScale.scaled
           ? [outputScale.sx, 0, 0, outputScale.sy, 0, 0]
           : undefined;
-        const canvasContext = canvas.getContext("2d");
-        if (!canvasContext) throw new Error("canvas");
+        const canvasContext = getCanvasContext(canvas);
         renderTask = pageProxy.render({
           canvas: null,
           canvasContext,

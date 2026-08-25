@@ -16,6 +16,14 @@ import {
 import { Button } from "#/components/ui/button";
 import { Spinner } from "#/components/ui/spinner";
 
+async function terminateEnvironment(environmentId: string) {
+  const response = await fetch(
+    `/api/operations/demo-environments/${encodeURIComponent(environmentId)}/end`,
+    { method: "POST" },
+  );
+  if (!response.ok) throw new Error("termination failed");
+}
+
 export function TerminateEnvironmentControl({
   environmentId,
   reference,
@@ -29,13 +37,7 @@ export function TerminateEnvironmentControl({
     setPending(true);
     setError(undefined);
     try {
-      const response = await fetch(
-        `/api/operations/demo-environments/${encodeURIComponent(environmentId)}/end`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        throw new Error("termination failed");
-      }
+      await terminateEnvironment(environmentId);
       setOpen(false);
       await router.invalidate({ sync: true });
     } catch {
