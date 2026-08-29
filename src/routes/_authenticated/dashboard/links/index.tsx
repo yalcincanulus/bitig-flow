@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { eq, or, useLiveQuery } from "@tanstack/react-db";
 import { LinkIcon } from "lucide-react";
 import { useState } from "react";
@@ -28,6 +28,7 @@ import { TableFrame } from "#/components/table-frame";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { getCollections } from "#/db-collections";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 import { linksSearchSchema } from "#/lib/dashboard-search";
@@ -39,12 +40,46 @@ export const Route = createFileRoute("/_authenticated/dashboard/links/")({
 });
 
 type LinkCollection = ReturnType<typeof getCollections>["links"];
+type LinkRow = NonNullable<ReturnType<LinkCollection["get"]>>;
 
 const statusFilters = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
 ] as const;
+
+function LinkName({
+  link,
+  preloadScope,
+  sample,
+}: Readonly<{ link: LinkRow; preloadScope: string; sample: boolean }>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${link.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/links/$linkId",
+        params: { linkId: link.id },
+      }),
+  });
+
+  return (
+    <>
+      <Link
+        to="/dashboard/links/$linkId"
+        params={{ linkId: link.id }}
+        {...linkProps}
+        className="block truncate hover:underline"
+      >
+        {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
+      </Link>
+      {link.$synced ? null : (
+        <span className="text-xs font-normal text-muted-foreground">Saving…</span>
+      )}
+      {sample ? <DemoSampleBadge /> : null}
+    </>
+  );
+}
 
 function LinksPage() {
   const search = Route.useSearch();
@@ -210,17 +245,11 @@ function LinksPage() {
             {data.map((link) => (
               <TableRow key={link.id}>
                 <TableCell className="max-w-56 pl-3 font-medium">
-                  <Link
-                    to="/dashboard/links/$linkId"
-                    params={{ linkId: link.id }}
-                    className="block truncate hover:underline"
-                  >
-                    {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
-                  </Link>
-                  {link.$synced ? null : (
-                    <span className="text-xs font-normal text-muted-foreground">Saving…</span>
-                  )}
-                  {sampleLinkIds.has(link.id) ? <DemoSampleBadge /> : null}
+                  <LinkName
+                    link={link}
+                    preloadScope={organization.id}
+                    sample={sampleLinkIds.has(link.id)}
+                  />
                 </TableCell>
                 <TableCell className="max-w-48 text-muted-foreground">
                   <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />

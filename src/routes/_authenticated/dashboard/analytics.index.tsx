@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import { ArrowDownIcon, ChartNoAxesCombinedIcon } from "lucide-react";
 import { useState } from "react";
@@ -21,6 +21,7 @@ import {
 import { TableFrame } from "#/components/table-frame";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
 import { getCollections } from "#/db-collections";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
@@ -49,6 +50,41 @@ function formatMetric(column: (typeof metricColumns)[number], value: number) {
   return column.format === "duration"
     ? formatTotalTime(value)
     : analyticsNumberFormat.format(value);
+}
+
+function AnalyticsLinkName({
+  children,
+  linkId,
+  preloadScope,
+  range,
+}: Readonly<{
+  children: string;
+  linkId: string;
+  preloadScope: string;
+  range: { from: string; to: string };
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${linkId}:${range.from}:${range.to}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/analytics/$linkId",
+        params: { linkId },
+        search: range,
+      }),
+  });
+
+  return (
+    <Link
+      to="/dashboard/analytics/$linkId"
+      params={{ linkId }}
+      search={range}
+      {...linkProps}
+      className="truncate hover:underline"
+    >
+      {children}
+    </Link>
+  );
 }
 
 function AnalyticsPage() {
@@ -166,15 +202,14 @@ function AnalyticsPage() {
                     <TableRow key={row.linkId}>
                       <TableCell className="max-w-64 pl-3 font-medium">
                         <span className="flex min-w-0 items-center gap-1.5">
-                          <Link
-                            to="/dashboard/analytics/$linkId"
-                            params={{ linkId: row.linkId }}
-                            search={analytics.range}
-                            className="truncate hover:underline"
+                          <AnalyticsLinkName
+                            linkId={row.linkId}
+                            preloadScope={organization.id}
+                            range={analytics.range}
                           >
                             {link?.name ||
                               (link && isLinkSlug(link.slug) ? linkViewerPath(link.slug) : "Link")}
-                          </Link>
+                          </AnalyticsLinkName>
                           <AnalyticsTrustMark link={link} />
                         </span>
                       </TableCell>

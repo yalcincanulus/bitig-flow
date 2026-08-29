@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { eq, ilike, useLiveQuery } from "@tanstack/react-db";
 import {
   ChartNoAxesCombinedIcon,
@@ -74,6 +74,7 @@ import { TableFrame } from "#/components/table-frame";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "#/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { getCollections } from "#/db-collections";
+import { useIntentPreload, type IntentPreloadLinkProps } from "#/hooks/use-intent-preload";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { documentsSearchSchema, type DocumentsView } from "#/lib/dashboard-search";
 import { readDocumentsView, writeDocumentsView } from "#/lib/documents-view-preference";
@@ -382,6 +383,7 @@ function DocumentsPage() {
               <DocumentRow
                 key={document.id}
                 document={document}
+                preloadScope={organization.id}
                 sample={sampleDocumentIds.has(document.id)}
                 documents={documents}
                 watchPersistence={watchPersistence}
@@ -395,6 +397,7 @@ function DocumentsPage() {
             <DocumentTile
               key={document.id}
               document={document}
+              preloadScope={organization.id}
               sample={sampleDocumentIds.has(document.id)}
               documents={documents}
               watchPersistence={watchPersistence}
@@ -422,22 +425,34 @@ function documentProgress(document: DocumentRow) {
  */
 function DocumentTile({
   document,
+  preloadScope,
   sample,
   documents,
   watchPersistence,
 }: Readonly<{
   document: DocumentRow;
+  preloadScope: string;
   sample: boolean;
   documents: DocumentCollection;
   watchPersistence: WatchPersistence;
 }>) {
+  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${document.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/documents/$documentId",
+        params: { documentId: document.id },
+      }),
+  });
 
   return (
     <Card className="group gap-0 overflow-hidden py-0 transition-shadow hover:ring-foreground/20">
       <Link
         to="/dashboard/documents/$documentId"
         params={{ documentId: document.id }}
+        {...linkProps}
         aria-label={document.title || "Untitled"}
         className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
@@ -448,6 +463,7 @@ function DocumentTile({
           <Link
             to="/dashboard/documents/$documentId"
             params={{ documentId: document.id }}
+            {...linkProps}
             className="block truncate hover:underline"
           >
             {document.title || "Untitled"}
@@ -458,7 +474,11 @@ function DocumentTile({
           {sample ? <DemoSampleBadge /> : null}
         </CardDescription>
         <CardAction>
-          <DocumentActionsMenu document={document} onDelete={() => setDeleting(true)} />
+          <DocumentActionsMenu
+            document={document}
+            detailLinkProps={linkProps}
+            onDelete={() => setDeleting(true)}
+          />
         </CardAction>
       </CardHeader>
       <DeleteDocumentDialog
@@ -481,18 +501,29 @@ function DocumentTile({
  */
 function DocumentRow({
   document,
+  preloadScope,
   sample,
   documents,
   watchPersistence,
 }: Readonly<{
   document: DocumentRow;
+  preloadScope: string;
   sample: boolean;
   documents: DocumentCollection;
   watchPersistence: WatchPersistence;
 }>) {
+  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const progress = documentProgress(document);
   const updated = formatAnalyticsInstant(document.updatedAt);
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${document.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/documents/$documentId",
+        params: { documentId: document.id },
+      }),
+  });
 
   return (
     <TableRow className="group/row">
@@ -500,6 +531,7 @@ function DocumentRow({
         <Link
           to="/dashboard/documents/$documentId"
           params={{ documentId: document.id }}
+          {...linkProps}
           className="flex min-w-0 items-center gap-3 outline-none"
         >
           <span className="size-9 shrink-0 overflow-hidden rounded-md ring-1 ring-foreground/10">
@@ -526,7 +558,11 @@ function DocumentRow({
         <time dateTime={updated.dateTime}>{updated.label}</time>
       </TableCell>
       <TableCell className="w-0 pr-3 text-right">
-        <DocumentActionsMenu document={document} onDelete={() => setDeleting(true)} />
+        <DocumentActionsMenu
+          document={document}
+          detailLinkProps={linkProps}
+          onDelete={() => setDeleting(true)}
+        />
         <DeleteDocumentDialog
           document={document}
           documents={documents}
@@ -545,8 +581,13 @@ function DocumentRow({
  */
 function DocumentActionsMenu({
   document,
+  detailLinkProps,
   onDelete,
-}: Readonly<{ document: DocumentRow; onDelete: () => void }>) {
+}: Readonly<{
+  document: DocumentRow;
+  detailLinkProps: IntentPreloadLinkProps;
+  onDelete: () => void;
+}>) {
   const pending = document.status === "pending";
 
   return (
@@ -560,7 +601,11 @@ function DocumentActionsMenu({
         <DropdownMenuGroup>
           <DropdownMenuItem
             render={
-              <Link to="/dashboard/documents/$documentId" params={{ documentId: document.id }} />
+              <Link
+                to="/dashboard/documents/$documentId"
+                params={{ documentId: document.id }}
+                {...detailLinkProps}
+              />
             }
           >
             <ChartNoAxesCombinedIcon />

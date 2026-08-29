@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import {
   ChevronRightIcon,
@@ -65,6 +65,7 @@ import {
 } from "#/components/ui/item";
 import { Textarea } from "#/components/ui/textarea";
 import { getCollections } from "#/db-collections";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 
@@ -174,6 +175,7 @@ function VaultsPage() {
             <VaultRowItem
               key={vault.id}
               vault={vault}
+              preloadScope={organization.id}
               sample={sampleVaultIds.has(vault.id)}
               documentCount={documentCounts.get(vault.id) ?? 0}
               linkCount={linkCounts.get(vault.id) ?? 0}
@@ -195,6 +197,7 @@ function VaultsPage() {
  */
 function VaultRowItem({
   vault,
+  preloadScope,
   sample,
   documentCount,
   linkCount,
@@ -202,14 +205,24 @@ function VaultRowItem({
   watchPersistence,
 }: Readonly<{
   vault: VaultRow;
+  preloadScope: string;
   sample: boolean;
   documentCount: number;
   linkCount: number;
   vaults: VaultCollection;
   watchPersistence: WatchPersistence;
 }>) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${vault.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/vaults/$vaultId",
+        params: { vaultId: vault.id },
+      }),
+  });
 
   return (
     <Item variant="outline" className="hover:bg-muted/40">
@@ -223,6 +236,7 @@ function VaultRowItem({
           <Link
             to="/dashboard/vaults/$vaultId"
             params={{ vaultId: vault.id }}
+            {...linkProps}
             className="hover:underline"
           >
             {vault.name}
@@ -254,7 +268,13 @@ function VaultRowItem({
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuGroup>
               <DropdownMenuItem
-                render={<Link to="/dashboard/vaults/$vaultId" params={{ vaultId: vault.id }} />}
+                render={
+                  <Link
+                    to="/dashboard/vaults/$vaultId"
+                    params={{ vaultId: vault.id }}
+                    {...linkProps}
+                  />
+                }
               >
                 <FolderClosedIcon />
                 Open Vault
@@ -278,7 +298,9 @@ function VaultRowItem({
           variant="ghost"
           size="icon-sm"
           aria-label={`Open ${vault.name}`}
-          render={<Link to="/dashboard/vaults/$vaultId" params={{ vaultId: vault.id }} />}
+          render={
+            <Link to="/dashboard/vaults/$vaultId" params={{ vaultId: vault.id }} {...linkProps} />
+          }
         >
           <ChevronRightIcon />
         </Button>

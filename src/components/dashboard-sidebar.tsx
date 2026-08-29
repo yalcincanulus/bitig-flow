@@ -1,4 +1,4 @@
-import { Link, useMatchRoute } from "@tanstack/react-router";
+import { Link, useMatchRoute, useRouter } from "@tanstack/react-router";
 import {
   ChartNoAxesCombinedIcon,
   FileTextIcon,
@@ -22,6 +22,7 @@ import {
   SidebarMenuItem,
 } from "#/components/ui/sidebar";
 import { useSidebar } from "#/components/ui/sidebar-context";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
 // Every Role sees the same destinations, so the list is a constant rather than a computed one.
@@ -45,12 +46,22 @@ type DashboardSidebarProps = Readonly<{
   user: UserSummary;
 }>;
 
-function DestinationItem({ destination }: Readonly<{ destination: Destination }>) {
+function DestinationItem({
+  destination,
+  preloadScope,
+}: Readonly<{ destination: Destination; preloadScope: OrganizationSummary["id"] }>) {
   const matchRoute = useMatchRoute();
+  const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   // Fuzzy matching is what keeps Documents active on a Preview or editor route, Vaults active on a
   // Vault detail, and Links active on a Link detail.
   const isActive = Boolean(matchRoute({ to: destination.link.to, fuzzy: true }));
+  const { linkProps, cancelQueuedPreload } = useIntentPreload({
+    scope: preloadScope,
+    active: isActive,
+    preload: () => router.preloadRoute(destination.link),
+  });
+
   const Icon = destination.icon;
 
   return (
@@ -62,7 +73,9 @@ function DestinationItem({ destination }: Readonly<{ destination: Destination }>
           <Link
             {...destination.link}
             activeOptions={{ includeSearch: false }}
+            {...linkProps}
             onClick={() => {
+              cancelQueuedPreload();
               if (isMobile) setOpenMobile(false);
             }}
           />
@@ -98,7 +111,11 @@ export function DashboardSidebar({
             <SidebarGroupContent>
               <SidebarMenu>
                 {primaryDestinations.map((destination) => (
-                  <DestinationItem key={destination.link.to} destination={destination} />
+                  <DestinationItem
+                    key={destination.link.to}
+                    destination={destination}
+                    preloadScope={organization.id}
+                  />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -106,7 +123,7 @@ export function DashboardSidebar({
           <SidebarGroup className="mt-auto">
             <SidebarGroupContent>
               <SidebarMenu>
-                <DestinationItem destination={settingsDestination} />
+                <DestinationItem destination={settingsDestination} preloadScope={organization.id} />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
