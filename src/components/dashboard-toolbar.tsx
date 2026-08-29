@@ -145,7 +145,9 @@ export function DashboardToolbar() {
   return (
     <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4 md:rounded-t-xl">
       <DashboardSidebarTrigger />
-      <Separator orientation="vertical" className="h-4" />
+      <span className="flex h-4 shrink-0">
+        <Separator orientation="vertical" />
+      </span>
       <DashboardBreadcrumbs />
       <div className="ml-auto">
         <ThemeToggle />
