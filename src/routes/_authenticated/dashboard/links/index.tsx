@@ -252,7 +252,12 @@ function LinksPage() {
                   />
                 </TableCell>
                 <TableCell className="max-w-48 text-muted-foreground">
-                  <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />
+                  <LinkTargetLabel
+                    link={link}
+                    documents={documentRows}
+                    preloadScope={organization.id}
+                    vaults={vaultRows}
+                  />
                 </TableCell>
                 <TableCell>
                   <GateBadges link={link} />

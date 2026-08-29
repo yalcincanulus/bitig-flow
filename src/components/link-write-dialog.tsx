@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import {
   AtSignIcon,
   CheckIcon,
@@ -68,6 +68,7 @@ import { Input } from "#/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { getCollections } from "#/db-collections";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import { linkDeleteWarning } from "#/lib/cascade-delete-copy";
 import { combineDateAndTime, formatTimeOnly } from "#/lib/calendar-date";
 import { pendingLinkSlug, isLinkSlug, linkViewerPath } from "#/lib/link-slug";
@@ -789,12 +790,35 @@ export function DeleteLinkDialog({
 export function LinkTargetLabel({
   link,
   documents,
+  preloadScope,
   vaults,
 }: {
   link: Pick<LinkRow, "documentId" | "vaultId">;
   documents: DocumentRow[];
+  preloadScope: string;
   vaults: VaultRow[];
 }) {
+  const router = useRouter();
+  const targetId = link.documentId ?? link.vaultId;
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${targetId}`,
+    preload: () => {
+      if (link.documentId) {
+        return router.preloadRoute({
+          to: "/dashboard/documents/$documentId",
+          params: { documentId: link.documentId },
+        });
+      }
+      if (link.vaultId) {
+        return router.preloadRoute({
+          to: "/dashboard/vaults/$vaultId",
+          params: { vaultId: link.vaultId },
+        });
+      }
+      return Promise.resolve();
+    },
+  });
+
   if (link.documentId) {
     const document = documents.find((row) => row.id === link.documentId);
 
@@ -802,6 +826,7 @@ export function LinkTargetLabel({
       <Link
         to="/dashboard/documents/$documentId"
         params={{ documentId: link.documentId }}
+        {...linkProps}
         className="inline-flex min-w-0 items-center gap-1.5 hover:underline"
       >
         {document ? (
@@ -821,6 +846,7 @@ export function LinkTargetLabel({
       <Link
         to="/dashboard/vaults/$vaultId"
         params={{ vaultId: link.vaultId }}
+        {...linkProps}
         className="inline-flex min-w-0 items-center gap-1.5 hover:underline"
       >
         <FolderClosedIcon className="size-3.5 shrink-0 text-muted-foreground" />

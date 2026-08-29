@@ -116,7 +116,12 @@ function LinkPage() {
         <CardContent>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
             <DetailRow label="Target">
-              <LinkTargetLabel link={link} documents={documentRows} vaults={vaultRows} />
+              <LinkTargetLabel
+                link={link}
+                documents={documentRows}
+                preloadScope={organization.id}
+                vaults={vaultRows}
+              />
             </DetailRow>
             <DetailRow label="Gate">
               <GateBadges link={link} />
