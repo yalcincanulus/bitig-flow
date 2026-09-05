@@ -3,6 +3,7 @@ import {
   ChartNoAxesCombinedIcon,
   FileTextIcon,
   FolderClosedIcon,
+  HouseIcon,
   LinkIcon,
   SettingsIcon,
   UsersIcon,
@@ -27,6 +28,7 @@ import { dashboardDestinations } from "#/lib/dashboard-destinations";
 
 // Every Role sees the same destinations, so the list is a constant rather than a computed one.
 const primaryDestinations = [
+  { ...dashboardDestinations.home, icon: HouseIcon },
   { ...dashboardDestinations.documents, icon: FileTextIcon },
   { ...dashboardDestinations.vaults, icon: FolderClosedIcon },
   { ...dashboardDestinations.links, icon: LinkIcon },
@@ -55,7 +57,8 @@ function DestinationItem({
   const { isMobile, setOpenMobile } = useSidebar();
   // Fuzzy matching is what keeps Documents active on a Preview or editor route, Vaults active on a
   // Vault detail, and Links active on a Link detail.
-  const isActive = Boolean(matchRoute({ to: destination.link.to, fuzzy: true }));
+  const exact = destination.link.to === dashboardDestinations.home.link.to;
+  const isActive = Boolean(matchRoute({ to: destination.link.to, fuzzy: !exact }));
   const { linkProps, cancelQueuedPreload } = useIntentPreload({
     scope: preloadScope,
     active: isActive,
@@ -72,7 +75,7 @@ function DestinationItem({
         render={
           <Link
             {...destination.link}
-            activeOptions={{ includeSearch: false }}
+            activeOptions={{ includeSearch: false, exact }}
             {...linkProps}
             onClick={() => {
               cancelQueuedPreload();

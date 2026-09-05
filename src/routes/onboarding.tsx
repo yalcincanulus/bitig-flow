@@ -10,7 +10,7 @@ export const Route = createFileRoute("/onboarding")({
     await hasAuthenticatedSession();
     const organizations = (await listOrganizations()) ?? [];
     if (organizations.length > 0) {
-      throw redirect({ to: "/dashboard/documents" });
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: OnboardingPage,
@@ -23,7 +23,7 @@ function OnboardingPage() {
     <AuthPage title="Create your Organization">
       <CreateOrganizationForm
         submitLabel="Continue"
-        onCreated={() => navigate({ to: "/dashboard/documents" })}
+        onCreated={() => navigate({ to: "/dashboard" })}
       />
       <SignOutButton />
     </AuthPage>

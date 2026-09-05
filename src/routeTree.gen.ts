@@ -28,6 +28,7 @@ import { Route as OperationsEnvironmentsRouteImport } from './routes/operations/
 import { Route as OperationsPolicyRouteImport } from './routes/operations/policy'
 import { Route as VSlugRouteImport } from './routes/v/$slug'
 import { Route as AuthAcceptInvitationInvitationIdRouteImport } from './routes/_auth/accept-invitation/$invitationId'
+import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as AuthenticatedDashboardDocumentsRouteRouteImport } from './routes/_authenticated/dashboard/documents/route'
 import { Route as AuthenticatedDashboardPeopleRouteImport } from './routes/_authenticated/dashboard/people'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
@@ -150,6 +151,12 @@ const AuthAcceptInvitationInvitationIdRoute =
     id: '/accept-invitation/$invitationId',
     path: '/accept-invitation/$invitationId',
     getParentRoute: () => AuthRoute,
+  } as any)
+const AuthenticatedDashboardIndexRoute =
+  AuthenticatedDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
 const AuthenticatedDashboardDocumentsRouteRoute =
   AuthenticatedDashboardDocumentsRouteRouteImport.update({
@@ -339,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/api/operations/summary-fold': typeof ApiOperationsSummaryFoldRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
+  '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/v/$slug/': typeof VSlugIndexRoute
   '/dashboard/analytics/$linkId': typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
@@ -366,7 +374,6 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/two-factor': typeof AuthTwoFactorRoute
-  '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
   '/operations/enroll': typeof OperationsEnrollRoute
   '/operations/environments': typeof OperationsEnvironmentsRoute
   '/operations/policy': typeof OperationsPolicyRoute
@@ -383,6 +390,7 @@ export interface FileRoutesByTo {
   '/api/operations/summary-fold': typeof ApiOperationsSummaryFoldRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
+  '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/v/$slug': typeof VSlugIndexRoute
   '/dashboard/analytics/$linkId': typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   '/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
@@ -433,6 +441,7 @@ export interface FileRoutesById {
   '/api/operations/summary-fold': typeof ApiOperationsSummaryFoldRoute
   '/v/$slug/$documentId': typeof VSlugDocumentIdRoute
   '/v/$slug/beacon': typeof VSlugBeaconRoute
+  '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/v/$slug/': typeof VSlugIndexRoute
   '/_authenticated/dashboard/analytics/$linkId': typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   '/_authenticated/dashboard/links/$linkId': typeof AuthenticatedDashboardLinksLinkIdRoute
@@ -482,6 +491,7 @@ export interface FileRouteTypes {
     | '/api/operations/summary-fold'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
+    | '/dashboard/'
     | '/v/$slug/'
     | '/dashboard/analytics/$linkId'
     | '/dashboard/links/$linkId'
@@ -509,7 +519,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/two-factor'
-    | '/dashboard'
     | '/operations/enroll'
     | '/operations/environments'
     | '/operations/policy'
@@ -526,6 +535,7 @@ export interface FileRouteTypes {
     | '/api/operations/summary-fold'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
+    | '/dashboard'
     | '/v/$slug'
     | '/dashboard/analytics/$linkId'
     | '/dashboard/links/$linkId'
@@ -575,6 +585,7 @@ export interface FileRouteTypes {
     | '/api/operations/summary-fold'
     | '/v/$slug/$documentId'
     | '/v/$slug/beacon'
+    | '/_authenticated/dashboard/'
     | '/v/$slug/'
     | '/_authenticated/dashboard/analytics/$linkId'
     | '/_authenticated/dashboard/links/$linkId'
@@ -749,6 +760,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/accept-invitation/$invitationId'
       preLoaderRoute: typeof AuthAcceptInvitationInvitationIdRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/_authenticated/dashboard/': {
+      id: '/_authenticated/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof AuthenticatedDashboardIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
     }
     '/_authenticated/dashboard/documents': {
       id: '/_authenticated/dashboard/documents'
@@ -994,6 +1012,7 @@ interface AuthenticatedDashboardRouteChildren {
   AuthenticatedDashboardDocumentsRouteRoute: typeof AuthenticatedDashboardDocumentsRouteRouteWithChildren
   AuthenticatedDashboardPeopleRoute: typeof AuthenticatedDashboardPeopleRoute
   AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
+  AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedDashboardAnalyticsLinkIdRoute: typeof AuthenticatedDashboardAnalyticsLinkIdRoute
   AuthenticatedDashboardLinksLinkIdRoute: typeof AuthenticatedDashboardLinksLinkIdRoute
   AuthenticatedDashboardVaultsVaultIdRoute: typeof AuthenticatedDashboardVaultsVaultIdRoute
@@ -1008,6 +1027,7 @@ const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
       AuthenticatedDashboardDocumentsRouteRouteWithChildren,
     AuthenticatedDashboardPeopleRoute: AuthenticatedDashboardPeopleRoute,
     AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
+    AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
     AuthenticatedDashboardAnalyticsLinkIdRoute:
       AuthenticatedDashboardAnalyticsLinkIdRoute,
     AuthenticatedDashboardLinksLinkIdRoute:

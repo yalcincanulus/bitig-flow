@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_auth")({
       throw redirect({ href: "/onboarding" });
     }
 
-    throw redirect({ to: "/dashboard/documents" });
+    throw redirect({ to: "/dashboard" });
   },
   component: Outlet,
 });

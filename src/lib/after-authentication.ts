@@ -25,5 +25,5 @@ export async function goToDashboardOrOnboarding(
     await navigate({ href: "/onboarding" });
     return;
   }
-  await navigate({ to: "/dashboard/documents" });
+  await navigate({ to: "/dashboard" });
 }

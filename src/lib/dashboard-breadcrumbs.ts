@@ -11,6 +11,7 @@ import { dashboardDestinations } from "#/lib/dashboard-destinations";
  * loaded words second.
  */
 export type DashboardPlace =
+  | Readonly<{ destination: "home" }>
   | Readonly<{
       destination: "documents";
       document?: Readonly<{ id: string; title?: string; editing?: boolean }>;
@@ -64,8 +65,7 @@ function trailEndingHere(crumbs: Array<DashboardCrumb>): Array<DashboardCrumb> {
 }
 
 /**
- * The Dashboard hierarchy, as the toolbar shows it. There is no Overview above a top-level
- * destination, because there is no Overview route to send a User to.
+ * The Dashboard hierarchy, as the toolbar shows it. Top-level destinations stand on their own.
  */
 export function dashboardBreadcrumbs(place: DashboardPlace): Array<DashboardCrumb> {
   const crumbs: Array<DashboardCrumb> = [destinationCrumb(place.destination)];

@@ -12,6 +12,7 @@ function currentPageOf(place: DashboardPlace) {
 
 describe("dashboardBreadcrumbs", () => {
   test("names a top-level destination without inventing an Overview above it", () => {
+    expect(labelsOf({ destination: "home" })).toEqual(["Home"]);
     expect(labelsOf({ destination: "documents" })).toEqual(["Documents"]);
     expect(labelsOf({ destination: "vaults" })).toEqual(["Vaults"]);
     expect(labelsOf({ destination: "links" })).toEqual(["Links"]);

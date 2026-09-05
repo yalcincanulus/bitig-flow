@@ -99,6 +99,7 @@ test("the server-rendered Chrome carries the primary navigation and its destinat
   expect(serverRenderedMarkup).toContain('aria-label="Dashboard"');
 
   for (const [label, href] of [
+    ["Home", "/dashboard"],
     ["Documents", "/dashboard/documents"],
     ["Vaults", "/dashboard/vaults"],
     ["Links", "/dashboard/links"],
@@ -109,14 +110,15 @@ test("the server-rendered Chrome carries the primary navigation and its destinat
     expect(serverRenderedMarkup, `${label} label`).toContain(`>${label}</span>`);
   }
 
-  // Documents, Vaults, Links, Analytics come first, in that order, and Settings sits below them.
-  const positions = ["Documents", "Vaults", "Links", "Analytics", "Settings"].map((label) =>
+  // Home comes first, followed by the resource destinations.
+  const positions = ["Home", "Documents", "Vaults", "Links", "Analytics", "Settings"].map((label) =>
     serverRenderedMarkup.indexOf(`>${label}</span>`),
   );
   expect(positions).toEqual([...positions].sort((left, right) => left - right));
 
   // The list route is the current page, and no other destination claims to be.
   expect(navigationLink(serverRenderedMarkup, "Documents")).toContain('aria-current="page"');
+  expect(navigationLink(serverRenderedMarkup, "Home")).not.toContain('aria-current="page"');
   expect(navigationLink(serverRenderedMarkup, "Vaults")).not.toContain('aria-current="page"');
 });
 
@@ -188,16 +190,27 @@ test("the User menu names the signed-in User", async () => {
   expect(serverRenderedMarkup).toContain(fixture.member.user.email);
 });
 
-test("the Dashboard index redirects to Documents before rendering", async () => {
+test("the Dashboard index renders Home without redirecting", async () => {
   const fixture = await createOrganizationFixture();
 
-  const response = await fixture.member.http(new URL("/dashboard", process.env.BETTER_AUTH_URL), {
-    redirect: "manual",
-  });
+  for (const path of ["/dashboard", "/dashboard/"]) {
+    const response = await fixture.member.http(new URL(path, process.env.BETTER_AUTH_URL), {
+      redirect: "manual",
+    });
+    if (path.endsWith("/")) {
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe("/dashboard");
+      continue;
+    }
+    const markup = serverRenderedMarkupOf(await response.text());
 
-  expect(response.status).toBe(307);
-  expect(response.headers.get("location")).toBe("/dashboard/documents");
-  expect(await response.text()).toBe("");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(navigationLink(markup, "Home")).toContain('aria-current="page"');
+    expect(navigationLink(markup, "Documents")).not.toContain('aria-current="page"');
+    expect(breadcrumbTrail(markup)).toContain("Home");
+    expect(markup).toContain('aria-label="Loading Dashboard"');
+  }
 });
 
 test("an authenticated User can list every Organization they belong to", async () => {

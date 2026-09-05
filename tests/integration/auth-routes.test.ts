@@ -57,6 +57,6 @@ test("a signed-in User with an Organization requesting sign-in is sent to the Da
   });
 
   expect(response.status).toBe(307);
-  expect(response.headers.get("location")).toBe("/dashboard/documents");
+  expect(response.headers.get("location")).toBe("/dashboard");
   expect(await response.text()).toBe("");
 });
