@@ -1,9 +1,12 @@
 import { expect, test } from "vitest";
 
 import {
+  analyticsDaysWithZeros,
+  analyticsRangeDateCount,
   foldAnalytics,
   foldAnalyticsDocument,
   foldAnalyticsLink,
+  foldAnalyticsOverview,
   resolveAnalyticsRange,
 } from "#/lib/analytics-fold";
 
@@ -354,6 +357,64 @@ test("a Document fold returns one row per Link and no combined total", () => {
       },
     ],
   });
+});
+
+test("the Organization overview buckets Visits by the UTC date each one started", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-01", to: "2026-08-03" });
+  const visits = [
+    visitRow("morning", "2026-08-01T09:00:00.000Z"),
+    visitRow("midnight", "2026-08-01T23:59:59.999Z"),
+    visitRow("later", "2026-08-03T12:00:00.000Z"),
+    visitRow("after", "2026-08-04T00:00:00.000Z"),
+  ];
+  const events = [
+    // Dwell reported after midnight still belongs to the date its Visit began on.
+    eventRow("midnight", "page_dwell", { page: 1, ms: 2_000 }, "2026-08-02T00:10:00.000Z"),
+    eventRow("after", "page_dwell", { page: 1, ms: 9_000 }, "2026-08-04T00:10:00.000Z"),
+  ];
+
+  expect(foldAnalyticsOverview(["link-1"], visits, events, range).days).toEqual([
+    { date: "2026-08-01", visits: 2, totalMs: 2_000 },
+    { date: "2026-08-03", visits: 1, totalMs: 0 },
+  ]);
+});
+
+test("the Organization overview compares its range with the window of the same length before it", () => {
+  const range = resolveAnalyticsRange({ from: "2026-08-08", to: "2026-08-14" });
+  const visits = [
+    visitRow("first", "2026-08-01T12:00:00.000Z"),
+    visitRow("last", "2026-08-07T12:00:00.000Z"),
+    visitRow("inside", "2026-08-09T12:00:00.000Z"),
+    visitRow("older", "2026-07-31T23:59:59.999Z"),
+  ];
+  const events = [eventRow("last", "download", { via: "button" }, "2026-08-07T12:05:00.000Z")];
+
+  expect(foldAnalyticsOverview(["link-1"], visits, events, range).previous).toEqual({
+    range: { from: "2026-08-01", to: "2026-08-07" },
+    visits: 2,
+    viewerIdentities: 2,
+    emails: 0,
+    totalMs: 0,
+    downloads: 1,
+  });
+});
+
+test("a trend keeps the dates of a range that saw no Visit", () => {
+  expect(
+    analyticsDaysWithZeros({ from: "2026-08-01", to: "2026-08-04" }, [
+      { date: "2026-08-02", visits: 3, totalMs: 1_500 },
+    ]),
+  ).toEqual([
+    { date: "2026-08-01", visits: 0, totalMs: 0 },
+    { date: "2026-08-02", visits: 3, totalMs: 1_500 },
+    { date: "2026-08-03", visits: 0, totalMs: 0 },
+    { date: "2026-08-04", visits: 0, totalMs: 0 },
+  ]);
+});
+
+test("a range covers its end date", () => {
+  expect(analyticsRangeDateCount({ from: "2026-08-01", to: "2026-08-30" })).toBe(30);
+  expect(analyticsRangeDateCount({ from: "2026-08-01", to: "2026-08-01" })).toBe(1);
 });
 
 function visitRow(

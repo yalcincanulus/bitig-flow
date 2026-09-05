@@ -40,6 +40,8 @@ export type AnalyticsOverviewLink<LinkKey extends string = string> = Readonly<{
   downloads: number;
 }>;
 
+export type AnalyticsDay = Readonly<{ date: string; visits: number; totalMs: number }>;
+
 export type AnalyticsLinkDocument = Readonly<{
   documentId: string;
   views: number;
@@ -273,6 +275,62 @@ export function foldAnalytics(
   };
 }
 
+/**
+ * The range of the same length that ends where this one starts.
+ *
+ * It is what "the previous 30 days" has to mean for a comparison to be honest: the same number of
+ * UTC dates, immediately before, never a calendar month standing in for a window.
+ */
+export function precedingAnalyticsRange(range: ResolvedAnalyticsRange): ResolvedAnalyticsRange {
+  const span = range.endExclusive.getTime() - range.startInclusive.getTime();
+  const startInclusive = new Date(range.startInclusive.getTime() - span);
+
+  return {
+    from: dateString(startInclusive),
+    to: dateString(new Date(range.startInclusive.getTime() - dayMs)),
+    startInclusive,
+    endExclusive: range.startInclusive,
+  };
+}
+
+/**
+ * A range's Visits bucketed by the UTC date each one started on (ADR-0063), carrying the Dwell of
+ * every Event that hangs off them — one row per date that actually saw a Visit.
+ *
+ * Sparse on purpose. The range already says which dates it covers, so filling the quiet ones is the
+ * reader's job (`analyticsDaysWithZeros`) and never a cost the payload pays.
+ */
+function foldAnalyticsDays(
+  visits: ReadonlyArray<AnalyticsVisitRow>,
+  events: ReadonlyArray<AnalyticsEventRow>,
+  range: ResolvedAnalyticsRange,
+): Array<AnalyticsDay> {
+  const dateOfVisit = new Map<string, string>();
+  const days = new Map<string, { visits: number; totalMs: number }>();
+
+  for (const visit of visits) {
+    if (visit.startedAt < range.startInclusive || visit.startedAt >= range.endExclusive) continue;
+    const date = dateString(visit.startedAt);
+    dateOfVisit.set(visit.id, date);
+    const day = days.get(date) ?? { visits: 0, totalMs: 0 };
+    day.visits += 1;
+    days.set(date, day);
+  }
+
+  for (const event of events) {
+    if (event.type !== "page_dwell") continue;
+    // Dwell counts on the date its Visit began, so a Visit that crosses midnight stays one row.
+    const day = days.get(dateOfVisit.get(event.visitId) ?? "");
+    const dwell = day === undefined ? null : pageDwell(event.payload);
+    if (day === undefined || dwell === null) continue;
+    day.totalMs += dwell.ms;
+  }
+
+  return [...days]
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([date, day]) => ({ date, ...day }));
+}
+
 export function foldAnalyticsOverview<LinkKey extends string>(
   linkIds: ReadonlyArray<LinkKey>,
   visits: ReadonlyArray<AnalyticsVisitRow>,
@@ -288,10 +346,18 @@ export function foldAnalyticsOverview<LinkKey extends string>(
 
     return { linkId, ...totals };
   });
+  // The Organization's whole Visit history is already in memory, so the window before this one and
+  // the shape of this one cost a second pass rather than a second query.
+  const preceding = precedingAnalyticsRange(range);
 
   return {
     range: { from: range.from, to: range.to },
     allTimeVisits: visits.length,
+    days: foldAnalyticsDays(visits, events, range),
+    previous: {
+      range: { from: preceding.from, to: preceding.to },
+      ...foldAnalytics(visits, events, preceding).totals,
+    },
     links,
   };
 }
@@ -331,6 +397,33 @@ function foldLinkDocuments(
       downloads: document.downloads,
       pages: pageRows(document.pages),
     }));
+}
+
+/** How many UTC dates a range covers, its end date included. */
+export function analyticsRangeDateCount(range: Readonly<{ from: string; to: string }>) {
+  return Math.round((utcDate(range.to).getTime() - utcDate(range.from).getTime()) / dayMs) + 1;
+}
+
+/**
+ * Every UTC date of a range in order, quiet ones included.
+ *
+ * A trend has to keep the shape of the calendar rather than the shape of the dates that happened to
+ * be busy, or a fortnight of silence reads as one flat step between two Visits.
+ */
+export function analyticsDaysWithZeros(
+  range: Readonly<{ from: string; to: string }>,
+  days: ReadonlyArray<AnalyticsDay>,
+): Array<AnalyticsDay> {
+  const counted = new Map(days.map((day) => [day.date, day]));
+  const last = utcDate(range.to).getTime();
+  const dates: Array<AnalyticsDay> = [];
+
+  for (let time = utcDate(range.from).getTime(); time <= last; time += dayMs) {
+    const date = dateString(new Date(time));
+    dates.push(counted.get(date) ?? { date, visits: 0, totalMs: 0 });
+  }
+
+  return dates;
 }
 
 export function dwellPagesWithZeros(

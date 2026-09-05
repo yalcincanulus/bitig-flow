@@ -131,6 +131,18 @@ test("Analytics is scoped to the active Organization and includes the whole boun
   expect(payload).toEqual({
     range: { from: "2026-08-01", to: "2026-08-17" },
     allTimeVisits: 4,
+    days: [
+      { date: "2026-08-01", visits: 1, totalMs: 1_500 },
+      { date: "2026-08-17", visits: 1, totalMs: 0 },
+    ],
+    previous: {
+      range: { from: "2026-07-15", to: "2026-07-31" },
+      visits: 1,
+      viewerIdentities: 1,
+      emails: 0,
+      totalMs: 0,
+      downloads: 1,
+    },
     links: expect.arrayContaining([
       {
         linkId: link.id,
@@ -184,6 +196,18 @@ test("Analytics applies the last 30 UTC dates when no range is given", async () 
       to: todayUtc.toISOString().slice(0, 10),
     },
     allTimeVisits: 2,
+    days: [{ date: withinDefault.toISOString().slice(0, 10), visits: 1, totalMs: 0 }],
+    previous: {
+      range: {
+        from: new Date(todayUtc.getTime() - 59 * 24 * 60 * 60 * 1_000).toISOString().slice(0, 10),
+        to: beforeDefault.toISOString().slice(0, 10),
+      },
+      visits: 1,
+      viewerIdentities: 1,
+      emails: 0,
+      totalMs: 0,
+      downloads: 0,
+    },
     links: [
       {
         linkId: link.id,
@@ -494,6 +518,15 @@ test("Analytics distinguishes an Organization that has never received a Visit", 
   expect(await response.json()).toEqual({
     range: { from: "2026-08-01", to: "2026-08-17" },
     allTimeVisits: 0,
+    days: [],
+    previous: {
+      range: { from: "2026-07-15", to: "2026-07-31" },
+      visits: 0,
+      viewerIdentities: 0,
+      emails: 0,
+      totalMs: 0,
+      downloads: 0,
+    },
     links: [
       {
         linkId: link.id,

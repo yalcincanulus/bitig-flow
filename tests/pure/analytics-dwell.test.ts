@@ -82,6 +82,7 @@ test("the Dwell chart keeps its page and millisecond seam as Charts gains an Ope
 
   expect(importers.map((path) => relative(projectDirectory, path))).toEqual([
     "src/components/analytics-dwell-chart.tsx",
+    "src/components/home-visit-trend.tsx",
     "src/components/operations-trend-chart.tsx",
   ]);
 
