@@ -1,3 +1,4 @@
+import { queryOnce } from "@tanstack/react-db";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -143,6 +144,38 @@ describe("getCollections", () => {
       true,
     );
     expect([...links.indexes.values()].some((index) => index.matchesField(["vaultId"]))).toBe(true);
+  });
+
+  test("loads the five most recent Documents without an index fallback warning", async () => {
+    const rows = Array.from({ length: 7 }, (_, index) =>
+      documentRow({
+        id: `0198b8f1-6ae4-7c39-9c3d-3cfd7af2010${index}`,
+        updatedAt: new Date(`2026-08-${17 + Math.floor(index / 2)}T12:00:00.000Z`),
+      }),
+    );
+    vi.mocked(listDocuments).mockResolvedValue(rows);
+    const queryClient = new QueryClient();
+    const { documents } = getCollections(queryClient, organizationId);
+    const warn = vi.spyOn(console, "warn");
+    try {
+      await documents.preload();
+      const recent = await queryOnce((q) =>
+        q
+          .from({ document: documents })
+          .orderBy(({ document }) => document.updatedAt, "desc")
+          .orderBy(({ document }) => document.id, "asc")
+          .limit(5)
+          .select(({ document }) => ({ id: document.id })),
+      );
+      expect(recent.map((row) => row.id)).toEqual([6, 4, 5, 2, 3].map((index) => rows[index]!.id));
+      expect(warn.mock.calls.flat().join("\n")).not.toContain(
+        "orderBy with limit requires an index",
+      );
+    } finally {
+      warn.mockRestore();
+      await documents.cleanup();
+      queryClient.clear();
+    }
   });
 
   test("keeps Organization queries in the Query cache for the QueryClient's life", async () => {

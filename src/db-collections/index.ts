@@ -309,6 +309,9 @@ function createCollections(queryClient: QueryClient, organizationId: string) {
     }),
   );
 
+  // Home orders recent Documents by updatedAt with a limit; the index avoids a full scan.
+  documents.createIndex((row) => row.updatedAt, { indexType: BasicIndex });
+
   // Joins and filters load by Document or Vault id; without these indexes TanStack DB falls back
   // to a full scan and warns on every live query that needs the field.
   vaultItems.createIndex((row) => row.documentId, { indexType: BasicIndex });
