@@ -100,11 +100,11 @@ function Home() {
           <nav className="flex flex-wrap items-center gap-2 pt-1">
             {hasSession ? (
               isDemoSession ? (
-                <Button size="lg" nativeButton={false} render={<Link to="/dashboard/documents" />}>
+                <Button size="lg" nativeButton={false} render={<Link to="/dashboard" />}>
                   Resume demo
                 </Button>
               ) : organizationCount > 0 ? (
-                <Button size="lg" nativeButton={false} render={<Link to="/dashboard/documents" />}>
+                <Button size="lg" nativeButton={false} render={<Link to="/dashboard" />}>
                   Go to Dashboard
                 </Button>
               ) : (
