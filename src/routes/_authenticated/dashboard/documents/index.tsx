@@ -22,7 +22,7 @@ import { FilterBar, FilterBarLabel, FilterBarSpacer } from "#/components/dashboa
 import { DocumentKindBadge, DocumentThumbnail } from "#/components/document-kind";
 import { DemoSampleBadge } from "#/components/demo-sample-badge";
 import { documentKindLabel } from "#/lib/document-kind";
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageActions, PageHeader, PageTitle } from "#/components/page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,7 +62,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "#/components/ui/empty";
-import { Field, FieldGroup, FieldLabel } from "#/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "#/components/ui/field";
+import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { Input } from "#/components/ui/input";
 import {
   InputGroup,
@@ -210,9 +211,6 @@ function DocumentsPage() {
     <Page>
       <PageHeader>
         <PageTitle>{dashboardDestinations.documents.label}</PageTitle>
-        <PageDescription>
-          Write markdown Documents or upload a PDF or image from this pane.
-        </PageDescription>
         <PageActions>
           <UploadDocumentButton
             organizationId={organization.id}
@@ -253,7 +251,7 @@ function DocumentsPage() {
             In {filteredVault.name}
             <button
               type="button"
-              aria-label="Clear the Vault filter"
+              aria-label="Clear the vault filter"
               className="-mr-1 rounded-full p-0.5 hover:bg-foreground/10"
               onClick={() => setSearch({ vault: undefined })}
             >
@@ -273,7 +271,7 @@ function DocumentsPage() {
               name="q"
               defaultValue={search.q ?? ""}
               placeholder="Search titles"
-              aria-label="Search Document titles"
+              aria-label="Search document titles"
             />
             {search.q ? (
               <InputGroupAddon align="inline-end">
@@ -312,7 +310,7 @@ function DocumentsPage() {
         </ToggleGroup>
 
         <FilterBarLabel>
-          {data.length} {data.length === 1 ? "Document" : "Documents"}
+          {data.length} {data.length === 1 ? "document" : "documents"}
         </FilterBarLabel>
       </FilterBar>
 
@@ -329,10 +327,8 @@ function DocumentsPage() {
               <EmptyMedia variant="icon">
                 <FileTextIcon />
               </EmptyMedia>
-              <EmptyTitle>No matching Documents</EmptyTitle>
-              <EmptyDescription>
-                Nothing matches the current kind, Vault, or title filter.
-              </EmptyDescription>
+              <EmptyTitle>No matching documents</EmptyTitle>
+              <EmptyDescription>No documents match your filters.</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button
@@ -349,9 +345,9 @@ function DocumentsPage() {
               <EmptyMedia variant="icon">
                 <FileTextIcon />
               </EmptyMedia>
-              <EmptyTitle>No Documents yet</EmptyTitle>
+              <EmptyTitle>No documents yet</EmptyTitle>
               <EmptyDescription>
-                Create a markdown Document or upload a PDF or image.
+                Create a markdown document or upload a PDF or image.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -360,7 +356,7 @@ function DocumentsPage() {
                 createdBy={session.user.id}
                 documents={documents}
                 watchPersistence={watchPersistence}
-                triggerLabel="Create your first Document"
+                triggerLabel="Create your first document"
               />
             </EmptyContent>
           </Empty>
@@ -673,11 +669,11 @@ function UploadDocumentButton({
       ? file.type
       : mimeTypeFromFileName(file.name);
     if (!contentType) {
-      onError("That Document type cannot be uploaded.");
+      onError("That document type cannot be uploaded.");
       return;
     }
     if (file.size > uploadMaxBytes) {
-      onError("That Document is larger than 25 MB.");
+      onError("That document is larger than 25 MB.");
       return;
     }
 
@@ -732,16 +728,24 @@ function UploadDocumentButton({
         accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf,.png,.jpg,.jpeg,.webp,.gif"
         className="sr-only"
         tabIndex={-1}
-        aria-label="Upload a Document"
+        aria-label="Upload a document"
         onChange={(event) => {
           void handleFiles(event.currentTarget.files);
           event.currentTarget.value = "";
         }}
       />
-      <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
-        <UploadIcon data-icon="inline-start" />
-        Upload
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={<Button type="button" variant="outline" />}
+          onClick={() => fileInput.current?.click()}
+        >
+          <UploadIcon data-icon="inline-start" />
+          Upload
+        </TooltipTrigger>
+        <TooltipContent>
+          The file name becomes the document title. Visitors see it when you share the document.
+        </TooltipContent>
+      </Tooltip>
     </>
   );
 }
@@ -751,7 +755,7 @@ function CreateDocumentDialog({
   createdBy,
   documents,
   watchPersistence,
-  triggerLabel = "Create Document",
+  triggerLabel = "Create document",
 }: {
   organizationId: string;
   createdBy: string;
@@ -788,7 +792,7 @@ function CreateDocumentDialog({
       updatedAt: now,
     });
     rememberDocumentInsert(documentId, transaction.isPersisted.promise);
-    watchPersistence(transaction, `Could not create the Document. Your change was rolled back.`);
+    watchPersistence(transaction, `Could not create the document. Your changes were not saved.`);
     setOpen(false);
     void navigate({
       to: "/dashboard/documents/$documentId/edit",
@@ -805,7 +809,7 @@ function CreateDocumentDialog({
       <DialogContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create Document</DialogTitle>
+            <DialogTitle>Create document</DialogTitle>
             <DialogDescription>
               Give it a title, or leave it blank and it will be called Untitled.
             </DialogDescription>
@@ -813,11 +817,19 @@ function CreateDocumentDialog({
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="create-document-title">Title</FieldLabel>
-              <Input id="create-document-title" name="title" autoComplete="off" />
+              <Input
+                id="create-document-title"
+                name="title"
+                autoComplete="off"
+                aria-describedby="create-document-title-visibility"
+              />
+              <FieldDescription id="create-document-title-visibility">
+                Visitors see this title when you share the document.
+              </FieldDescription>
             </Field>
           </FieldGroup>
           <DialogFooter showCloseButton>
-            <Button type="submit">Create Document</Button>
+            <Button type="submit">Create document</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -842,7 +854,7 @@ function DeleteDocumentDialog({
     const transaction = documents.delete(document.id);
     watchPersistence(
       transaction,
-      `Could not delete “${document.title}”. Your change was rolled back.`,
+      `Could not delete “${document.title}”. Your changes were not saved.`,
     );
     onOpenChange(false);
   }
@@ -853,14 +865,14 @@ function DeleteDocumentDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete “{document.title}”?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the Document, its Vault memberships, and its Links. Its analytics history
-            goes, and Links including it will show less activity.
+            This deletes the document and its direct links, and removes it from vaults. Its reading
+            history is deleted, so analytics totals for affected links will decrease.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={handleDelete}>
-            Delete Document
+            Delete document
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

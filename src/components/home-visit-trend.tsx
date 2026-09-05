@@ -10,7 +10,7 @@ import { analyticsDaysWithZeros, type AnalyticsDay } from "#/lib/analytics-fold"
 const gradientId = "home-visit-trend";
 
 function dayReading(day: AnalyticsDay) {
-  const visits = `${analyticsNumberFormat.format(day.visits)} ${day.visits === 1 ? "Visit" : "Visits"}`;
+  const visits = `${analyticsNumberFormat.format(day.visits)} ${day.visits === 1 ? "visit" : "visits"}`;
   return day.totalMs > 0 ? `${visits} · ${formatTotalTime(day.totalMs)}` : visits;
 }
 

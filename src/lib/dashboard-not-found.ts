@@ -3,10 +3,10 @@ import { dashboardDestinations } from "#/lib/dashboard-destinations";
 const missingDestinations = ["documents", "vaults", "links", "analytics"] as const;
 
 const kindByDestination = {
-  documents: "Document",
-  vaults: "Vault",
-  links: "Link",
-  analytics: "Link",
+  documents: "document",
+  vaults: "vault",
+  links: "link",
+  analytics: "link",
 } as const;
 
 export type DashboardNotFound = Readonly<{
@@ -33,7 +33,7 @@ export function dashboardNotFound(pathname: string): DashboardNotFound {
   if (destination === undefined) {
     return {
       title: "This page isn't here",
-      description: "The Dashboard has no destination at this address.",
+      description: "No page exists at this address.",
     };
   }
 
@@ -41,9 +41,9 @@ export function dashboardNotFound(pathname: string): DashboardNotFound {
 
   return {
     title: `This ${kindByDestination[destination]} isn't here`,
-    description: "It may have been removed, or it is not in this Organization.",
+    description: "It may have been removed, or it is not in this organization.",
     recovery: {
-      label: `Back to ${list.label}`,
+      label: `Back to ${list.label.toLowerCase()}`,
       link: list.link,
     },
   };

@@ -4,7 +4,7 @@ import { Building2Icon } from "lucide-react";
 import { OrganizationDangerZone } from "#/components/organization-danger-zone";
 import { OrganizationMembershipSettings } from "#/components/organization-membership-settings";
 import { OrganizationSettings } from "#/components/organization-settings";
-import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageHeader, PageTitle } from "#/components/page";
 import { Badge } from "#/components/ui/badge";
 import { authClient } from "#/lib/auth-client";
 import { type OrganizationRole } from "#/lib/access-control";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/dashboard/settings")({
       },
     });
     if (listing.error) {
-      throw new Error("Could not read the Memberships of this Organization");
+      throw new Error("Could not read the memberships of this organization");
     }
 
     return {
@@ -45,7 +45,7 @@ function OrganizationIdentity({ name, role }: Readonly<{ name: string; role: Org
       </div>
       <div className="flex min-w-0 flex-col gap-1">
         <span className="truncate text-base font-semibold tracking-tight">{name}</span>
-        <span className="text-sm text-muted-foreground">Active Organization</span>
+        <span className="text-sm text-muted-foreground">Active organization</span>
       </div>
       <Badge variant={role === "member" ? "outline" : "secondary"} className="ml-auto">
         {roleLabel(role)}
@@ -62,9 +62,6 @@ function SettingsPage() {
     <Page>
       <PageHeader>
         <PageTitle>{dashboardDestinations.settings.label}</PageTitle>
-        <PageDescription>
-          View the active Organization and manage the details your Role permits.
-        </PageDescription>
       </PageHeader>
 
       <div className="flex w-full max-w-3xl min-w-0 flex-col gap-8">

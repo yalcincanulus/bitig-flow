@@ -126,9 +126,7 @@ function VaultPage() {
           <span className="truncate">{vault.name}</span>
           {demo?.samples.vaults.includes(vault.id) ? <DemoSampleBadge /> : null}
         </PageTitle>
-        <PageDescription>
-          {vault.description || "Documents in this Vault are shared together."}
-        </PageDescription>
+        {vault.description ? <PageDescription>{vault.description}</PageDescription> : null}
         <PageActions>
           <AddDocumentsDialog
             documents={organizationDocuments}
@@ -152,7 +150,7 @@ function VaultPage() {
               );
             }}
             lockedTarget={{ vaultId: vault.id }}
-            triggerLabel="Create Link"
+            triggerLabel="Create link"
             demo={Boolean(demo)}
           />
         </PageActions>
@@ -170,7 +168,7 @@ function VaultPage() {
           <span className="text-xs text-muted-foreground tabular-nums">
             {hiddenCount > 0
               ? `${documentsInVault.length - hiddenCount} of ${documentsInVault.length} shared`
-              : `${documentsInVault.length} in this Vault`}
+              : `${documentsInVault.length} in this vault`}
           </span>
         </header>
 
@@ -180,8 +178,8 @@ function VaultPage() {
               <EmptyMedia variant="icon">
                 <FileTextIcon />
               </EmptyMedia>
-              <EmptyTitle>No Documents in this Vault</EmptyTitle>
-              <EmptyDescription>Add Documents to share them as one unit.</EmptyDescription>
+              <EmptyTitle>No documents in this vault</EmptyTitle>
+              <EmptyDescription>Add documents to this vault.</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <AddDocumentsDialog
@@ -241,8 +239,8 @@ function VaultPage() {
                           aria-pressed={!document.isVisible}
                           aria-label={
                             document.isVisible
-                              ? `Hide ${document.title} from Links to this Vault`
-                              : `Show ${document.title} in Links to this Vault`
+                              ? `Hide ${document.title} from links to this vault`
+                              : `Show ${document.title} in links to this vault`
                           }
                           onClick={() => {
                             const transaction = vaultItems.update(
@@ -254,8 +252,8 @@ function VaultPage() {
                             watchPersistence(
                               transaction,
                               document.isVisible
-                                ? `Could not hide “${document.title}”. Your change was rolled back.`
-                                : `Could not show “${document.title}”. Your change was rolled back.`,
+                                ? `Could not hide “${document.title}”. Your changes were not saved.`
+                                : `Could not show “${document.title}”. Your changes were not saved.`,
                             );
                           }}
                         >
@@ -264,7 +262,7 @@ function VaultPage() {
                       }
                     />
                     <TooltipContent>
-                      {document.isVisible ? "Hide from Links" : "Show in Links"}
+                      {document.isVisible ? "Hide from links" : "Show in links"}
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -273,14 +271,14 @@ function VaultPage() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label={`Remove ${document.title} from this Vault`}
+                          aria-label={`Remove ${document.title} from this vault`}
                           onClick={() => {
                             const transaction = vaultItems.delete(
                               `${vault.id}:${document.id}` as const,
                             );
                             watchPersistence(
                               transaction,
-                              `Could not remove “${document.title}”. Your change was rolled back.`,
+                              `Could not remove “${document.title}”. Your changes were not saved.`,
                             );
                           }}
                         >
@@ -288,7 +286,7 @@ function VaultPage() {
                         </Button>
                       }
                     />
-                    <TooltipContent>Remove from Vault</TooltipContent>
+                    <TooltipContent>Remove from vault</TooltipContent>
                   </Tooltip>
                 </ItemActions>
               </Item>
@@ -301,16 +299,14 @@ function VaultPage() {
 
       <section className="flex flex-col gap-3">
         <header className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-medium">Links to this Vault</h2>
+          <h2 className="text-sm font-medium">Links to this vault</h2>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {vaultLinks.length} {vaultLinks.length === 1 ? "Link" : "Links"}
+            {vaultLinks.length} {vaultLinks.length === 1 ? "link" : "links"}
           </span>
         </header>
 
         {vaultLinks.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Nothing publishes this Vault yet. A Vault nothing points at is unreachable.
-          </p>
+          <p className="text-xs text-muted-foreground">Create a link to share this vault.</p>
         ) : (
           <ItemGroup className="gap-2">
             {vaultLinks.map((link) => (
@@ -358,7 +354,7 @@ function AddDocumentsDialog({
   vaultId,
   vaultItems,
   watchPersistence,
-  triggerLabel = "Add Documents",
+  triggerLabel = "Add documents",
   triggerVariant = "default",
 }: {
   documents: DocumentRow[];
@@ -399,7 +395,7 @@ function AddDocumentsDialog({
     );
     watchPersistence(
       transaction,
-      "Could not add Documents to this Vault. Your change was rolled back.",
+      "Could not add documents to this vault. Your changes were not saved.",
     );
     handleOpenChange(false);
   }
@@ -413,13 +409,11 @@ function AddDocumentsDialog({
       <DialogContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Documents</DialogTitle>
-            <DialogDescription>
-              Choose Documents to include. Documents already in the Vault stay as they are.
-            </DialogDescription>
+            <DialogTitle>Add documents</DialogTitle>
+            <DialogDescription>Choose documents to add.</DialogDescription>
           </DialogHeader>
           {documents.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No Documents in this Organization yet.</p>
+            <p className="text-xs text-muted-foreground">No documents in this organization yet.</p>
           ) : (
             <FieldSet>
               <FieldLegend>Documents</FieldLegend>
@@ -453,7 +447,7 @@ function AddDocumentsDialog({
                         </FieldTitle>
                         <FieldDescription>
                           {alreadyInVault
-                            ? "Already in this Vault"
+                            ? "Already in this vault"
                             : documentKindLabel(document.kind)}
                         </FieldDescription>
                       </FieldContent>
@@ -464,7 +458,7 @@ function AddDocumentsDialog({
             </FieldSet>
           )}
           <DialogFooter showCloseButton>
-            <Button type="submit">Add to Vault</Button>
+            <Button type="submit">Add to vault</Button>
           </DialogFooter>
         </form>
       </DialogContent>

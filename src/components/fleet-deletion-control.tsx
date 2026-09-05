@@ -64,7 +64,7 @@ export function FleetDeletionControl() {
         setFeedback({
           kind: "success",
           title: result.completed ? "Fleet deletion completed" : "Fleet deletion in progress",
-          message: `Terminated ${processedCount} Demo Environments; ${result.remainingCount} remain. Admission is closed.`,
+          message: `Terminated ${processedCount} demo environments; ${result.remainingCount} remain. Admission is closed.`,
         });
         if (result.completed) break;
       }
@@ -86,11 +86,9 @@ export function FleetDeletionControl() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Delete all Demo Environments</CardTitle>
+        <CardTitle>Delete all demo environments</CardTitle>
         <CardDescription>
-          This immediately closes new demo admission, then uses the shared resumable termination
-          workflow in server-bounded batches of five. Summaries and anonymous daily aggregates are
-          preserved.
+          This stops new demos and deletes all existing demos. Anonymous usage summaries are kept.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -105,7 +103,8 @@ export function FleetDeletionControl() {
             onChange={(event) => setConfirmation(event.target.value)}
           />
           <FieldDescription>
-            Closing this page can interrupt client progress. Repeating the action resumes safely.
+            Keep this page open until deletion finishes. If interrupted, run this action again to
+            continue.
           </FieldDescription>
         </Field>
 
@@ -119,14 +118,14 @@ export function FleetDeletionControl() {
             ) : (
               <Trash2Icon data-icon="inline-start" />
             )}
-            Delete all Demo Environments
+            Delete all demo environments
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Start fleet deletion?</AlertDialogTitle>
               <AlertDialogDescription>
-                Admission closes before the first termination. Every environment loses its Sessions
-                and public Links and cannot be restored.
+                New demos stop immediately. All existing demos and their shared links are
+                permanently deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

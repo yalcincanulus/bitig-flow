@@ -88,10 +88,8 @@ function BeginEnrollmentForm({ onEnabled }: { onEnabled: (enrollment: Enrollment
   });
 
   return (
-    <AuthPage title="Secure Operations">
-      <p className="text-sm text-muted-foreground">
-        The Platform Operator must enroll an authenticator before Operations can open.
-      </p>
+    <AuthPage title="Secure operations">
+      <p className="text-sm text-muted-foreground">Set up an authenticator to access operations.</p>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {

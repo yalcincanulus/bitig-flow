@@ -13,12 +13,12 @@ const documentPage = sourceOf(
 const linkBadges = sourceOf("../../src/components/link-badges.tsx");
 
 test("a Document in no Links says so", () => {
-  expect(documentPage).toMatch(/This Document is in no Links/);
+  expect(documentPage).toMatch(/No links to this document/);
 });
 
 test("the Document analytics panel uses the shared trust module", () => {
   expect(documentPage).toMatch(/AnalyticsTrustMark/);
   expect(linkBadges).toMatch(/analyticsTrustworthy/);
-  expect(linkBadges).toMatch(/no Requirements/);
-  expect(linkBadges).toMatch(/password or\s+an email Requirement/);
+  expect(linkBadges).toMatch(/Anyone with this URL can visit, including bots/);
+  expect(linkBadges).toMatch(/Require a password or email/);
 });

@@ -1,9 +1,9 @@
 export function linkDeleteWarning(visitCount: number | null) {
   const destroyed =
     visitCount === null
-      ? "its Visits and their Events"
+      ? "its visit history"
       : visitCount === 1
-        ? "1 Visit and its Events"
-        : `${visitCount} Visits and their Events`;
-  return `This cannot be undone. Deleting this Link destroys ${destroyed}. Deactivate the Link instead to keep its history. The old Slug can be used again.`;
+        ? "the history of 1 visit"
+        : `the history of ${visitCount} visits`;
+  return `This cannot be undone. Deleting this link deletes ${destroyed}. Deactivate the link instead to keep its history. The old address can be used again.`;
 }

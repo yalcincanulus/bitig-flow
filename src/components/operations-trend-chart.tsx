@@ -49,7 +49,7 @@ export function OperationsTrendChart({
     <Chart
       definition={definition}
       height={280}
-      ariaLabel="Thirty-day Demo Environment starts and best-effort public Visits"
+      ariaLabel="Thirty-day demo environment starts and best-effort public visits"
       className="w-full text-foreground [--ts-chart-1:var(--chart-1)] [--ts-chart-4:var(--chart-4)]"
     />
   );

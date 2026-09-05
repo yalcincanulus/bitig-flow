@@ -41,7 +41,7 @@ export function TerminateEnvironmentControl({
       setOpen(false);
       await router.invalidate({ sync: true });
     } catch {
-      setError("The Demo Environment could not be terminated.");
+      setError("The demo environment could not be terminated.");
     }
     setPending(false);
   }
@@ -55,10 +55,10 @@ export function TerminateEnvironmentControl({
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Terminate Demo Environment {reference}?</AlertDialogTitle>
+            <AlertDialogTitle>Terminate demo environment {reference}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Sessions and Links are disabled first. The shared resumable workflow then writes a
-              content-free Summary and deletes the isolated Organization and Demo User.
+              Access and shared links stop working immediately. All demo content is deleted. Only
+              anonymous usage totals are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

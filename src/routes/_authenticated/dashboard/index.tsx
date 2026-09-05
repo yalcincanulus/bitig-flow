@@ -17,7 +17,7 @@ import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
 import { DocumentKindIcon } from "#/components/document-kind";
 import { HomeVisitTrend } from "#/components/home-visit-trend";
 import { AnalyticsTrustMark } from "#/components/link-badges";
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageActions, PageHeader, PageTitle } from "#/components/page";
 import { StatList } from "#/components/stat-list";
 import { Button } from "#/components/ui/button";
 import {
@@ -54,12 +54,10 @@ type HomeAnalytics = Awaited<ReturnType<typeof getAnalytics>>;
  */
 function HomeSection({
   title,
-  description,
   action,
   children,
 }: Readonly<{
   title: string;
-  description: string;
   action?: ReactNode;
   children: ReactNode;
 }>) {
@@ -68,7 +66,6 @@ function HomeSection({
       <div className="flex items-end justify-between gap-4 border-b border-border/70 pb-2.5">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="font-heading text-sm font-medium">{title}</h2>
-          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         {action}
       </div>
@@ -149,7 +146,7 @@ function DashboardHome() {
       icon: FolderClosedIcon,
       detail:
         vaultDocuments > 0
-          ? `${analyticsNumberFormat.format(vaultDocuments)} Documents inside`
+          ? `${analyticsNumberFormat.format(vaultDocuments)} documents inside`
           : null,
     },
     {
@@ -165,10 +162,9 @@ function DashboardHome() {
   return (
     <Page className="gap-8">
       <PageHeader>
-        <PageTitle className="text-2xl tracking-tight sm:text-3xl">{organization.name}</PageTitle>
-        <PageDescription>
-          What this Organization shares, and how people are reading it.
-        </PageDescription>
+        <PageTitle className="text-2xl tracking-tight sm:text-3xl">
+          {organization.name} overview
+        </PageTitle>
         <PageActions>
           <Button
             nativeButton={false}
@@ -220,8 +216,7 @@ function DashboardHome() {
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <HomeTopLinks analytics={analytics} links={links} />
             <HomeSection
-              title="Recently updated Documents"
-              description="Pick up where this Organization left off."
+              title="Recently updated documents"
               action={
                 <Button
                   nativeButton={false}
@@ -236,9 +231,7 @@ function DashboardHome() {
             >
               {recentDocuments.length === 0 ? (
                 // A Vault Link outlives the Documents it served, so Home can be started and empty.
-                <p className="text-xs text-muted-foreground">
-                  This Organization has no Documents yet.
-                </p>
+                <p className="text-xs text-muted-foreground">No documents yet.</p>
               ) : (
                 <ul className="-mx-2 flex flex-col">
                   {recentDocuments.map((document) => {
@@ -328,10 +321,10 @@ function HomeEngagement({ analytics }: Readonly<{ analytics: HomeAnalytics }>) {
             label: "Unique visitors",
             value: analyticsNumberFormat.format(totals.viewerIdentities),
           },
-          { label: "Links with Visits", value: analyticsNumberFormat.format(totals.engagedLinks) },
+          { label: "Links with visits", value: analyticsNumberFormat.format(totals.engagedLinks) },
           { label: "Total viewing time", value: formatTotalTime(totals.totalMs) },
           {
-            label: "Time per Visit",
+            label: "Time per visit",
             value:
               totals.visits > 0 ? formatTotalTime(Math.round(totals.totalMs / totals.visits)) : "—",
           },
@@ -407,8 +400,7 @@ function HomeTopLinks({
 
   return (
     <HomeSection
-      title="Most visited Links"
-      description="The five Links carrying the most Visits in this range."
+      title="Most visited links"
       action={
         <Button
           nativeButton={false}
@@ -428,10 +420,10 @@ function HomeTopLinks({
               <ChartNoAxesCombinedIcon />
             </EmptyMedia>
             <EmptyTitle>
-              {analytics.allTimeVisits === 0 ? "No Visits yet" : "No Visits in this range"}
+              {analytics.allTimeVisits === 0 ? "No visits yet" : "No visits in this range"}
             </EmptyTitle>
             <EmptyDescription>
-              Share a Link to see how people engage with your Documents.
+              Share a link to see how people engage with your documents.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -488,20 +480,20 @@ function HomeTopLinks({
 const firstSteps = [
   {
     destination: dashboardDestinations.documents,
-    title: "Add your Documents",
+    title: "Add your documents",
     description: "Write markdown in the app, or upload a PDF or an image.",
     icon: FileTextIcon,
   },
   {
     destination: dashboardDestinations.vaults,
-    title: "Group them into a Vault",
-    description: "Keep related Documents together to share as one unit.",
+    title: "Group them into a vault",
+    description: "Share related documents together.",
     icon: FolderClosedIcon,
   },
   {
     destination: dashboardDestinations.links,
-    title: "Share with a Link",
-    description: "Choose the Gate it imposes, then follow its Visits here.",
+    title: "Share with a link",
+    description: "Choose who can open it and see how it is read.",
     icon: LinkIcon,
   },
 ];
@@ -510,8 +502,7 @@ const firstSteps = [
 function HomeFirstSteps() {
   return (
     <HomeSection
-      title="From Document to insight"
-      description="Three steps stand between an empty Organization and its first Visit."
+      title="Get started"
       action={
         <Button
           nativeButton={false}

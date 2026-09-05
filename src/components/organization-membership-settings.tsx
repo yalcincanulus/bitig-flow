@@ -45,17 +45,17 @@ function interpretLeaveFailure(code: string | undefined): LeaveFailure {
   switch (code) {
     case "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER":
       return {
-        message: "You are now the only Owner. Promote another User to Owner before leaving.",
+        message: "You are now the only owner. Promote another user to owner before leaving.",
         recovery: "route",
       };
     case "MEMBER_NOT_FOUND":
     case "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION":
       return {
-        message: "You no longer belong to this Organization.",
+        message: "You no longer belong to this organization.",
         recovery: "organization",
       };
     default:
-      return { message: "Could not leave this Organization." };
+      return { message: "Could not leave this organization." };
   }
 }
 
@@ -84,7 +84,7 @@ export function OrganizationMembershipSettings({
     try {
       result = await authClient.organization.leave({ organizationId });
     } catch {
-      setFailure("Could not leave this Organization.");
+      setFailure("Could not leave this organization.");
       setPending(false);
       return;
     }
@@ -114,19 +114,19 @@ export function OrganizationMembershipSettings({
       <Separator />
       <SettingsSection>
         <SettingsSectionHeader>
-          <SettingsSectionTitle>Membership</SettingsSectionTitle>
+          <SettingsSectionTitle>Your access</SettingsSectionTitle>
           <SettingsSectionDescription>
-            You are in this Organization as {roleLabel(role)}. Leaving ends your access immediately.
+            Your role is {roleLabel(role).toLowerCase()}. Leaving ends your access immediately.
           </SettingsSectionDescription>
         </SettingsSectionHeader>
         <SettingsSectionContent>
           {isSoleOwner && !demo ? (
             <Alert className="max-w-md">
               <CircleAlertIcon />
-              <AlertTitle>Another Owner is required</AlertTitle>
+              <AlertTitle>Another owner is required</AlertTitle>
               <AlertDescription>
-                Promote another User to Owner in <Link to="/dashboard/people">People</Link> before
-                leaving this Organization.
+                Promote another user to owner in <Link to="/dashboard/people">People</Link> before
+                leaving this organization.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -139,20 +139,19 @@ export function OrganizationMembershipSettings({
           ) : isSoleOwner ? (
             <Button variant="outline" disabled>
               <LogOutIcon data-icon="inline-start" />
-              Leave Organization
+              Leave organization
             </Button>
           ) : (
             <AlertDialog open={open} onOpenChange={handleOpenChange}>
               <AlertDialogTrigger render={<Button variant="outline" />}>
                 <LogOutIcon data-icon="inline-start" />
-                Leave Organization
+                Leave organization
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Leave this Organization?</AlertDialogTitle>
+                  <AlertDialogTitle>Leave this organization?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Your access ends immediately. Returning requires a new Invitation from this
-                    Organization.
+                    You will lose access immediately. You will need a new invitation to rejoin.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 {failure ? (
@@ -161,7 +160,7 @@ export function OrganizationMembershipSettings({
                   </Alert>
                 ) : null}
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={pending}>Keep Membership</AlertDialogCancel>
+                  <AlertDialogCancel disabled={pending}>Stay in organization</AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
                     disabled={pending}
@@ -171,7 +170,7 @@ export function OrganizationMembershipSettings({
                     }}
                   >
                     {pending ? <Spinner data-icon="inline-start" /> : null}
-                    Leave Organization
+                    Leave organization
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

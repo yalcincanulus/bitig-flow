@@ -49,17 +49,17 @@ function OperationsEnvironmentsPage() {
   return (
     <Page className="px-0">
       <PageHeader>
-        <PageTitle>Demo Environments</PageTitle>
+        <PageTitle>Demo environments</PageTitle>
         <PageDescription>
-          Anonymous operational identifiers and aggregate usage only. Operations cannot inspect
-          Documents, Vaults, Links, Viewer identity, titles, or filenames.
+          Only anonymous references and usage totals are shown. Document contents, titles,
+          filenames, links, and visitor details are private.
         </PageDescription>
       </PageHeader>
 
       {environments.length > 0 ? (
         <div className="max-w-sm">
           <label className="sr-only" htmlFor="environment-filter">
-            Filter Demo Environments
+            Filter demo environments
           </label>
           <Input
             id="environment-filter"
@@ -77,10 +77,8 @@ function OperationsEnvironmentsPage() {
             <EmptyMedia variant="icon">
               <BoxesIcon />
             </EmptyMedia>
-            <EmptyTitle>No Demo Environments</EmptyTitle>
-            <EmptyDescription>
-              The fleet has no provisioning, active, paused, or terminating environments.
-            </EmptyDescription>
+            <EmptyTitle>No demo environments</EmptyTitle>
+            <EmptyDescription>No demos to show.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : filteredEnvironments.length === 0 ? (
@@ -89,8 +87,8 @@ function OperationsEnvironmentsPage() {
             <EmptyMedia variant="icon">
               <BoxesIcon />
             </EmptyMedia>
-            <EmptyTitle>No matching Demo Environments</EmptyTitle>
-            <EmptyDescription>Change the reference or lifecycle-state filter.</EmptyDescription>
+            <EmptyTitle>No matching demo environments</EmptyTitle>
+            <EmptyDescription>Try another reference or status filter.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
@@ -141,9 +139,9 @@ function OperationsEnvironmentsPage() {
                   </TableCell>
                   <TableCell>
                     <p>
-                      {formatOperationsCount(environment.documentCount)} Documents ·{" "}
-                      {formatOperationsCount(environment.vaultCount)} Vaults ·{" "}
-                      {formatOperationsCount(environment.linkCount)} Links
+                      {formatOperationsCount(environment.documentCount)} documents ·{" "}
+                      {formatOperationsCount(environment.vaultCount)} vaults ·{" "}
+                      {formatOperationsCount(environment.linkCount)} links
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatOperationsBytes(environment.confirmedBytes)} stored ·{" "}
@@ -155,7 +153,7 @@ function OperationsEnvironmentsPage() {
                     </p>
                   </TableCell>
                   <TableCell>
-                    <p>{formatOperationsCount(environment.visitLifetimeCount)} Visits</p>
+                    <p>{formatOperationsCount(environment.visitLifetimeCount)} visits</p>
                     <p className="text-xs text-muted-foreground">
                       {formatOperationsCount(environment.downloadLifetimeCount)} downloads ·{" "}
                       {formatOperationsBytes(environment.deliveredBytes)} delivered

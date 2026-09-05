@@ -29,8 +29,8 @@ function SignUpPage() {
     return (
       <AuthPage title="Sign up is unavailable">
         <p className="text-sm text-muted-foreground">
-          This deployment is not accepting durable sign-ups. You can return home to check Demo
-          availability or sign in with your existing credentials.
+          Sign-ups are currently closed. Try the demo from the home page or sign in to an existing
+          account.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button nativeButton={false} render={<Link to="/" />}>

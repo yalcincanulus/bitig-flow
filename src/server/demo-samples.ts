@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 
 const welcomeMarkdown = `# Welcome to Bitig Flow
 
-This disposable Demo Environment contains a Markdown Document, a PDF, an image, a Vault, and a public Link.
+Try editing this document, opening the sample files, or sharing the vault.
 
-Try editing this Document, previewing the uploaded Samples, or opening the Link. Demo work is deleted automatically and should not contain confidential, personal, or unlawful material.
+Demo work is deleted automatically. Do not upload confidential, personal, or unlawful material.
 `;
 
 const samplePdf = Uint8Array.from(
@@ -48,7 +48,7 @@ export const demoSamples = {
   },
   vault: {
     name: "Product tour",
-    description: "Sample Documents that demonstrate a public Vault Link.",
+    description: "Sample documents to try sharing.",
   },
   link: {
     name: "Product tour",

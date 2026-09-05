@@ -95,7 +95,7 @@ function AnalyticsLinkPage() {
               Last active <time dateTime={lastActive.dateTime}>{lastActive.label}</time>.
             </>
           ) : (
-            "This Link has not been active in the range."
+            "This link has not been active in the range."
           )}
         </PageDescription>
         <PageActions>
@@ -118,10 +118,10 @@ function AnalyticsLinkPage() {
 
       {analytics.truncated ? (
         <Alert>
-          <AlertTitle>Showing the most recent {ANALYTICS_VISIT_CAP} Visits</AlertTitle>
+          <AlertTitle>Showing the most recent {ANALYTICS_VISIT_CAP} visits</AlertTitle>
           <AlertDescription>
-            This range has more Visits than can be folded here. The numbers below are for the most
-            recent {ANALYTICS_VISIT_CAP} Visits in the range, not a total.
+            Only the most recent {ANALYTICS_VISIT_CAP} visits in this date range are included in the
+            totals below.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -129,13 +129,14 @@ function AnalyticsLinkPage() {
       <Card>
         <CardHeader>
           <CardTitle>
-            {analytics.truncated ? <>Most recent {ANALYTICS_VISIT_CAP} Visits</> : "Totals"}
+            {analytics.truncated ? <>Most recent {ANALYTICS_VISIT_CAP} visits</> : "Totals"}
           </CardTitle>
-          <CardDescription>
-            {analyticsTrustworthy(link)
-              ? "Visits, unique visitors, captured emails, Total time, and downloads for the active range."
-              : "This Link has no Requirements, so anyone with the URL can create Visits. Add a password or an email Requirement to make these numbers trustworthy."}
-          </CardDescription>
+          {!analyticsTrustworthy(link) ? (
+            <CardDescription>
+              Anyone with this URL can visit, including bots. Require a password or email to reduce
+              automated visits.
+            </CardDescription>
+          ) : null}
         </CardHeader>
         <CardContent>
           <StatList stats={metrics} />
@@ -158,11 +159,9 @@ function AnalyticsLinkPage() {
                 {document?.title || "Document"}
               </CardTitle>
               <CardDescription>
-                {analyticsNumberFormat.format(row.views)} Views · Total time{" "}
+                {analyticsNumberFormat.format(row.views)} views · total time{" "}
                 {formatTotalTime(row.totalMs)}
-                {kind === "markdown"
-                  ? " · Reading position is not recorded, so this is the finding for the whole Document."
-                  : ""}
+                {kind === "markdown" ? " · Time is measured for the whole document." : ""}
               </CardDescription>
             </CardHeader>
             {showPages ? (
@@ -209,8 +208,8 @@ function DwellTable({
     <Table>
       <TableCaption>
         {views > 0 && pages.every((row) => row.ms === 0)
-          ? "Opened and ignored: every page stayed at zero."
-          : "Per-page Dwell for this Document."}
+          ? "No reading time recorded."
+          : "Time per page."}
       </TableCaption>
       <TableHeader>
         <TableRow>

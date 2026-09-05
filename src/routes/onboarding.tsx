@@ -20,7 +20,7 @@ function OnboardingPage() {
   const navigate = useNavigate();
 
   return (
-    <AuthPage title="Create your Organization">
+    <AuthPage title="Create your organization">
       <CreateOrganizationForm
         submitLabel="Continue"
         onCreated={() => navigate({ to: "/dashboard" })}

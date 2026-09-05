@@ -6,7 +6,7 @@ import { useState } from "react";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
 import { AnalyticsTrustMark, LinkStatusBadge } from "#/components/link-badges";
-import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageHeader, PageTitle } from "#/components/page";
 import { StatList } from "#/components/stat-list";
 import { Button } from "#/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
@@ -118,9 +118,6 @@ function AnalyticsPage() {
     <Page>
       <PageHeader>
         <PageTitle>{dashboardDestinations.analytics.label}</PageTitle>
-        <PageDescription>
-          Compare every Link by Visits, unique visitors, captured emails, Total time, and downloads.
-        </PageDescription>
       </PageHeader>
 
       <AnalyticsRangeControls {...analytics.range} />
@@ -132,14 +129,12 @@ function AnalyticsPage() {
             <EmptyMedia variant="icon">
               <ChartNoAxesCombinedIcon />
             </EmptyMedia>
-            <EmptyTitle>No Visits yet</EmptyTitle>
-            <EmptyDescription>
-              Share a Link to bring Visitors to a Document or Vault and start collecting analytics.
-            </EmptyDescription>
+            <EmptyTitle>No visits yet</EmptyTitle>
+            <EmptyDescription>Share a link to see how your documents are read.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button nativeButton={false} render={<Link to="/dashboard/links" />}>
-              Share a Link
+              Share a link
             </Button>
           </EmptyContent>
         </Empty>
@@ -147,12 +142,10 @@ function AnalyticsPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Every Link in this range</CardTitle>
-              <CardDescription>
-                {hasVisitsInRange
-                  ? "The Organization's totals for the active UTC date range."
-                  : "This Organization has Visits, but none started during the active UTC date range."}
-              </CardDescription>
+              <CardTitle>Totals</CardTitle>
+              {!hasVisitsInRange ? (
+                <CardDescription>No visits in the selected date range.</CardDescription>
+              ) : null}
             </CardHeader>
             <CardContent>
               <StatList

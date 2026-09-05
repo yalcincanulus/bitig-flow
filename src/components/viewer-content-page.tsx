@@ -91,7 +91,7 @@ function ViewerVaultIndex({
           <EmptyMedia variant="icon">
             <FolderOpenIcon />
           </EmptyMedia>
-          <EmptyTitle>This Vault is empty</EmptyTitle>
+          <EmptyTitle>This vault is empty</EmptyTitle>
           <EmptyDescription>There's nothing in here yet.</EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -101,7 +101,7 @@ function ViewerVaultIndex({
   return (
     <div className="mt-3 flex flex-col gap-6">
       <p className="text-base text-muted-foreground">
-        {page.members.length} {page.members.length === 1 ? "Document" : "Documents"}
+        {page.members.length} {page.members.length === 1 ? "document" : "documents"}
       </p>
       <Card className="py-0 shadow-md">
         <ItemGroup className="gap-0">

@@ -22,7 +22,7 @@ test("a simultaneous resource limit names the resource and a remedy", () => {
       },
       "Could not create the Document.",
     ),
-  ).toBe("Demo Document limit reached (20 of 20). Delete a Document before creating another.");
+  ).toBe("Demo document limit reached (20 of 20). Delete a document before creating another.");
 });
 
 test("a lifetime limit explains that deletion does not restore capacity", () => {
@@ -37,7 +37,7 @@ test("a lifetime limit explains that deletion does not restore capacity", () => 
       "Could not create the Link.",
     ),
   ).toBe(
-    "Demo lifetime Link limit reached (20 of 20). Deleting Links does not restore this limit.",
+    "Demo lifetime link limit reached (20 of 20). Deleting links does not restore this limit.",
   );
 });
 
@@ -49,7 +49,7 @@ test("shared pressure and maintenance avoid exposing internal dimensions", () =>
     ),
   ).toBe("Demo uploads are busy. Try again later.");
   expect(demoMutationErrorMessage({ code: "DEMO_UPLOAD_UNAVAILABLE" }, "Could not upload.")).toBe(
-    "Demo uploads are temporarily unavailable while storage maintenance is checked.",
+    "Demo uploads are temporarily unavailable. Try again later.",
   );
 });
 

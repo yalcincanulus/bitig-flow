@@ -43,7 +43,7 @@ export function MailTestControl({
         Send test email
       </Button>
       <p className="text-xs text-muted-foreground">
-        The recipient is fixed to the Platform Operator address: {operatorEmail}.
+        Send the test email to the operator: {operatorEmail}.
       </p>
       {feedback ? (
         <Alert variant={feedback.kind === "failure" ? "destructive" : "default"} aria-live="polite">

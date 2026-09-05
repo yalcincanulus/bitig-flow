@@ -11,7 +11,7 @@ import {
 } from "#/components/settings-section";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import { Separator } from "#/components/ui/separator";
 import { Spinner } from "#/components/ui/spinner";
@@ -33,13 +33,13 @@ type Feedback = Readonly<{
 function renameFailure(code: string | undefined): string {
   switch (code) {
     case "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION":
-      return "Your Role can no longer rename this Organization.";
+      return "You no longer have permission to rename this organization.";
     case "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION":
-      return "You no longer belong to this Organization.";
+      return "You no longer belong to this organization.";
     case "ORGANIZATION_NOT_FOUND":
-      return "This Organization is no longer available.";
+      return "This organization is no longer available.";
     default:
-      return "Could not rename this Organization.";
+      return "Could not rename this organization.";
   }
 }
 
@@ -51,7 +51,7 @@ function ReadOnlyOrganization({ name }: Readonly<{ name: string }>) {
         <SettingsSectionHeader>
           <SettingsSectionTitle>Name</SettingsSectionTitle>
           <SettingsSectionDescription>
-            The Organization that owns this Dashboard's content. Your Role cannot rename it.
+            You do not have permission to rename this organization.
           </SettingsSectionDescription>
         </SettingsSectionHeader>
         <SettingsSectionContent>
@@ -82,7 +82,7 @@ function OrganizationRenameForm({
 
     const validation = createOrganizationSchema.safeParse({ name });
     if (!validation.success) {
-      setValidationError(validation.error.issues[0]?.message ?? "Name your Organization");
+      setValidationError(validation.error.issues[0]?.message ?? "Name your organization");
       return;
     }
 
@@ -98,7 +98,7 @@ function OrganizationRenameForm({
         data: { name: trimmedName },
       });
     } catch {
-      setFeedback({ kind: "failure", message: "Could not rename this Organization." });
+      setFeedback({ kind: "failure", message: "Could not rename this organization." });
       setPending(false);
       return;
     }
@@ -118,7 +118,7 @@ function OrganizationRenameForm({
       // Chrome could not refresh from the authoritative route data this time.
       setFeedback({
         kind: "success",
-        message: "Organization name updated. Refresh to update the Dashboard Chrome.",
+        message: "Organization name updated. Refresh to see the new name.",
       });
     }
 
@@ -133,7 +133,7 @@ function OrganizationRenameForm({
           <SettingsSectionHeader>
             <SettingsSectionTitle>Name</SettingsSectionTitle>
             <SettingsSectionDescription>
-              The name shown in the Dashboard Chrome and current public Sender lines.
+              Shown in navigation and on shared documents.
             </SettingsSectionDescription>
           </SettingsSectionHeader>
           <SettingsSectionContent>
@@ -156,9 +156,6 @@ function OrganizationRenameForm({
                   disabled={demo}
                 />
                 {validationError ? <FieldError>{validationError}</FieldError> : null}
-                <FieldDescription>
-                  Surrounding whitespace is removed. The Organization slug does not change.
-                </FieldDescription>
               </Field>
             </FieldGroup>
 

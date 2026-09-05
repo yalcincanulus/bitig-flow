@@ -73,16 +73,16 @@ export function roleChangeRefusal(
   memberships: readonly MembershipStanding[],
 ): string | undefined {
   if (!hasPermission(callerRole, { member: ["update"] })) {
-    return "Your Role cannot change a Membership.";
+    return "You do not have permission to change roles.";
   }
   if (callerRole !== "owner" && target.role === "owner") {
-    return "An admin cannot change an Owner's Role.";
+    return "An admin cannot change an owner's role.";
   }
   if (callerRole !== "owner" && nextRole === "owner") {
-    return "Only an Owner can grant the Owner Role.";
+    return "Only an owner can make someone else an owner.";
   }
   if (target.role === "owner" && nextRole !== "owner" && ownerCount(memberships) === 1) {
-    return "The last Owner cannot be demoted.";
+    return "The last owner cannot be demoted.";
   }
   return undefined;
 }
@@ -98,13 +98,13 @@ export function removalRefusal(
   memberships: readonly MembershipStanding[],
 ): string | undefined {
   if (!hasPermission(callerRole, { member: ["delete"] })) {
-    return "Your Role cannot remove a Membership.";
+    return "You do not have permission to remove people.";
   }
   if (callerRole !== "owner" && target.role === "owner") {
-    return "An admin cannot remove an Owner.";
+    return "An admin cannot remove an owner.";
   }
   if (target.role === "owner" && ownerCount(memberships) === 1) {
-    return "The last Owner cannot be removed.";
+    return "The last owner cannot be removed.";
   }
   return undefined;
 }

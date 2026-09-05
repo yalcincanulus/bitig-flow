@@ -31,7 +31,7 @@ export type OrganizationSummary = Readonly<{
   name: string;
 }>;
 
-const ownedOrganizationCapReason = "You can run five Organizations of your own.";
+const ownedOrganizationCapReason = "You can run five organizations of your own.";
 
 type OrganizationSwitcherProps = Readonly<{
   activeOrganization: OrganizationSummary;
@@ -50,7 +50,7 @@ function CreateOrganizationItem({
   return (
     <DropdownMenuItem disabled={disabled} onClick={onClick}>
       <PlusIcon />
-      Create Organization
+      Create organization
     </DropdownMenuItem>
   );
 }
@@ -98,7 +98,7 @@ export function OrganizationSwitcher({
       await flushDocumentEditor();
       const result = await authClient.organization.setActive({ organizationId });
       if (result.error) {
-        setError(result.error.message ?? "Could not switch Organization");
+        setError(result.error.message ?? "Could not switch organization");
       } else {
         if (listDestination) {
           await router.navigate({ to: listDestination });
@@ -107,7 +107,7 @@ export function OrganizationSwitcher({
         await router.invalidate({ sync: true });
       }
     } catch {
-      setError("Could not switch Organization");
+      setError("Could not switch organization");
     }
 
     setSwitchingTo(undefined);
@@ -142,7 +142,7 @@ export function OrganizationSwitcher({
               <SidebarMenuButton
                 size="lg"
                 tooltip={activeOrganization.name}
-                aria-label="Switch Organization"
+                aria-label="Switch organization"
                 disabled={switchingTo !== undefined}
               />
             }
@@ -180,11 +180,11 @@ export function OrganizationSwitcher({
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Organization</DialogTitle>
-              <DialogDescription>Name the Organization you will run.</DialogDescription>
+              <DialogTitle>Create organization</DialogTitle>
+              <DialogDescription>Name the organization you will run.</DialogDescription>
             </DialogHeader>
             <CreateOrganizationForm
-              submitLabel="Create Organization"
+              submitLabel="Create organization"
               onCreated={landInCreatedOrganization}
             />
           </DialogContent>

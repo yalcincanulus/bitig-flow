@@ -81,7 +81,7 @@ describe("roleChangeRefusal", () => {
     const memberships = withRoles("owner", "admin");
 
     expect(roleChangeRefusal("owner", memberships[0]!, "admin", memberships)).toBe(
-      "The last Owner cannot be demoted.",
+      "The last owner cannot be demoted.",
     );
   });
 
@@ -95,10 +95,10 @@ describe("roleChangeRefusal", () => {
     const memberships = withRoles("owner", "admin", "member");
 
     expect(roleChangeRefusal("admin", memberships[0]!, "admin", memberships)).toBe(
-      "An admin cannot change an Owner's Role.",
+      "An admin cannot change an owner's role.",
     );
     expect(roleChangeRefusal("admin", memberships[2]!, "owner", memberships)).toBe(
-      "Only an Owner can grant the Owner Role.",
+      "Only an owner can make someone else an owner.",
     );
   });
 
@@ -112,7 +112,7 @@ describe("roleChangeRefusal", () => {
     const memberships = withRoles("owner", "member");
 
     expect(roleChangeRefusal("member", memberships[1]!, "admin", memberships)).toBe(
-      "Your Role cannot change a Membership.",
+      "You do not have permission to change roles.",
     );
   });
 });
@@ -122,7 +122,7 @@ describe("removalRefusal", () => {
     const memberships = withRoles("owner", "admin");
 
     expect(removalRefusal("owner", memberships[0]!, memberships)).toBe(
-      "The last Owner cannot be removed.",
+      "The last owner cannot be removed.",
     );
   });
 
@@ -136,7 +136,7 @@ describe("removalRefusal", () => {
     const memberships = withRoles("owner", "admin");
 
     expect(removalRefusal("admin", memberships[0]!, memberships)).toBe(
-      "An admin cannot remove an Owner.",
+      "An admin cannot remove an owner.",
     );
   });
 
@@ -150,7 +150,7 @@ describe("removalRefusal", () => {
     const memberships = withRoles("owner", "member");
 
     expect(removalRefusal("member", memberships[1]!, memberships)).toBe(
-      "Your Role cannot remove a Membership.",
+      "You do not have permission to remove people.",
     );
   });
 });
@@ -160,7 +160,7 @@ describe("changeRoleActionRefusal", () => {
     const memberships = withRoles("owner", "member");
 
     expect(changeRoleActionRefusal("owner", memberships[0]!, memberships)).toBe(
-      "The last Owner cannot be demoted.",
+      "The last owner cannot be demoted.",
     );
   });
 
@@ -168,7 +168,7 @@ describe("changeRoleActionRefusal", () => {
     const memberships = withRoles("owner", "admin");
 
     expect(changeRoleActionRefusal("admin", memberships[0]!, memberships)).toBe(
-      "An admin cannot change an Owner's Role.",
+      "An admin cannot change an owner's role.",
     );
   });
 

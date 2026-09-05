@@ -18,23 +18,23 @@ function countSuffix(error: DemoError) {
 }
 
 const simultaneousResources = {
-  documentCount: ["Document", "a"],
-  uploadedDocumentCount: ["uploaded Document", "an"],
-  vaultCount: ["Vault", "a"],
-  linkCount: ["Link", "a"],
+  documentCount: ["document", "a"],
+  uploadedDocumentCount: ["uploaded document", "an"],
+  vaultCount: ["vault", "a"],
+  linkCount: ["link", "a"],
 } as const;
 
 const lifetimeResources = {
-  documentLifetimeCount: ["Document", "Documents"],
-  vaultLifetimeCount: ["Vault", "Vaults"],
-  linkLifetimeCount: ["Link", "Links"],
+  documentLifetimeCount: ["document", "documents"],
+  vaultLifetimeCount: ["vault", "vaults"],
+  linkLifetimeCount: ["link", "links"],
   uploadKeyLifetimeCount: ["upload", "uploads"],
 } as const;
 
 export function demoMutationErrorMessage(error: unknown, fallback: string) {
   const typed = demoError(error);
   if (typed?.code === "DEMO_UPLOAD_UNAVAILABLE") {
-    return "Demo uploads are temporarily unavailable while storage maintenance is checked.";
+    return "Demo uploads are temporarily unavailable. Try again later.";
   }
   if (typed?.code !== "DEMO_QUOTA_EXCEEDED" || typeof typed.limit !== "string") {
     return fallback;
@@ -51,23 +51,23 @@ export function demoMutationErrorMessage(error: unknown, fallback: string) {
   }
 
   if (typed.limit === "environmentConfirmedBytes") {
-    return "Demo storage limit reached. Delete uploaded Documents before uploading more.";
+    return "Demo storage limit reached. Delete uploaded documents before uploading more.";
   }
   if (typed.limit === "uploadBytes") {
     const maximum = typeof typed.limitValue === "number" ? formatByteSize(typed.limitValue) : null;
     return `Demo per-upload size limit reached${maximum ? ` (${maximum} maximum)` : ""}. Choose a smaller file.`;
   }
   if (typed.limit === "pendingUploadCount") {
-    return "This Demo Environment already has an upload in progress. Finish it before starting another.";
+    return "This demo environment already has an upload in progress. Finish it before starting another.";
   }
   if (typed.limit === "confirmationCount") {
-    return "This Demo Environment is already confirming an upload. Try again when it finishes.";
+    return "An upload is still processing. Wait for it to finish, then try again.";
   }
   if (typed.limit === "deliveredBytes") {
-    return "This Demo Environment reached its byte-delivery limit. Document bytes can no longer be opened.";
+    return "This demo reached its data transfer limit. Uploaded files can no longer be opened.";
   }
   if (typed.limit === "environmentUnavailable") {
-    return "This Demo Environment is unavailable. Return home to start or resume a Demo.";
+    return "This demo environment is unavailable. Return home to start or resume a demo.";
   }
   if (
     typed.limit === "globalConfirmedBytes" ||
@@ -78,5 +78,5 @@ export function demoMutationErrorMessage(error: unknown, fallback: string) {
     return "Demo uploads are busy. Try again later.";
   }
 
-  return "This Demo Environment reached a usage limit. Try another product action.";
+  return "This demo reached a usage limit.";
 }

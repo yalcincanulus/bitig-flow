@@ -36,6 +36,6 @@ test("zero downloads render as blank rather than 0", () => {
 });
 
 test("the Visit timeline states that Viewer identity grouping is non-transitive", () => {
-  expect(timelineSource).toMatch(/stay separate/);
+  expect(timelineSource).toMatch(/can appear as separate visitors/);
   expect(screenSource).toMatch(/AnalyticsVisitTimeline/);
 });

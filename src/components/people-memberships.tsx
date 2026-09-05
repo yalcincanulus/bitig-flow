@@ -54,26 +54,26 @@ export type Membership = Readonly<{
 function roleChangeFailure(code: string | undefined): string {
   switch (code) {
     case "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER":
-      return "You cannot change this person's Role.";
+      return "You cannot change this person's role.";
     case "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER":
-      return "The Organization must keep at least one Owner.";
+      return "The organization must keep at least one owner.";
     case "MEMBER_NOT_FOUND":
-      return "This person no longer belongs to this Organization.";
+      return "This person no longer belongs to this organization.";
     default:
-      return "Could not change this Role.";
+      return "Could not change this role.";
   }
 }
 
 function removalFailure(code: string | undefined): string {
   switch (code) {
     case "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER":
-      return "You cannot remove this Membership.";
+      return "You cannot remove this person.";
     case "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER":
-      return "This Owner cannot be removed.";
+      return "This owner cannot be removed.";
     case "MEMBER_NOT_FOUND":
-      return "This person no longer belongs to this Organization.";
+      return "This person no longer belongs to this organization.";
     default:
-      return "Could not remove this Membership.";
+      return "Could not remove this person.";
   }
 }
 
@@ -177,7 +177,7 @@ function ChangeRoleDialog({
         organizationId,
       });
     } catch {
-      setFailure("Could not change this Role.");
+      setFailure("Could not change this role.");
       setPending(false);
       return;
     }
@@ -197,7 +197,7 @@ function ChangeRoleDialog({
       <DisabledReason reason={reason}>
         <Button variant="ghost" size="sm" disabled>
           <UserCogIcon data-icon="inline-start" />
-          Change Role
+          Change role
         </Button>
       </DisabledReason>
     );
@@ -207,14 +207,14 @@ function ChangeRoleDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button variant="ghost" size="sm" />}>
         <UserCogIcon data-icon="inline-start" />
-        Change Role
+        Change role
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Change Role</DialogTitle>
+            <DialogTitle>Change role</DialogTitle>
             <DialogDescription>
-              Choose the Role {membership.user.name} will hold in this Organization.
+              Choose the role {membership.user.name} will hold in this organization.
             </DialogDescription>
           </DialogHeader>
           {failure ? (
@@ -259,7 +259,7 @@ function ChangeRoleDialog({
           <DialogFooter showCloseButton>
             <Button type="submit" disabled={pending || role === membership.role}>
               {pending ? <Spinner data-icon="inline-start" /> : null}
-              Save Role
+              Save role
             </Button>
           </DialogFooter>
         </form>
@@ -301,7 +301,7 @@ function RemoveMembershipDialog({
         organizationId,
       });
     } catch {
-      setFailure("Could not remove this Membership.");
+      setFailure("Could not remove this person.");
       setPending(false);
       return;
     }
@@ -335,9 +335,9 @@ function RemoveMembershipDialog({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove this Membership?</AlertDialogTitle>
+          <AlertDialogTitle>Remove this person?</AlertDialogTitle>
           <AlertDialogDescription>
-            {membership.user.name} will lose access to this Organization immediately.
+            {membership.user.name} will lose access to this organization immediately.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {failure ? (
@@ -346,7 +346,7 @@ function RemoveMembershipDialog({
           </Alert>
         ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>Keep Membership</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={pending}

@@ -67,7 +67,7 @@ const deploymentPolicyObjectSchema = z
     globalConfirmationCount: boundedInteger(2, "2"),
   })
   .refine((policy) => policy.uploadedDocumentCount <= policy.documentCount, {
-    error: "Uploaded Documents cannot exceed the Document limit",
+    error: "Uploaded documents cannot exceed the document limit",
     path: ["uploadedDocumentCount"],
   })
   .refine((policy) => policy.uploadBytes <= policy.environmentConfirmedBytes, {
@@ -75,15 +75,15 @@ const deploymentPolicyObjectSchema = z
     path: ["uploadBytes"],
   })
   .refine((policy) => policy.documentCount <= policy.documentLifetimeCount, {
-    error: "Simultaneous Documents cannot exceed lifetime Documents",
+    error: "Simultaneous documents cannot exceed lifetime documents",
     path: ["documentCount"],
   })
   .refine((policy) => policy.vaultCount <= policy.vaultLifetimeCount, {
-    error: "Simultaneous Vaults cannot exceed lifetime Vaults",
+    error: "Simultaneous vaults cannot exceed lifetime vaults",
     path: ["vaultCount"],
   })
   .refine((policy) => policy.linkCount <= policy.linkLifetimeCount, {
-    error: "Simultaneous Links cannot exceed lifetime Links",
+    error: "Simultaneous links cannot exceed lifetime links",
     path: ["linkCount"],
   });
 
@@ -155,7 +155,7 @@ export function deploymentReadiness(
     },
     {
       id: "secureCookies",
-      label: "Secure Session cookies",
+      label: "Secure session cookies",
       ready: capability.secureCookies,
       requiredFor: ["demos"],
     },

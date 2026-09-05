@@ -84,7 +84,6 @@ function DocumentPage() {
         </PageTitle>
         <PageDescription className="flex flex-wrap items-center gap-2">
           <DocumentKindBadge kind={document.kind} />
-          <span>What a Visitor gets for this Document.</span>
         </PageDescription>
         <PageActions>
           {document.kind === "markdown" ? (
@@ -127,7 +126,7 @@ function DocumentPage() {
                 );
               }}
               lockedTarget={{ documentId: document.id }}
-              triggerLabel="Create Link"
+              triggerLabel="Create link"
               demo={Boolean(demo)}
             />
           ) : null}
@@ -168,7 +167,7 @@ function DocumentPage() {
 
       <section className="flex flex-col gap-3">
         <header className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-medium">Activity through its Links</h2>
+          <h2 className="text-sm font-medium">Link activity</h2>
         </header>
 
         <AnalyticsRangeControls {...analytics.range} documentId={document.id} />
@@ -180,10 +179,9 @@ function DocumentPage() {
               <EmptyMedia variant="icon">
                 <LinkIcon />
               </EmptyMedia>
-              <EmptyTitle>This Document is in no Links</EmptyTitle>
+              <EmptyTitle>No links to this document</EmptyTitle>
               <EmptyDescription>
-                Create a Link that reaches this Document to collect Visits, Viewer identities, Total
-                time, and downloads for it.
+                Create a link to share this document and see how it is read.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -192,7 +190,7 @@ function DocumentPage() {
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="pl-3">Link</TableHead>
-                <TableHead>Gate</TableHead>
+                <TableHead>Access</TableHead>
                 <TableHead className="text-right">Visits</TableHead>
                 <TableHead className="text-right">Unique</TableHead>
                 <TableHead className="text-right">Total time</TableHead>

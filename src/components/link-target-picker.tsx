@@ -140,15 +140,15 @@ export function LinkTargetPicker({
             <span className="truncate">{selected.label}</span>
           </span>
         ) : (
-          <span className="text-muted-foreground">Choose a Document or Vault</span>
+          <span className="text-muted-foreground">Choose a document or vault</span>
         )}
       </ComboboxTrigger>
       {/* Sized to the field it drops from, rather than the primitive's slightly wider default. */}
       <ComboboxContent className="w-(--anchor-width) min-w-(--anchor-width)">
         <div className="flex flex-col gap-2 border-b border-border/60 p-2">
           <ComboboxInput
-            placeholder="Search Documents and Vaults"
-            aria-label="Search Documents and Vaults"
+            placeholder="Search documents and vaults"
+            aria-label="Search documents and vaults"
             showTrigger={false}
           />
           {filters.length > 2 ? (
@@ -171,7 +171,7 @@ export function LinkTargetPicker({
             </ToggleGroup>
           ) : null}
         </div>
-        <ComboboxEmpty>No matching Document or Vault.</ComboboxEmpty>
+        <ComboboxEmpty>No matching document or vault.</ComboboxEmpty>
         <ComboboxList>
           {(group: TargetGroup) => (
             <ComboboxGroup key={group.value} items={group.items}>

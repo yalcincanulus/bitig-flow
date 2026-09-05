@@ -373,12 +373,16 @@ function DocumentEditorPage() {
         <div className="min-w-0 sm:col-start-1">
           <Input
             aria-label="Title"
+            aria-describedby="document-title-visibility"
             value={title}
             maxLength={documentTitleMaxLength}
             readOnly={frozen}
             onChange={(event) => handleTitleChange(event.target.value)}
             className="h-9 w-full border-0 bg-transparent px-0 text-lg font-medium md:text-lg"
           />
+          <p id="document-title-visibility" className="text-xs text-muted-foreground">
+            Visitors see this title when you share the document.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:col-start-1">
           <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -407,14 +411,14 @@ function DocumentEditorPage() {
       {atCap ? (
         <Alert variant="destructive">
           <AlertDescription>
-            This Document is at the 256 KB limit. Further input is refused.
+            This document has reached the 256 KB limit. Remove some text before you add more.
           </AlertDescription>
         </Alert>
       ) : null}
 
       {remoteImageNotice ? (
         <Alert>
-          <AlertDescription>Images must come from this Organization.</AlertDescription>
+          <AlertDescription>Images must come from this organization.</AlertDescription>
         </Alert>
       ) : null}
 
@@ -439,17 +443,13 @@ function DocumentEditorPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Insert image</DialogTitle>
-            <DialogDescription>
-              Choose a ready image Document from this Organization.
-            </DialogDescription>
+            <DialogDescription>Choose an uploaded image.</DialogDescription>
           </DialogHeader>
           {(readyImages ?? []).length === 0 ? (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>No ready images</EmptyTitle>
-                <EmptyDescription>
-                  Upload an image Document and wait until it is ready.
-                </EmptyDescription>
+                <EmptyDescription>Upload an image first.</EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
@@ -474,7 +474,7 @@ function DocumentEditorPage() {
       <AlertDialog open={conflict !== undefined}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>This Document changed while you were editing</AlertDialogTitle>
+            <AlertDialogTitle>This document changed while you were editing</AlertDialogTitle>
             <AlertDialogDescription>
               {conflict
                 ? `${conflict.updatedByName} saved a different version. Take their version, or overwrite theirs. There is no merge.`

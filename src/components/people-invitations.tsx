@@ -42,20 +42,20 @@ import { invitationRoleChoices, roleLabel } from "#/lib/people";
 function invitationFailure(code: string | undefined): string {
   switch (code) {
     case "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION":
-      return "This person already belongs to this Organization.";
+      return "This person already belongs to this organization.";
     case "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION":
-      return "This address already has an outstanding Invitation.";
+      return "This address already has an outstanding invitation.";
     default:
-      return "Could not send this Invitation.";
+      return "Could not send this invitation.";
   }
 }
 
 function cancellationFailure(code: string | undefined): string {
   if (code === "INVITATION_NOT_FOUND") {
-    return "This Invitation is no longer outstanding.";
+    return "This invitation is no longer outstanding.";
   }
 
-  return "Could not cancel this Invitation.";
+  return "Could not cancel this invitation.";
 }
 
 async function refreshPeople(router: ReturnType<typeof useRouter>) {
@@ -117,7 +117,7 @@ export function InvitePersonDialog({
         organizationId,
       });
     } catch {
-      setFailure("Could not send this Invitation.");
+      setFailure("Could not send this invitation.");
       setPending(false);
       return;
     }
@@ -142,9 +142,7 @@ export function InvitePersonDialog({
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Invite a colleague</DialogTitle>
-            <DialogDescription>
-              Send an Invitation carrying the Role this person will hold.
-            </DialogDescription>
+            <DialogDescription>Choose their email address and role.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field data-invalid={Boolean(failure)} data-disabled={pending}>
@@ -192,7 +190,7 @@ export function InvitePersonDialog({
           <DialogFooter showCloseButton>
             <Button type="submit" disabled={pending}>
               {pending ? <Spinner data-icon="inline-start" /> : null}
-              Send Invitation
+              Send invitation
             </Button>
           </DialogFooter>
         </form>
@@ -237,7 +235,7 @@ export function CancelInvitationDialog({
         invitationId: invitation.id,
       });
     } catch {
-      setFailure("Could not cancel this Invitation.");
+      setFailure("Could not cancel this invitation.");
       setPending(false);
       return;
     }
@@ -260,7 +258,7 @@ export function CancelInvitationDialog({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Cancel this Invitation?</AlertDialogTitle>
+          <AlertDialogTitle>Cancel this invitation?</AlertDialogTitle>
           <AlertDialogDescription>
             The link sent to {invitation.email} will stop working immediately.
           </AlertDialogDescription>
@@ -271,7 +269,7 @@ export function CancelInvitationDialog({
           </Alert>
         ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>Keep Invitation</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>Keep invitation</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={pending}
@@ -281,7 +279,7 @@ export function CancelInvitationDialog({
             }}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
-            Cancel Invitation
+            Cancel invitation
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

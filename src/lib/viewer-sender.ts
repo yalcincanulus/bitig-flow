@@ -13,6 +13,6 @@ export function viewerSharedWithYouLine(
   organizationName: string,
   share: "document" | "vault",
 ) {
-  const what = share === "vault" ? "these Documents" : "this Document";
+  const what = share === "vault" ? "these documents" : "this document";
   return `${viewerSenderLine(senderName, organizationName)} shared ${what} with you.`;
 }

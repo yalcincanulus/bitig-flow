@@ -232,7 +232,7 @@ export function LinkWriteDialog({
     if (!editing && !resolvedTarget) {
       const parsed = parseTargetKey(target);
       if (!parsed) {
-        setTargetError("Choose a Document or a Vault.");
+        setTargetError("Choose a document or a vault.");
         return;
       }
       resolvedTarget = parsed;
@@ -249,7 +249,7 @@ export function LinkWriteDialog({
         return;
       }
       if (reason === "organization_name") {
-        setPasswordError("Do not use the Organization name.");
+        setPasswordError("Do not use the organization name.");
         return;
       }
       if (reason === "denied") {
@@ -276,7 +276,7 @@ export function LinkWriteDialog({
         if (password) draft.passwordSet = true;
         else if (!wantsPassword || clearPassword) draft.passwordSet = false;
       });
-      watchPersistence(transaction, `Could not update this Link. Your change was rolled back.`);
+      watchPersistence(transaction, `Could not update this link. Your changes were not saved.`);
     } else {
       const documentId =
         resolvedTarget && "documentId" in resolvedTarget ? resolvedTarget.documentId : null;
@@ -302,7 +302,7 @@ export function LinkWriteDialog({
         createdAt: now,
         updatedAt: now,
       });
-      watchPersistence(transaction, "Could not create the Link. Your change was rolled back.");
+      watchPersistence(transaction, "Could not create the link. Your changes were not saved.");
     }
 
     setTargetError(null);
@@ -327,11 +327,11 @@ export function LinkWriteDialog({
       <DialogContent className="sm:max-w-lg">
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Link" : "Create Link"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit link" : "Create link"}</DialogTitle>
             <DialogDescription>
               {editing
-                ? "Change the Gate, name, or options. Replacing a password re-gates live Visits."
-                : "Publish a Document or a Vault. The Slug is minted on the server."}
+                ? "If you change the password, visitors must enter the new password."
+                : "Choose what to share and who can open it."}
             </DialogDescription>
           </DialogHeader>
           {demo ? (
@@ -339,15 +339,15 @@ export function LinkWriteDialog({
               <CircleAlertIcon />
               <AlertTitle>Public and temporary</AlertTitle>
               <AlertDescription>
-                Demo Links are public, temporary, reportable, and deleted with the Demo Environment.
-                Share only material you are allowed to publish.
+                Demo links expire with your demo. Visitors can report shared content. Share only
+                material you are allowed to publish.
               </AlertDescription>
             </Alert>
           ) : null}
           <FieldGroup>
             {editing ? null : (
               <Field data-invalid={Boolean(targetError)}>
-                <FieldLabel htmlFor="link-target">Target</FieldLabel>
+                <FieldLabel htmlFor="link-target">Shared content</FieldLabel>
                 <LinkTargetPicker
                   id="link-target"
                   documents={documents}
@@ -367,17 +367,22 @@ export function LinkWriteDialog({
               <FieldLabel htmlFor="link-name">Name</FieldLabel>
               <Input
                 id="link-name"
+                aria-describedby="link-name-visibility"
                 name="name"
                 defaultValue={link?.name ?? ""}
-                placeholder="How you will recognise this Link"
+                placeholder="Optional link name"
                 autoComplete="off"
               />
+              <FieldDescription id="link-name-visibility">
+                Only organization members see this name. Visitors see the document title or vault
+                name.
+              </FieldDescription>
             </Field>
             <FieldSet>
-              <FieldLegend>Gate</FieldLegend>
+              <FieldLegend>Access</FieldLegend>
               <FieldDescription>
-                What a Visitor has to satisfy before the Target is shown.
-                {demo ? " Email and Verified: Disabled in demo." : ""}
+                Choose who can open this link.
+                {demo ? " Email options are unavailable in the demo." : ""}
               </FieldDescription>
               <ToggleGroup
                 variant="outline"
@@ -484,11 +489,11 @@ export function LinkWriteDialog({
                   className="w-28"
                 />
               </div>
-              <FieldDescription>Leave empty for a Link that never expires.</FieldDescription>
+              <FieldDescription>Leave empty for a link that never expires.</FieldDescription>
             </Field>
           </FieldGroup>
           <DialogFooter showCloseButton>
-            <Button type="submit">{editing ? "Save changes" : "Create Link"}</Button>
+            <Button type="submit">{editing ? "Save changes" : "Create link"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -547,7 +552,7 @@ export function RotateLinkSlugButton({
       onClick={() => rotateSlug(link, links, watchPersistence)}
     >
       <RefreshCwIcon data-icon="inline-start" />
-      Rotate Slug
+      Change link address
     </Button>
   );
 }
@@ -556,7 +561,7 @@ function rotateSlug(link: LinkRow, links: LinkCollection, watchPersistence: Watc
   const transaction = links.update(link.id, (draft) => {
     draft.slug = pendingLinkSlug;
   });
-  watchPersistence(transaction, "Could not rotate the Slug. Your change was rolled back.");
+  watchPersistence(transaction, "Could not change the link address. Your changes were not saved.");
 }
 
 function toggleActive(
@@ -569,7 +574,7 @@ function toggleActive(
   });
   watchPersistence(
     transaction,
-    `Could not ${link.isActive ? "deactivate" : "reactivate"} this Link. Your change was rolled back.`,
+    `Could not ${link.isActive ? "deactivate" : "reactivate"} this link. Your changes were not saved.`,
   );
 }
 
@@ -653,11 +658,11 @@ export function LinkActionsMenu({
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => setEditing(true)}>
               <PencilIcon />
-              Edit Link
+              Edit link
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => rotateSlug(link, links, watchPersistence)}>
               <RefreshCwIcon />
-              Rotate Slug
+              Change link address
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => toggleActive(link, links, watchPersistence)}>
               <PowerIcon />
@@ -668,7 +673,7 @@ export function LinkActionsMenu({
           <DropdownMenuGroup>
             <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
               <TrashIcon />
-              Delete Link
+              Delete link
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
@@ -710,7 +715,7 @@ export function OpenLinkButton({ slug }: { slug: string }) {
             variant="ghost"
             size="icon-sm"
             disabled={!minted}
-            aria-label="Open this Link"
+            aria-label="Open this link"
             render={
               <a href={linkViewerPath(slug)} target="_blank" rel="noreferrer noopener">
                 <ExternalLinkIcon />
@@ -755,7 +760,7 @@ export function DeleteLinkDialog({
 
   function handleDelete() {
     const transaction = links.delete(link.id);
-    watchPersistence(transaction, "Could not delete this Link. Your change was rolled back.");
+    watchPersistence(transaction, "Could not delete this link. Your changes were not saved.");
     handleOpenChange(false);
   }
 
@@ -769,13 +774,13 @@ export function DeleteLinkDialog({
       ) : null}
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete this Link?</AlertDialogTitle>
+          <AlertDialogTitle>Delete this link?</AlertDialogTitle>
           <AlertDialogDescription>{linkDeleteWarning(visitCount)}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={handleDelete}>
-            Delete Link
+            Delete link
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -854,5 +859,5 @@ export function LinkTargetLabel({
       </Link>
     );
   }
-  return <span className="text-muted-foreground">Target</span>;
+  return <span className="text-muted-foreground">Shared content</span>;
 }

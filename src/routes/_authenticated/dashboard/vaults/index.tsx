@@ -52,7 +52,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "#/components/ui/empty";
-import { Field, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "#/components/ui/field";
 import { Input } from "#/components/ui/input";
 import {
   Item,
@@ -135,7 +135,7 @@ function VaultsPage() {
     <Page>
       <PageHeader>
         <PageTitle>{dashboardDestinations.vaults.label}</PageTitle>
-        <PageDescription>Group Documents that should be shared together.</PageDescription>
+        <PageDescription>Create vaults for your documents. Vaults can be shared.</PageDescription>
         <PageActions>
           <CreateVaultDialog
             organizationId={organization.id}
@@ -157,15 +157,15 @@ function VaultsPage() {
             <EmptyMedia variant="icon">
               <FolderClosedIcon />
             </EmptyMedia>
-            <EmptyTitle>No Vaults yet</EmptyTitle>
-            <EmptyDescription>Create a Vault to group related Documents.</EmptyDescription>
+            <EmptyTitle>No vaults yet</EmptyTitle>
+            <EmptyDescription>Create a vault to group related documents.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <CreateVaultDialog
               organizationId={organization.id}
               vaults={vaults}
               watchPersistence={watchPersistence}
-              triggerLabel="Create your first Vault"
+              triggerLabel="Create your first vault"
             />
           </EmptyContent>
         </Empty>
@@ -277,18 +277,18 @@ function VaultRowItem({
                 }
               >
                 <FolderClosedIcon />
-                Open Vault
+                Open vault
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setEditing(true)}>
                 <PencilIcon />
-                Edit Vault
+                Edit vault
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
                 <TrashIcon />
-                Delete Vault
+                Delete vault
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -332,7 +332,7 @@ function CreateVaultDialog({
   organizationId,
   vaults,
   watchPersistence,
-  triggerLabel = "Create Vault",
+  triggerLabel = "Create vault",
 }: {
   organizationId: string;
   vaults: VaultCollection;
@@ -346,7 +346,7 @@ function CreateVaultDialog({
     event.preventDefault();
     const { name, description } = vaultFormValues(event.currentTarget);
     if (!name) {
-      setNameError("Enter a Vault name.");
+      setNameError("Enter a vault name.");
       return;
     }
 
@@ -359,7 +359,7 @@ function CreateVaultDialog({
       createdAt: now,
       updatedAt: now,
     });
-    watchPersistence(transaction, `Could not create “${name}”. Your change was rolled back.`);
+    watchPersistence(transaction, `Could not create “${name}”. Your changes were not saved.`);
     setNameError(null);
     setOpen(false);
   }
@@ -373,12 +373,12 @@ function CreateVaultDialog({
       <DialogContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create Vault</DialogTitle>
-            <DialogDescription>Give this Vault a name and optional description.</DialogDescription>
+            <DialogTitle>Create vault</DialogTitle>
+            <DialogDescription>Give this vault a name and optional description.</DialogDescription>
           </DialogHeader>
           <VaultFields idPrefix="create-vault" nameError={nameError} />
           <DialogFooter showCloseButton>
-            <Button type="submit">Create Vault</Button>
+            <Button type="submit">Create vault</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -405,7 +405,7 @@ function EditVaultDialog({
     event.preventDefault();
     const { name, description } = vaultFormValues(event.currentTarget);
     if (!name) {
-      setNameError("Enter a Vault name.");
+      setNameError("Enter a vault name.");
       return;
     }
 
@@ -413,7 +413,7 @@ function EditVaultDialog({
       draft.name = name;
       draft.description = description;
     });
-    watchPersistence(transaction, `Could not update “${vault.name}”. Your change was rolled back.`);
+    watchPersistence(transaction, `Could not update “${vault.name}”. Your changes were not saved.`);
     setNameError(null);
     onOpenChange(false);
   }
@@ -423,8 +423,8 @@ function EditVaultDialog({
       <DialogContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Edit Vault</DialogTitle>
-            <DialogDescription>Rename the Vault or update its description.</DialogDescription>
+            <DialogTitle>Edit vault</DialogTitle>
+            <DialogDescription>Rename the vault or update its description.</DialogDescription>
           </DialogHeader>
           <VaultFields
             idPrefix={`edit-vault-${vault.id}`}
@@ -461,12 +461,16 @@ function VaultFields({
         <FieldLabel htmlFor={nameId}>Name</FieldLabel>
         <Input
           id={nameId}
+          aria-describedby={`${nameId}-visibility`}
           name="name"
           defaultValue={defaultName}
           autoComplete="off"
           aria-invalid={Boolean(nameError)}
           required
         />
+        <FieldDescription id={`${nameId}-visibility`}>
+          Visitors see this name when you share the vault.
+        </FieldDescription>
         <FieldError>{nameError}</FieldError>
       </Field>
       <Field>
@@ -492,7 +496,7 @@ function DeleteVaultDialog({
 }) {
   function handleDelete() {
     const transaction = vaults.delete(vault.id);
-    watchPersistence(transaction, `Could not delete “${vault.name}”. Your change was rolled back.`);
+    watchPersistence(transaction, `Could not delete “${vault.name}”. Your changes were not saved.`);
     onOpenChange(false);
   }
 
@@ -502,13 +506,13 @@ function DeleteVaultDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete “{vault.name}”?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the Vault, its memberships, and its Links. Its Documents remain available.
+            This deletes the vault and its links. The documents remain available.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={handleDelete}>
-            Delete Vault
+            Delete vault
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

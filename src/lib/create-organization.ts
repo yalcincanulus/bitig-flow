@@ -6,7 +6,7 @@ import { organizationSlugFromName } from "#/lib/organization-slug";
 
 export async function createOrganizationFromName(name: string) {
   const baseSlug = organizationSlugFromName(name);
-  let lastError = "Could not create Organization";
+  let lastError = "Could not create organization";
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const slug = attempt === 0 ? baseSlug : `${baseSlug.slice(0, 40)}-${uuidv7().slice(0, 8)}`;

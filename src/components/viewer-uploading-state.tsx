@@ -4,7 +4,7 @@ import { cn } from "#/lib/utils";
 export function ViewerUploadingState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="mt-6 flex flex-col gap-4">
-      <p className="text-base text-muted-foreground">This Document is still uploading.</p>
+      <p className="text-base text-muted-foreground">This document is still uploading.</p>
       <button
         type="button"
         onClick={onRetry}

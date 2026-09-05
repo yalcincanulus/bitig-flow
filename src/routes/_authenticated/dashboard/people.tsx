@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MailIcon } from "lucide-react";
 
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageActions, PageHeader, PageTitle } from "#/components/page";
 import { CancelInvitationDialog, InvitePersonDialog } from "#/components/people-invitations";
 import { MembershipActions, type Membership } from "#/components/people-memberships";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/dashboard/people")({
     // sign-in redirect, not-found, and forbidden, and the Chrome's `beforeLoad` has already settled
     // all three by the time this runs. What is left is a read that failed, said in our words.
     if (listing.error) {
-      throw new Error("Could not read the People of this Organization");
+      throw new Error("Could not read the people of this organization");
     }
 
     const memberships: Membership[] = listing.data.members
@@ -141,7 +141,7 @@ function OutstandingInvitations({
   return (
     <section className="flex flex-col gap-3" aria-labelledby="outstanding-invitations">
       <h2 id="outstanding-invitations" className="text-sm font-medium">
-        Outstanding Invitations
+        Outstanding invitations
       </h2>
       {invitations.length === 0 ? (
         <Empty>
@@ -149,8 +149,8 @@ function OutstandingInvitations({
             <EmptyMedia variant="icon">
               <MailIcon />
             </EmptyMedia>
-            <EmptyTitle>No outstanding Invitations</EmptyTitle>
-            <EmptyDescription>Nobody is waiting to join this Organization.</EmptyDescription>
+            <EmptyTitle>No outstanding invitations</EmptyTitle>
+            <EmptyDescription>Nobody is waiting to join this organization.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
@@ -197,9 +197,6 @@ function PeoplePage() {
     <Page>
       <PageHeader>
         <PageTitle>{dashboardDestinations.people.label}</PageTitle>
-        <PageDescription>
-          Everyone who belongs to this Organization, and the Role each of them holds.
-        </PageDescription>
         {invitations === undefined ? null : (
           <PageActions>
             <InvitePersonDialog

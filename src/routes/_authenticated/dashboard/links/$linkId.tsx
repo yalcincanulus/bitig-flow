@@ -11,7 +11,7 @@ import {
   LinkTargetLabel,
   OpenLinkButton,
 } from "#/components/link-write-dialog";
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageActions, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
@@ -61,10 +61,6 @@ function LinkPage() {
           </span>
           {demo?.samples.links.includes(link.id) ? <DemoSampleBadge /> : null}
         </PageTitle>
-        <PageDescription>
-          One public URL, one Gate, one analytics stream. Rotating the Slug retires the old URL and
-          keeps the history.
-        </PageDescription>
         <PageActions>
           <Button
             nativeButton={false}
@@ -99,8 +95,7 @@ function LinkPage() {
         <CardHeader>
           <CardTitle>Public URL</CardTitle>
           <CardDescription>
-            The Slug is separate from the Link's identity, so it can be rotated without losing the
-            analytics history behind it.
+            Changing the address disables the old URL and keeps your analytics history.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
@@ -111,11 +106,11 @@ function LinkPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>How this Link behaves</CardTitle>
+          <CardTitle>Link settings</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
-            <DetailRow label="Target">
+            <DetailRow label="Shared content">
               <LinkTargetLabel
                 link={link}
                 documents={documentRows}
@@ -123,7 +118,7 @@ function LinkPage() {
                 vaults={vaultRows}
               />
             </DetailRow>
-            <DetailRow label="Gate">
+            <DetailRow label="Access">
               <GateBadges link={link} />
             </DetailRow>
             <DetailRow label="Downloads">

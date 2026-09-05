@@ -13,7 +13,7 @@ import {
   LinkWriteDialog,
   OpenLinkButton,
 } from "#/components/link-write-dialog";
-import { Page, PageActions, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageActions, PageHeader, PageTitle } from "#/components/page";
 import { Alert, AlertDescription } from "#/components/ui/alert";
 import { Button } from "#/components/ui/button";
 import {
@@ -138,10 +138,7 @@ function LinksPage() {
     <Page>
       <PageHeader>
         <PageTitle>{dashboardDestinations.links.label}</PageTitle>
-        <PageDescription>
-          Publish a Document or a Vault through a Link that carries its own Gate.
-        </PageDescription>
-        <PageActions>{writeDialog("Create Link")}</PageActions>
+        <PageActions>{writeDialog("Create link")}</PageActions>
       </PageHeader>
 
       <FilterBar>
@@ -177,14 +174,14 @@ function LinksPage() {
               void navigate({ to: "/dashboard/links", search: { ...search, target: undefined } })
             }
           >
-            Clear Target filter
+            Clear target filter
           </Button>
         ) : null}
 
         <FilterBarSpacer />
 
         <FilterBarLabel>
-          {data.length} {data.length === 1 ? "Link" : "Links"}
+          {data.length} {data.length === 1 ? "link" : "links"}
         </FilterBarLabel>
       </FilterBar>
 
@@ -201,10 +198,8 @@ function LinksPage() {
               <EmptyMedia variant="icon">
                 <LinkIcon />
               </EmptyMedia>
-              <EmptyTitle>No matching Links</EmptyTitle>
-              <EmptyDescription>
-                Nothing matches the current Target or status filter.
-              </EmptyDescription>
+              <EmptyTitle>No matching links</EmptyTitle>
+              <EmptyDescription>No links match your filters.</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button
@@ -221,10 +216,10 @@ function LinksPage() {
               <EmptyMedia variant="icon">
                 <LinkIcon />
               </EmptyMedia>
-              <EmptyTitle>No Links yet</EmptyTitle>
-              <EmptyDescription>Create a Link to publish a Document or a Vault.</EmptyDescription>
+              <EmptyTitle>No links yet</EmptyTitle>
+              <EmptyDescription>Create a link to publish a document or a vault.</EmptyDescription>
             </EmptyHeader>
-            <EmptyContent>{writeDialog("Create your first Link")}</EmptyContent>
+            <EmptyContent>{writeDialog("Create your first link")}</EmptyContent>
           </Empty>
         )
       ) : (
@@ -233,7 +228,7 @@ function LinksPage() {
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="pl-3">Link</TableHead>
               <TableHead>Target</TableHead>
-              <TableHead>Gate</TableHead>
+              <TableHead>Access</TableHead>
               <TableHead>Public URL</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-0 pr-3 text-right">

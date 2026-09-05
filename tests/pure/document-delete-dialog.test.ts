@@ -11,7 +11,7 @@ test("the Document delete dialog names the lost analytics history without a coun
     "utf8",
   );
 
-  expect(source).toMatch(/analytics history\s+goes/);
-  expect(source).toMatch(/Links including it will show less activity/);
+  expect(source).toMatch(/reading\s+history is deleted/);
+  expect(source).toMatch(/analytics totals for affected links will decrease/);
   expect(source).not.toMatch(/visitCount/);
 });

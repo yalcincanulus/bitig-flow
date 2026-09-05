@@ -10,8 +10,8 @@ export function DemoAnalyticsNotice({ incomplete }: Readonly<{ incomplete?: bool
       <ChartNoAxesCombinedIcon />
       <AlertTitle>Demo analytics are incomplete</AlertTitle>
       <AlertDescription>
-        This Demo Environment reached its Visit or Event limit. Content remained available, but
-        later activity was not recorded.
+        This demo reached its analytics limit. Your documents are still available, but later visits
+        and reading activity are not recorded.
       </AlertDescription>
     </Alert>
   );

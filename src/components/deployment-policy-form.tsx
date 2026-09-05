@@ -121,7 +121,7 @@ const environmentFields: ReadonlyArray<NumberField> = [
   {
     key: "deliveredBytes",
     label: "Delivered bytes",
-    description: "Preview, Viewer, and downloads",
+    description: "Preview, viewer, and downloads",
     divisor: MiB,
     unit: "MiB",
   },
@@ -130,17 +130,17 @@ const environmentFields: ReadonlyArray<NumberField> = [
   {
     key: "documentLifetimeCount",
     label: "Documents created",
-    description: "Lifetime total, excluding Samples",
+    description: "Lifetime total, excluding samples",
   },
   {
     key: "vaultLifetimeCount",
     label: "Vaults created",
-    description: "Lifetime total, excluding Samples",
+    description: "Lifetime total, excluding samples",
   },
   {
     key: "linkLifetimeCount",
     label: "Links created",
-    description: "Lifetime total, excluding Samples",
+    description: "Lifetime total, excluding samples",
   },
 ];
 
@@ -198,7 +198,7 @@ function CapabilityCard({ view }: Readonly<{ view: PolicyView }>) {
       <CardHeader>
         <CardTitle>Operator readiness checklist</CardTitle>
         <CardDescription>
-          Every required check must be ready before Demo entry or signup can be enabled.
+          Every required check must be ready before demo entry or signup can be enabled.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -265,11 +265,11 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
         setView(result);
         setPolicy(result.policy ?? initialDeploymentPolicy);
         setDraftImpact(result.impact);
-        setFeedback({ kind: "success", message: "Deployment Policy saved." });
+        setFeedback({ kind: "success", message: "Deployment policy saved." });
         await router.invalidate({ sync: true });
       }
     } catch {
-      setFeedback({ kind: "failure", message: "Could not save Deployment Policy." });
+      setFeedback({ kind: "failure", message: "Could not save Deployment policy." });
     }
     setPending(false);
   }
@@ -281,7 +281,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
     if (!parsed.success) {
       setFeedback({
         kind: "failure",
-        message: parsed.error.issues[0]?.message ?? "Deployment Policy is invalid.",
+        message: parsed.error.issues[0]?.message ?? "Deployment policy is invalid.",
       });
       return;
     }
@@ -296,7 +296,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
         setConfirmationRequest(parsed.data);
         setConfirmationOpen(true);
       } catch {
-        setFeedback({ kind: "failure", message: "Could not preview Deployment Policy impact." });
+        setFeedback({ kind: "failure", message: "Could not preview Deployment policy impact." });
       }
       setPending(false);
       return;
@@ -315,7 +315,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
       {!view.policy ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertTitle>Deployment Policy is missing</AlertTitle>
+          <AlertTitle>Deployment policy is missing</AlertTitle>
           <AlertDescription>
             Demo entry and signup are closed. Save the reviewed defaults to restore the record.
           </AlertDescription>
@@ -327,7 +327,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
           <CardHeader>
             <CardTitle>Admission</CardTitle>
             <CardDescription>
-              Requested access. Runtime capability remains authoritative.
+              Access also requires the services below to be available.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -359,9 +359,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
                   />
                   <FieldContent>
                     <FieldLabel htmlFor="pause-all-demo-access">Pause all demo access</FieldLabel>
-                    <FieldDescription>
-                      Emergency access stop, separate from admission.
-                    </FieldDescription>
+                    <FieldDescription>Pause access to existing demos.</FieldDescription>
                   </FieldContent>
                 </Field>
                 <Field orientation="horizontal">
@@ -373,7 +371,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
                     }
                   />
                   <FieldContent>
-                    <FieldLabel htmlFor="sign-up-enabled">Enable durable signup</FieldLabel>
+                    <FieldLabel htmlFor="sign-up-enabled">Enable sign-ups</FieldLabel>
                     <FieldDescription>
                       Requires healthy mail and password recovery.
                     </FieldDescription>
@@ -408,9 +406,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
         <Card>
           <CardHeader>
             <CardTitle>Global limits</CardTitle>
-            <CardDescription>
-              Fleet-wide admission and concurrent pressure ceilings.
-            </CardDescription>
+            <CardDescription>Limits across all demos.</CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -432,7 +428,7 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
               </span>
               <span>
                 {view.lastUpdated
-                  ? `Last saved ${new Date(view.lastUpdated.at).toLocaleString()} by ${view.lastUpdated.by ? "the Platform Operator" : "migration defaults"}.`
+                  ? `Last saved ${new Date(view.lastUpdated.at).toLocaleString()} by ${view.lastUpdated.by ? "the platform operator" : "migration defaults"}.`
                   : "No stored policy record."}
               </span>
             </div>
@@ -466,14 +462,14 @@ export function DeploymentPolicyForm({ initialView }: Readonly<{ initialView: Po
               {confirmationChange?.reducedFields.length
                 ? `${confirmationChange.reducedFields.length} hard-bounded ceilings will be lowered. `
                 : ""}
-              {confirmationImpact.writeLimitedEnvironmentCount} current Demo Environments will be
-              above the requested limits. Existing data is not deleted, but additional writes can be
-              refused.
+              {confirmationImpact.writeLimitedEnvironmentCount} current demo environments will be
+              above the requested limits. Existing data stays available, but users can be blocked
+              from adding more.
               {confirmationChange?.pausesAllDemoAccess
-                ? " All current Demo Environment access will also pause."
+                ? " All current demo environment access will also pause."
                 : ""}
               {confirmationChange?.closesDemoAdmission ? " New demo admission will close." : ""}
-              {confirmationChange?.closesSignUp ? " Durable signup will close." : ""}
+              {confirmationChange?.closesSignUp ? "  Sign-ups will close." : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

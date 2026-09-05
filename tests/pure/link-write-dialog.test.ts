@@ -31,6 +31,6 @@ test("the Link delete dialog names the Visit count, says it cannot be undone, an
 
   expect(source).toMatch(/linkDeleteWarning\(visitCount\)/);
   expect(copy).toMatch(/cannot be undone/);
-  expect(copy).toMatch(/Deactivate the Link/);
+  expect(copy).toMatch(/Deactivate the link/);
   expect(copy).toMatch(/visitCount === 1/);
 });

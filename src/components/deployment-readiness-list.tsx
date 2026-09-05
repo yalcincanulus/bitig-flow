@@ -2,8 +2,8 @@ import { Badge } from "#/components/ui/badge";
 import type { DeploymentReadinessCheck } from "#/lib/deployment-policy";
 
 function requirementLabel(requiredFor: DeploymentReadinessCheck["requiredFor"]) {
-  if (requiredFor.length === 2) return "Required for Demo entry and signup";
-  return requiredFor[0] === "demos" ? "Required for Demo entry" : "Required for signup";
+  if (requiredFor.length === 2) return "Required for demo entry and signup";
+  return requiredFor[0] === "demos" ? "Required for demo entry" : "Required for signup";
 }
 
 export function DeploymentReadinessList({

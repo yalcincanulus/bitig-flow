@@ -31,7 +31,7 @@ import { authClient } from "#/lib/auth-client";
 import { recoverActiveOrganization } from "#/lib/organization-recovery";
 
 const deletionWarning =
-  "This permanently deletes the Organization, its Memberships and Invitations, all Documents, Vaults, and Links, and all analytics history. Public Links will stop working. This cannot be undone.";
+  "This permanently deletes the organization, invitations, documents, vaults, links, and analytics history. Everyone loses access. Shared links stop working. This cannot be undone.";
 
 type OrganizationDangerZoneProps = Readonly<{
   organization: Readonly<{ id: string; name: string }>;
@@ -48,17 +48,17 @@ function interpretDeleteFailure(code: string | undefined): DeleteFailure {
   switch (code) {
     case "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION":
       return {
-        message: "Your Role can no longer delete this Organization.",
+        message: "You no longer have permission to delete this organization.",
         recovery: "route",
       };
     case "ORGANIZATION_NOT_FOUND":
     case "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION":
       return {
-        message: "This Organization is no longer available.",
+        message: "This organization is no longer available.",
         recovery: "organization",
       };
     default:
-      return { message: "Could not delete this Organization." };
+      return { message: "Could not delete this organization." };
   }
 }
 
@@ -93,7 +93,7 @@ export function OrganizationDangerZone({
     try {
       result = await authClient.organization.delete({ organizationId: organization.id });
     } catch {
-      setFailure("Could not delete this Organization.");
+      setFailure("Could not delete this organization.");
       setPending(false);
       return;
     }
@@ -124,10 +124,10 @@ export function OrganizationDangerZone({
       <SettingsSection>
         <SettingsSectionHeader>
           <SettingsSectionTitle className="text-destructive">
-            Delete Organization
+            Delete organization
           </SettingsSectionTitle>
           <SettingsSectionDescription>
-            Permanently delete this Organization and everything it owns.
+            Permanently delete this organization and everything it owns.
           </SettingsSectionDescription>
         </SettingsSectionHeader>
         <SettingsSectionContent>
@@ -142,7 +142,7 @@ export function OrganizationDangerZone({
             <AlertDialog open={open} onOpenChange={handleOpenChange}>
               <AlertDialogTrigger render={<Button variant="destructive" />}>
                 <Trash2Icon data-icon="inline-start" />
-                Delete Organization
+                Delete organization
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -178,7 +178,7 @@ export function OrganizationDangerZone({
                 ) : null}
 
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={pending}>Keep Organization</AlertDialogCancel>
+                  <AlertDialogCancel disabled={pending}>Keep organization</AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
                     disabled={!confirmed || pending}
@@ -188,7 +188,7 @@ export function OrganizationDangerZone({
                     }}
                   >
                     {pending ? <Spinner data-icon="inline-start" /> : null}
-                    Delete Organization
+                    Delete organization
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

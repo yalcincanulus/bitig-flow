@@ -15,11 +15,8 @@ function OperationsPolicyPage() {
   return (
     <Page className="px-0">
       <PageHeader>
-        <PageTitle>Deployment Policy</PageTitle>
-        <PageDescription>
-          Requested admission and resource limits. Runtime integrations remain authoritative and
-          every value stays within its hard ceiling.
-        </PageDescription>
+        <PageTitle>Deployment policy</PageTitle>
+        <PageDescription>Set access and usage limits.</PageDescription>
       </PageHeader>
       <DeploymentPolicyForm initialView={policy} />
       <section aria-labelledby="danger-zone-heading" className="flex flex-col gap-3">
@@ -28,7 +25,7 @@ function OperationsPolicyPage() {
             Danger zone
           </h2>
           <p className="text-sm text-muted-foreground">
-            Fleet deletion is separate from closing admission and pausing current access.
+            Deleting demos permanently removes their content.
           </p>
         </div>
         <FleetDeletionControl />

@@ -19,9 +19,9 @@ export function ViewerSenderLine({
         <span className="text-foreground">{organizationName}</span>
       )}
       {share === "vault"
-        ? " shared these Documents with you."
+        ? " shared these documents with you."
         : share === "document"
-          ? " shared this Document with you."
+          ? " shared this document with you."
           : null}
     </p>
   );

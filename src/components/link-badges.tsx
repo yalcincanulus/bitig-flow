@@ -75,13 +75,13 @@ export function AnalyticsTrustMark({ link }: Readonly<{ link: LinkRequirements |
     <Tooltip>
       <TooltipTrigger
         className="inline-flex text-muted-foreground"
-        aria-label="These analytics are not trustworthy"
+        aria-label="Public visits can include bots"
       >
         <ShieldAlertIcon className="size-3.5" />
       </TooltipTrigger>
       <TooltipContent className="max-w-64">
-        This Link has no Requirements, so anyone with the URL can create Visits. Add a password or
-        an email Requirement to make its analytics trustworthy.
+        Anyone with this URL can visit, including bots. Require a password or email to reduce
+        automated visits.
       </TooltipContent>
     </Tooltip>
   );

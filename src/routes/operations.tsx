@@ -43,7 +43,7 @@ function OperationsRoute() {
       <header className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <p className="text-xs text-muted-foreground">Platform Operator</p>
+            <p className="text-xs text-muted-foreground">Platform operator</p>
             <h1 className="text-2xl font-semibold tracking-tight">Operations</h1>
             <p className="text-xs text-muted-foreground">{operator.email}</p>
           </div>

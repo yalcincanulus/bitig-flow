@@ -54,7 +54,7 @@ export function AnalyticsDwellChart({ pages: incoming }: AnalyticsDwellChartProp
     <Chart
       definition={definition}
       height={280}
-      ariaLabel="Per-page Dwell"
+      ariaLabel="Time per page"
       className="w-full text-foreground [--ts-chart-1:var(--chart-1)]"
     />
   );

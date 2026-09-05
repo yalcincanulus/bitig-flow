@@ -10,7 +10,7 @@ import type { InvitationAcceptance } from "#/lib/invitation-acceptance";
 import type { InvitationPreview } from "#/lib/invitation-page";
 import { authClient } from "#/lib/auth-client";
 
-const remedy = "Ask the Organization for a new Invitation.";
+const remedy = "Ask the organization for a new invitation.";
 
 export function InvitationPage({
   page,
@@ -41,7 +41,7 @@ export function InvitationPage({
   if (page.status === "unavailable") {
     return (
       <InvitationFrame>
-        <h1 className="text-2xl font-semibold">This Invitation isn't available.</h1>
+        <h1 className="text-2xl font-semibold">This invitation isn't available.</h1>
         <p className="text-muted-foreground">{remedy}</p>
       </InvitationFrame>
     );
@@ -51,7 +51,7 @@ export function InvitationPage({
     return (
       <InvitationFrame>
         <ViewerSenderLine senderName={null} organizationName={page.organizationName} />
-        <h1 className="text-2xl font-semibold">This Invitation has expired.</h1>
+        <h1 className="text-2xl font-semibold">This invitation has expired.</h1>
         <p className="text-muted-foreground">{remedy}</p>
       </InvitationFrame>
     );
@@ -62,7 +62,7 @@ export function InvitationPage({
       <ViewerSenderLine senderName={page.inviterName} organizationName={page.organizationName} />
       <h1 className="text-2xl font-semibold">
         {acceptance?.status === "wrong-account"
-          ? "This account cannot accept the Invitation."
+          ? "This account cannot accept the invitation."
           : "You've been invited."}
       </h1>
       {sessionEmail ? (
@@ -134,7 +134,7 @@ function InvitationCompletion({
     return (
       <InvitationFrame>
         {sender}
-        <h1 className="text-2xl font-semibold">This account cannot accept the Invitation.</h1>
+        <h1 className="text-2xl font-semibold">This account cannot accept the invitation.</h1>
         <SignedInAccount email={sessionEmail} />
       </InvitationFrame>
     );
@@ -144,7 +144,7 @@ function InvitationCompletion({
     return (
       <InvitationFrame>
         {sender}
-        <h1 className="text-2xl font-semibold">The Invitation could not be accepted.</h1>
+        <h1 className="text-2xl font-semibold">The invitation could not be accepted.</h1>
         <SignedInAccount email={sessionEmail} />
       </InvitationFrame>
     );
@@ -153,10 +153,10 @@ function InvitationCompletion({
   return (
     <InvitationFrame>
       {sender}
-      <h1 className="text-2xl font-semibold">Joining the Organization.</h1>
+      <h1 className="text-2xl font-semibold">Joining the organization.</h1>
       <Button disabled>
         <Spinner data-icon="inline-start" />
-        Accepting Invitation
+        Accepting invitation
       </Button>
     </InvitationFrame>
   );

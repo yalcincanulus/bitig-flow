@@ -4,7 +4,7 @@ import { CircleAlertIcon } from "lucide-react";
 import { MailTestControl } from "#/components/mail-test-control";
 import { DeploymentReadinessList } from "#/components/deployment-readiness-list";
 import { OperationsTrendChart } from "#/components/operations-trend-chart";
-import { Page, PageDescription, PageHeader, PageTitle } from "#/components/page";
+import { Page, PageHeader, PageTitle } from "#/components/page";
 import { ReaperControl } from "#/components/reaper-control";
 import { StatList } from "#/components/stat-list";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert";
@@ -38,19 +38,16 @@ function OperationsOverviewPage() {
     <Page className="px-0">
       <PageHeader>
         <PageTitle>Overview</PageTitle>
-        <PageDescription>
-          Privacy-safe portfolio usage, capacity, dependencies, and maintenance health.
-        </PageDescription>
       </PageHeader>
 
       <Alert>
         <CircleAlertIcon />
         <AlertTitle>Public analytics are best-effort</AlertTitle>
         <AlertDescription>
-          Visits and downloads describe aggregate Viewer activity, not people. Public Links can be
+          Visits and downloads describe aggregate viewer activity, not people. Public links can be
           automated or repeated.
           {analyticsIncomplete
-            ? " At least one Demo Environment also exhausted its Visit or Event capacity, so these totals are incomplete."
+            ? " At least one demo environment also exhausted its visit or event capacity, so these totals are incomplete."
             : ""}
         </AlertDescription>
       </Alert>
@@ -61,8 +58,7 @@ function OperationsOverviewPage() {
             Trailing cohorts
           </h2>
           <p className="text-sm text-muted-foreground">
-            Each window contains Demo Environments created during that exact trailing period. Usage
-            is their content-free lifetime total to date.
+            Each period shows demos created during that time and their total usage so far.
           </p>
         </div>
         <div className="grid gap-4 xl:grid-cols-3">
@@ -80,7 +76,7 @@ function OperationsOverviewPage() {
                   className="sm:grid-cols-3 lg:grid-cols-3"
                   stats={[
                     {
-                      label: "Demo Environments",
+                      label: "Demo environments",
                       value: formatOperationsCount(window.environmentCount),
                     },
                     {
@@ -92,7 +88,7 @@ function OperationsOverviewPage() {
                       value: formatOperationsCount(window.publishedEnvironmentCount),
                     },
                     {
-                      label: "Best-effort Visits",
+                      label: "Best-effort visits",
                       value: formatOperationsCount(window.visitCount),
                     },
                     { label: "Downloads", value: formatOperationsCount(window.downloadCount) },
@@ -112,8 +108,8 @@ function OperationsOverviewPage() {
         <CardHeader>
           <CardTitle>30-day aggregate trend</CardTitle>
           <CardDescription>
-            Bars are Demo Environment starts by UTC date. The line is best-effort public Visits for
-            each starting cohort.
+            Bars show demos started each day (UTC). The line shows recorded visits to links from
+            those demos.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,10 +119,8 @@ function OperationsOverviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Demo Environment funnel</CardTitle>
-          <CardDescription>
-            Counts are environments that reached each coarse milestone, never unique people.
-          </CardDescription>
+          <CardTitle>Demo environment funnel</CardTitle>
+          <CardDescription>Counts represent demos, not individual people.</CardDescription>
         </CardHeader>
         <CardContent>
           <TableFrame>
@@ -182,9 +176,7 @@ function OperationsOverviewPage() {
         <Card>
           <CardHeader>
             <CardTitle>Capacity and policy</CardTitle>
-            <CardDescription>
-              Current fleet use against requested hard-bounded limits.
-            </CardDescription>
+            <CardDescription>Usage across all demos compared with your limits.</CardDescription>
           </CardHeader>
           <CardContent>
             <StatList
@@ -215,7 +207,7 @@ function OperationsOverviewPage() {
           <CardHeader>
             <CardTitle>Runtime readiness</CardTitle>
             <CardDescription>
-              Requested policy cannot make an unavailable runtime dependency ready.
+              Access remains blocked until required services are available.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -237,7 +229,7 @@ function OperationsOverviewPage() {
             Maintenance and mail
           </h2>
           <p className="text-sm text-muted-foreground">
-            Last-run and heartbeat records are logical application health, not host monitoring.
+            Recent maintenance runs and status updates.
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
@@ -260,9 +252,9 @@ function OperationsOverviewPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Bounded Reaper run</CardTitle>
+            <CardTitle>Demo cleanup</CardTitle>
             <CardDescription>
-              Run one lock-protected batch now. Scheduled runs continue every 15 minutes.
+              Start a cleanup run. Scheduled cleanup continues every 15 minutes.
             </CardDescription>
           </CardHeader>
           <CardContent>

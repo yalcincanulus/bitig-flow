@@ -49,8 +49,7 @@ export function AnalyticsVisitTimeline({
       <CardHeader>
         <CardTitle>Visits</CardTitle>
         <CardDescription>
-          Newest first. Repeat Visits group under one Viewer identity. A captured email and the
-          Visitor id of the same person stay separate.
+          Newest first. Visits with and without an email address can appear as separate visitors.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
@@ -60,10 +59,8 @@ export function AnalyticsVisitTimeline({
               <EmptyMedia variant="icon">
                 <ChartNoAxesCombinedIcon />
               </EmptyMedia>
-              <EmptyTitle>No Visits in this range</EmptyTitle>
-              <EmptyDescription>
-                This Link has no Visits in the active UTC date range.
-              </EmptyDescription>
+              <EmptyTitle>No visits in this range</EmptyTitle>
+              <EmptyDescription>No visits in the selected date range.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -137,7 +134,7 @@ function VisitBlock({
         Last seen <time dateTime={lastSeen.dateTime}>{lastSeen.label}</time>
       </p>
       {visit.documents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No Views.</p>
+        <p className="text-sm text-muted-foreground">No views.</p>
       ) : (
         <Table>
           <TableHeader>
@@ -184,7 +181,7 @@ function DocumentViewRow({
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Per-page Dwell"
+                aria-label="Time per page"
                 aria-expanded={open}
                 aria-controls={pagesId}
                 onClick={() => setOpen((current) => !current)}

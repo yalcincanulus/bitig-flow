@@ -52,13 +52,13 @@ export function DemoEnvironmentNotice({
     try {
       const response = await fetch("/api/demo/end", { method: "POST" });
       if (!response.ok) {
-        setError("The Demo Environment could not be ended. Try again.");
+        setError("The demo environment could not be ended. Try again.");
         setPending(false);
         return;
       }
       window.location.assign("/");
     } catch {
-      setError("The Demo Environment could not be ended. Try again.");
+      setError("The demo environment could not be ended. Try again.");
     }
     setPending(false);
   }
@@ -66,15 +66,15 @@ export function DemoEnvironmentNotice({
   return (
     <Alert className="mx-4 mt-4 w-auto">
       <Clock3Icon />
-      <AlertTitle>Temporary Demo Environment</AlertTitle>
+      <AlertTitle>Temporary demo environment</AlertTitle>
       <AlertDescription>
         Deleted at{" "}
         <time dateTime={new Date(expiresAt).toISOString()}>{fixedExpiry(expiresAt)}</time>. Do not
         upload confidential or personal material. Storage: {formatBytes(confirmedBytes)}
         {storageLimit ? ` of ${formatBytes(storageLimit)}` : ""} used. Resources: {usage.documents}
-        {limits ? `/${limits.documents}` : ""} Documents, {usage.vaults}
-        {limits ? `/${limits.vaults}` : ""} Vaults, and {usage.links}
-        {limits ? `/${limits.links}` : ""} Links. Uploaded Documents can contain embedded metadata.
+        {limits ? `/${limits.documents}` : ""} documents, {usage.vaults}
+        {limits ? `/${limits.vaults}` : ""} vaults, and {usage.links}
+        {limits ? `/${limits.links}` : ""} links. Uploaded documents can contain embedded metadata.
         {error && <span className="block text-destructive"> {error}</span>}
       </AlertDescription>
       <AlertAction>
@@ -86,8 +86,8 @@ export function DemoEnvironmentNotice({
             <AlertDialogHeader>
               <AlertDialogTitle>End this demo?</AlertDialogTitle>
               <AlertDialogDescription>
-                Access is revoked immediately. The Organization, Documents, Vaults, Links, and Demo
-                User are deleted and cannot be recovered.
+                Access is revoked immediately. The organization, documents, vaults, links, and demo
+                user are deleted and cannot be recovered.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

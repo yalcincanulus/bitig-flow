@@ -27,19 +27,18 @@ export function ReaperControl() {
           kind: "success",
           message: result.acquired
             ? `Completed ${result.completedEnvironmentCount ?? 0} environment cleanups; deferred ${result.deferredStorageCount ?? 0} storage cleanups.`
-            : "Another Reaper already holds the maintenance lock.",
+            : "Cleanup is already running.",
         });
       } else {
         setFeedback({
           kind: "failure",
-          message:
-            "The Reaper could not run. Demo admission remains closed if cleanup is unhealthy.",
+          message: "Cleanup could not run. New demos remain unavailable until cleanup is working.",
         });
       }
     } catch {
       setFeedback({
         kind: "failure",
-        message: "The Reaper could not run. Demo admission remains closed if cleanup is unhealthy.",
+        message: "Cleanup could not run. New demos remain unavailable until cleanup is working.",
       });
     }
     setPending(false);
@@ -49,7 +48,7 @@ export function ReaperControl() {
     <div className="flex flex-col items-start gap-3">
       <Button type="button" variant="outline" disabled={pending} onClick={() => void runReaper()}>
         {pending ? <Spinner data-icon="inline-start" /> : null}
-        Run Reaper now
+        Run cleanup now
       </Button>
       {feedback ? (
         <Alert variant={feedback.kind === "failure" ? "destructive" : "default"}>

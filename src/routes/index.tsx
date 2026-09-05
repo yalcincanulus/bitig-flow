@@ -105,7 +105,7 @@ function Home() {
                 </Button>
               ) : organizationCount > 0 ? (
                 <Button size="lg" nativeButton={false} render={<Link to="/dashboard" />}>
-                  Go to Dashboard
+                  Go to dashboard
                 </Button>
               ) : (
                 <Button size="lg" nativeButton={false} render={<Link to="/onboarding" />}>
@@ -139,7 +139,7 @@ function Home() {
           {!hasSession && demo !== "available" ? <DemoAvailabilityNotice status={demo} /> : null}
           {!hasSession && (
             <p className="max-w-xl text-sm/relaxed text-muted-foreground">
-              Demo work is public only when you create a Link and is deleted after 24 hours. Do not
+              Demo work is public only when you create a link and is deleted after 24 hours. Do not
               upload confidential, personal, or unlawful material. Anonymous feature-use totals are
               retained after deletion.
             </p>
@@ -166,19 +166,19 @@ const demoAvailabilityCopy: Record<
 > = {
   unavailable: {
     title: "Demo entry is currently unavailable",
-    description: "The public Demo is closed. Sign in with your existing credentials.",
+    description: "The public demo is closed. Sign in with your existing credentials.",
   },
   saturated: {
-    title: "All Demo Environments are currently in use",
+    title: "All demo environments are currently in use",
     description: "Capacity is released automatically. Try again later.",
   },
   paused: {
     title: "Demo access is paused",
-    description: "New entry and existing Demo access remain closed until service is restored.",
+    description: "New entry and existing demo access remain closed until service is restored.",
   },
   maintenance: {
     title: "Demo maintenance is in progress",
-    description: "Maintenance checks must finish before a Demo Environment can be prepared.",
+    description: "Maintenance checks must finish before a demo environment can be prepared.",
   },
 };
 
