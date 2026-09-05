@@ -101,7 +101,11 @@ function DashboardHome() {
         <PageTitle>Home</PageTitle>
         <PageDescription>An overview of {organization.name}.</PageDescription>
         <PageActions>
-          <Button variant="outline" render={<Link {...dashboardDestinations.analytics.link} />}>
+          <Button
+            nativeButton={false}
+            variant="outline"
+            render={<Link {...dashboardDestinations.analytics.link} />}
+          >
             <ChartNoAxesCombinedIcon data-icon="inline-start" />
             View analytics
           </Button>
@@ -124,7 +128,12 @@ function DashboardHome() {
               <p className="text-3xl font-semibold tabular-nums">{total.toLocaleString()}</p>
             </CardContent>
             <CardFooter>
-              <Button variant="ghost" size="sm" render={<Link {...destination.link} />}>
+              <Button
+                nativeButton={false}
+                variant="ghost"
+                size="sm"
+                render={<Link {...destination.link} />}
+              >
                 Browse {destination.label.toLowerCase()}
                 <ArrowRightIcon data-icon="inline-end" />
               </Button>
@@ -195,6 +204,7 @@ function DashboardHome() {
           </CardContent>
           <CardFooter>
             <Button
+              nativeButton={false}
               variant="outline"
               size="sm"
               render={<Link {...dashboardDestinations.documents.link} />}
