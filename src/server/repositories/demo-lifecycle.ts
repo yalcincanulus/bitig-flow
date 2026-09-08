@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, lte, notExists, sql } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 
+import { demoSampleAnalytics } from "#/server/demo-sample-analytics";
 import { demoSampleByteSize, demoSamples } from "#/server/demo-samples";
 import { releaseDemoAdmission } from "#/server/demo-admission";
 import { mintLinkSlug } from "#/lib/link-slug";
@@ -24,6 +25,8 @@ import {
   user,
   vault,
   vaultItem,
+  visit,
+  visitEvent,
 } from "#/server/db/schema";
 import { deleteStoredObject, listStoredObjectKeys, putStoredObject } from "#/server/storage";
 
@@ -192,6 +195,11 @@ export async function createProvisioningDemoEnvironment(
   const linkId = uuidv7();
   const pdfStorageKey = storageKeyForDocument(organizationId, pdfId, storageKeyPrefix());
   const imageStorageKey = storageKeyForDocument(organizationId, imageId, storageKeyPrefix());
+  const analytics = demoSampleAnalytics({
+    linkId,
+    documents: { welcome: welcomeId, pdf: pdfId, image: imageId },
+    now,
+  });
 
   const environment = await db.transaction(async (transaction) => {
     await transaction.execute(
@@ -240,6 +248,9 @@ export async function createProvisioningDemoEnvironment(
         vaultCount: 1,
         linkCount: 1,
         confirmedBytes: demoSampleByteSize,
+        visitLifetimeCount: analytics.visitCount,
+        eventLifetimeCount: analytics.eventCount,
+        downloadLifetimeCount: analytics.downloadCount,
       })
       .returning();
     if (!createdEnvironment) throw new Error("Demo Environment insert returned no row");
@@ -336,6 +347,8 @@ export async function createProvisioningDemoEnvironment(
       { environmentId: createdEnvironment.id, kind: "vault", vaultId },
       { environmentId: createdEnvironment.id, kind: "link", linkId },
     ]);
+    await transaction.insert(visit).values(analytics.visits);
+    await transaction.insert(visitEvent).values(analytics.events);
 
     return createdEnvironment;
   });

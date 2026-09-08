@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { hashAnalyticsValue } from "#/server/analytics-hash";
 import { getClientIp } from "#/server/client-ip";
+import { rateLimitsEnabled } from "#/server/rate-limits-enabled";
 import { getRedis, redisCall } from "#/server/redis";
 import { requiredEnv, trustedProxyCount } from "#/server/runtime-env";
 
@@ -149,6 +150,7 @@ function admissionReservationKey(key: string, reservationId: string) {
 }
 
 export async function reserveDemoAdmission(key: string, reservationId: string) {
+  if (!rateLimitsEnabled()) return { accepted: true as const, key };
   const redis = await getRedis();
   const count = Number(
     await redisCall(() =>

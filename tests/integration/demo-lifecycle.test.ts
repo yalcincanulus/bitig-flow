@@ -131,7 +131,13 @@ test("Demo entry provisions one ready environment and resumes its Session", asyn
     uploadedDocumentCount: 2,
     vaultCount: 1,
     linkCount: 1,
+    visitLifetimeCount: expect.any(Number),
+    eventLifetimeCount: expect.any(Number),
+    downloadLifetimeCount: expect.any(Number),
   });
+  expect(environments[0]!.visitLifetimeCount).toBeGreaterThan(0);
+  expect(environments[0]!.eventLifetimeCount).toBeGreaterThan(environments[0]!.visitLifetimeCount);
+  expect(environments[0]!.downloadLifetimeCount).toBeGreaterThan(0);
   expect(environments[0]!.expiresAt.getTime() - environments[0]!.createdAt.getTime()).toBe(
     24 * 60 * 60 * 1_000,
   );
@@ -189,6 +195,27 @@ test("Demo entry provisions one ready environment and resumes its Session", asyn
       },
     },
   });
+  const analyticsResponse = await callServerFunction(client.http, {
+    modulePath: "/src/server/functions/analytics.ts",
+    exportName: "getAnalytics",
+    method: "GET",
+    data: {},
+  });
+  expect(analyticsResponse.status).toBe(200);
+  const analytics = (await analyticsResponse.json()) as {
+    allTimeVisits: number;
+    links: Array<{ visits: number; downloads: number; emails: number; totalMs: number }>;
+  };
+  expect(analytics.allTimeVisits).toBe(environments[0]!.visitLifetimeCount);
+  expect(analytics.links).toEqual([
+    expect.objectContaining({
+      linkId: links[0]!.id,
+      visits: environments[0]!.visitLifetimeCount,
+      downloads: environments[0]!.downloadLifetimeCount,
+      emails: 4,
+    }),
+  ]);
+  expect(analytics.links[0]!.totalMs).toBeGreaterThan(0);
   await expect(
     database.insert(demoSampleResource).values({
       environmentId: environments[0]!.id,

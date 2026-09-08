@@ -744,6 +744,16 @@ test("Demo Visit and Event caps preserve content and mark analytics incomplete",
     .where(eq(document.organizationId, demo.environment.organizationId))
     .limit(2);
   if (!publicLink || members.length < 2) throw new Error("Demo Samples are unavailable");
+  await database.delete(visit);
+  await database
+    .update(demoEnvironment)
+    .set({
+      visitLifetimeCount: 0,
+      eventLifetimeCount: 0,
+      downloadLifetimeCount: 0,
+      analyticsIncomplete: false,
+    })
+    .where(eq(demoEnvironment.id, demo.environment.id));
   await database
     .update(deploymentPolicy)
     .set({ visitLifetimeCount: 1, eventLifetimeCount: 1 })
