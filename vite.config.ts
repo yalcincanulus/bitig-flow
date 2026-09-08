@@ -10,6 +10,7 @@ import { pdfjsCmaps } from "./vite-pdfjs-cmaps.ts";
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  assetsInclude: ["**/*.pdf"],
   optimizeDeps: {
     exclude: ["pdfjs-dist"],
   },

@@ -146,6 +146,21 @@ test("Demo entry provisions one ready environment and resumes its Session", asyn
     }),
   );
   expect(documents).toHaveLength(3);
+  expect(documents).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        kind: "pdf",
+        title: "The Legend of Sleepy Hollow",
+        mimeType: "application/pdf",
+        pageCount: 39,
+      }),
+      expect.objectContaining({
+        kind: "image",
+        title: "Earthrise",
+        mimeType: "image/jpeg",
+      }),
+    ]),
+  );
   expect(vaults).toHaveLength(1);
   expect(links).toHaveLength(1);
   expect(sampleResources.map((sample) => sample.kind).sort()).toEqual([
@@ -189,7 +204,7 @@ test("Demo entry provisions one ready environment and resumes its Session", asyn
   );
   expect(dashboard.status).toBe(200);
   const dashboardHtml = await dashboard.text();
-  expect(dashboardHtml).toContain("Temporary Demo Environment");
+  expect(dashboardHtml).toContain("Temporary demo environment");
   expect(dashboardHtml).not.toContain(">Sign out");
 
   const resumed = await client.http(entryUrl, { method: "POST", headers });

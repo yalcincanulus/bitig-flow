@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const welcomeMarkdown = `# Welcome to Bitig Flow
 
@@ -7,18 +9,16 @@ Try editing this document, opening the sample files, or sharing the vault.
 Demo work is deleted automatically. Do not upload confidential, personal, or unlawful material.
 `;
 
-const samplePdf = Uint8Array.from(
-  Buffer.from(
-    "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0NvdW50IDEvS2lkc1szIDAgUl0+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNzIgNzJdL1Jlc291cmNlczw8Pj4+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1MiAwMDAwMCBuIAowMDAwMDAwMTAxIDAwMDAwIG4gCnRyYWlsZXI8PC9TaXplIDQvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgoxNzYKJSVFT0YK",
-    "base64",
+// Washington Irving, 1820. Public domain in the United States.
+const samplePdf = new Uint8Array(
+  readFileSync(
+    fileURLToPath(new URL("./demo-sample-assets/the-legend-of-sleepy-hollow.pdf", import.meta.url)),
   ),
 );
 
-const sampleImage = Uint8Array.from(
-  Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==",
-    "base64",
-  ),
+// NASA / Bill Anders, 1968. U.S. government work, public domain.
+const sampleImage = new Uint8Array(
+  readFileSync(fileURLToPath(new URL("./demo-sample-assets/earthrise.jpg", import.meta.url))),
 );
 
 function checksum(bytes: Uint8Array) {
@@ -31,17 +31,17 @@ export const demoSamples = {
     content: welcomeMarkdown,
   },
   pdf: {
-    title: "Sample PDF",
-    fileName: "sample.pdf",
+    title: "The Legend of Sleepy Hollow",
+    fileName: "the-legend-of-sleepy-hollow.pdf",
     mimeType: "application/pdf",
     bytes: samplePdf,
     checksum: checksum(samplePdf),
-    pageCount: 1,
+    pageCount: 39,
   },
   image: {
-    title: "Sample image",
-    fileName: "sample.png",
-    mimeType: "image/png",
+    title: "Earthrise",
+    fileName: "earthrise.jpg",
+    mimeType: "image/jpeg",
     bytes: sampleImage,
     checksum: checksum(sampleImage),
     pageCount: null,
