@@ -53,7 +53,7 @@ const propositions = [
   {
     icon: FolderClosedIcon,
     title: "Vaults",
-    description: "Group documents into a flat set and share the whole set as one unit.",
+    description: "Group documents and share them as a single unit.",
   },
   {
     icon: LockIcon,
@@ -77,25 +77,26 @@ function Home() {
         One soft wash of the brand hue at the top of the page. It reads from `--primary`, so it
         follows the theme instead of needing a second colour defined for dark mode.
       */}
-      <div
+      {/* <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(75%_100%_at_50%_0%,color-mix(in_oklch,var(--primary),transparent_92%),transparent)]"
-      />
+      /> */}
 
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-6 py-6">
-        <span className="text-base font-medium tracking-tight">Bitig Flow</span>
+        <Link to="/" className="text-base font-medium tracking-tight">
+          Bitig Flow
+        </Link>
         <ThemeToggle />
       </header>
 
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-14 px-6 py-16">
         <section className="flex flex-col items-start gap-5">
           <h1 className="max-w-2xl text-4xl/tight font-semibold tracking-tight text-balance sm:text-5xl/tight">
-            Share documents, choose who can open them, and see how they were read.
+            Secure document sharing, designed for deals
           </h1>
           <p className="max-w-xl text-lg/relaxed text-pretty text-muted-foreground">
-            Write markdown or upload a PDF, group files into a vault, and publish one link for the
-            whole set. Each link can ask for a password or an email address first, and it shows you
-            which pages people spent their time on.
+            Securely share documents with password or email protection. Track views, time spent, and
+            downloads.
           </p>
           <nav className="flex flex-wrap items-center gap-2 pt-1">
             {hasSession ? (
@@ -137,13 +138,6 @@ function Home() {
             )}
           </nav>
           {!hasSession && demo !== "available" ? <DemoAvailabilityNotice status={demo} /> : null}
-          {!hasSession && (
-            <p className="max-w-xl text-sm/relaxed text-muted-foreground">
-              Demo work is public only when you create a link and is deleted after 24 hours. Do not
-              upload confidential, personal, or unlawful material. Anonymous feature-use totals are
-              retained after deletion.
-            </p>
-          )}
         </section>
 
         <section className="grid gap-10 border-t border-border pt-10 sm:grid-cols-3">
