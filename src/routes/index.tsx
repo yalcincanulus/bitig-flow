@@ -83,7 +83,7 @@ function Home() {
       /> */}
 
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-6 py-6">
-        <Link to="/" className="text-base font-medium tracking-tight">
+        <Link to="/" preload={false} className="text-base font-medium tracking-tight">
           Bitig Flow
         </Link>
         <ThemeToggle />
