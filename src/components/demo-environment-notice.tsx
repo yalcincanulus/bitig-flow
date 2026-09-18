@@ -64,7 +64,7 @@ export function DemoEnvironmentNotice({
   }
 
   return (
-    <Alert className="mx-4 mt-4 w-auto">
+    <Alert variant="warning" className="mx-4 mt-4 w-auto">
       <Clock3Icon />
       <AlertTitle>Temporary demo environment</AlertTitle>
       <AlertDescription>
@@ -79,7 +79,7 @@ export function DemoEnvironmentNotice({
       </AlertDescription>
       <AlertAction>
         <AlertDialog>
-          <AlertDialogTrigger render={<Button size="sm" variant="outline" />}>
+          <AlertDialogTrigger render={<Button size="sm" variant="warning" />}>
             End demo
           </AlertDialogTrigger>
           <AlertDialogContent>
