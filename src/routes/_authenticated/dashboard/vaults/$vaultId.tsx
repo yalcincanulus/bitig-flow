@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { EyeIcon, EyeOffIcon, FileTextIcon, LinkIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -52,6 +52,7 @@ import { Separator } from "#/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { getCollections } from "#/db-collections";
 import { resolveRow } from "#/db-collections/resolve";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import { isLinkSlug } from "#/lib/link-slug";
 import { demoMutationErrorMessage } from "#/lib/demo-quota-copy";
 import { cn } from "#/lib/utils";
@@ -68,6 +69,65 @@ export const Route = createFileRoute("/_authenticated/dashboard/vaults/$vaultId"
 type VaultItemCollection = ReturnType<typeof getCollections>["vaultItems"];
 type DocumentRow = NonNullable<ReturnType<ReturnType<typeof getCollections>["documents"]["get"]>>;
 type VaultDocumentRow = DocumentRow & { isVisible: boolean };
+type LinkRow = NonNullable<ReturnType<ReturnType<typeof getCollections>["links"]["get"]>>;
+
+function VaultDocumentName({
+  document,
+  preloadScope,
+}: Readonly<{
+  document: Pick<VaultDocumentRow, "id" | "title" | "isVisible">;
+  preloadScope: string;
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${document.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/documents/$documentId",
+        params: { documentId: document.id },
+      }),
+  });
+
+  return (
+    <Link
+      to="/dashboard/documents/$documentId"
+      params={{ documentId: document.id }}
+      {...linkProps}
+      className={cn("hover:underline", !document.isVisible && "text-muted-foreground")}
+    >
+      {document.title || "Untitled"}
+    </Link>
+  );
+}
+
+function VaultLinkName({
+  link,
+  preloadScope,
+}: Readonly<{
+  link: Pick<LinkRow, "id" | "name" | "slug">;
+  preloadScope: string;
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${link.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/links/$linkId",
+        params: { linkId: link.id },
+      }),
+  });
+
+  return (
+    <Link
+      to="/dashboard/links/$linkId"
+      params={{ linkId: link.id }}
+      {...linkProps}
+      className="hover:underline"
+    >
+      {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
+    </Link>
+  );
+}
 
 function VaultPage() {
   const vault = Route.useLoaderData();
@@ -207,16 +267,7 @@ function VaultPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle>
-                    <Link
-                      to="/dashboard/documents/$documentId"
-                      params={{ documentId: document.id }}
-                      className={cn(
-                        "hover:underline",
-                        !document.isVisible && "text-muted-foreground",
-                      )}
-                    >
-                      {document.title || "Untitled"}
-                    </Link>
+                    <VaultDocumentName document={document} preloadScope={organization.id} />
                   </ItemTitle>
                   <ItemDescription className="flex flex-wrap items-center gap-1.5">
                     {document.$synced ? documentKindLabel(document.kind) : "Saving…"}
@@ -318,13 +369,7 @@ function VaultPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle>
-                    <Link
-                      to="/dashboard/links/$linkId"
-                      params={{ linkId: link.id }}
-                      className="hover:underline"
-                    >
-                      {link.name || (isLinkSlug(link.slug) ? `/v/${link.slug}` : "Link")}
-                    </Link>
+                    <VaultLinkName link={link} preloadScope={organization.id} />
                   </ItemTitle>
                   <ItemDescription className="flex flex-wrap items-center gap-1.5">
                     <GateBadges link={link} />

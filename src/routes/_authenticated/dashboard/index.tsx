@@ -1,6 +1,6 @@
 import { count, eq, useLiveQuery } from "@tanstack/react-db";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import type { ComponentType, ReactNode } from "react";
 import {
   ArrowRightIcon,
   ArrowUpRightIcon,
@@ -28,6 +28,7 @@ import {
   EmptyTitle,
 } from "#/components/ui/empty";
 import { getCollections } from "#/db-collections";
+import { useIntentPreload } from "#/hooks/use-intent-preload";
 import {
   analyticsNumberFormat,
   formatAnalyticsInstant,
@@ -35,7 +36,7 @@ import {
 } from "#/lib/analytics-format";
 import { analyticsRangeDateCount } from "#/lib/analytics-fold";
 import { dashboardDestinations } from "#/lib/dashboard-destinations";
-import { documentKindLabel } from "#/lib/document-kind";
+import { documentKindLabel, type DocumentKind } from "#/lib/document-kind";
 import { cn } from "#/lib/utils";
 import { getAnalytics } from "#/server/functions/analytics";
 
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/_authenticated/dashboard/")({
 });
 
 type HomeAnalytics = Awaited<ReturnType<typeof getAnalytics>>;
+type HomeDestination = (typeof dashboardDestinations)[keyof typeof dashboardDestinations];
 
 /**
  * A section of Home: a hairline, a heading, and whatever the section is about underneath.
@@ -166,14 +168,14 @@ function DashboardHome() {
           {organization.name} overview
         </PageTitle>
         <PageActions>
-          <Button
-            nativeButton={false}
+          <HomeDestinationButton
+            destination={dashboardDestinations.analytics}
+            preloadScope={organization.id}
             variant="outline"
-            render={<Link {...dashboardDestinations.analytics.link} />}
           >
             <ChartNoAxesCombinedIcon data-icon="inline-start" />
             View analytics
-          </Button>
+          </HomeDestinationButton>
         </PageActions>
       </PageHeader>
 
@@ -181,30 +183,15 @@ function DashboardHome() {
         aria-label="Library"
         className="grid divide-y divide-border/70 border-y border-border/70 sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
-        {library.map(({ destination, total, icon: Icon, detail }) => (
-          <Link
-            key={destination.label}
-            {...destination.link}
-            className="group flex items-center gap-4 px-4 py-4 transition-colors first:pl-1 last:pr-1 hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-chart-2/10 text-chart-2">
-              <Icon className="size-4.5" />
-            </span>
-            <span className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-[0.625rem] font-medium tracking-wide text-muted-foreground uppercase">
-                {destination.label}
-              </span>
-              <span className="flex min-w-0 items-baseline gap-2">
-                <span className="text-2xl leading-none font-semibold tabular-nums">
-                  {analyticsNumberFormat.format(total)}
-                </span>
-                {detail === null ? null : (
-                  <span className="truncate text-xs text-muted-foreground">{detail}</span>
-                )}
-              </span>
-            </span>
-            <ArrowUpRightIcon className="ml-auto size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-          </Link>
+        {library.map((item) => (
+          <HomeLibraryItem
+            key={item.destination.label}
+            destination={item.destination}
+            total={item.total}
+            icon={item.icon}
+            detail={item.detail}
+            preloadScope={organization.id}
+          />
         ))}
       </nav>
 
@@ -214,19 +201,19 @@ function DashboardHome() {
         <>
           <HomeEngagement analytics={analytics} />
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            <HomeTopLinks analytics={analytics} links={links} />
+            <HomeTopLinks analytics={analytics} links={links} preloadScope={organization.id} />
             <HomeSection
               title="Recently updated documents"
               action={
-                <Button
-                  nativeButton={false}
+                <HomeDestinationButton
+                  destination={dashboardDestinations.documents}
+                  preloadScope={organization.id}
                   variant="ghost"
                   size="sm"
-                  render={<Link {...dashboardDestinations.documents.link} />}
                 >
                   All
                   <ArrowRightIcon data-icon="inline-end" />
-                </Button>
+                </HomeDestinationButton>
               }
             >
               {recentDocuments.length === 0 ? (
@@ -234,45 +221,20 @@ function DashboardHome() {
                 <p className="text-xs text-muted-foreground">No documents yet.</p>
               ) : (
                 <ul className="-mx-2 flex flex-col">
-                  {recentDocuments.map((document) => {
-                    const updated = formatAnalyticsInstant(document.updatedAt);
-
-                    return (
-                      <li key={document.id}>
-                        <Link
-                          to="/dashboard/documents/$documentId"
-                          params={{ documentId: document.id }}
-                          className="flex min-w-0 items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
-                        >
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                            <DocumentKindIcon kind={document.kind} className="size-4" />
-                          </span>
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-sm font-medium">
-                              {document.title || "Untitled"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {documentKindLabel(document.kind)}
-                            </span>
-                          </span>
-                          <time
-                            dateTime={updated.dateTime}
-                            title={updated.label}
-                            className="shrink-0 text-xs text-muted-foreground tabular-nums"
-                          >
-                            {updated.dateTime.slice(0, 10)}
-                          </time>
-                        </Link>
-                      </li>
-                    );
-                  })}
+                  {recentDocuments.map((document) => (
+                    <HomeRecentDocument
+                      key={document.id}
+                      document={document}
+                      preloadScope={organization.id}
+                    />
+                  ))}
                 </ul>
               )}
             </HomeSection>
           </div>
         </>
       ) : (
-        <HomeFirstSteps />
+        <HomeFirstSteps preloadScope={organization.id} />
       )}
     </Page>
   );
@@ -384,9 +346,11 @@ function HomeVisitDelta({
 function HomeTopLinks({
   analytics,
   links,
+  preloadScope,
 }: Readonly<{
   analytics: HomeAnalytics;
   links: ReturnType<typeof getCollections>["links"];
+  preloadScope: string;
 }>) {
   const { data: linkRows } = useLiveQuery({
     query: (q) => q.from({ link: links }).select(({ link }) => link),
@@ -401,17 +365,7 @@ function HomeTopLinks({
   return (
     <HomeSection
       title="Most visited links"
-      action={
-        <Button
-          nativeButton={false}
-          variant="ghost"
-          size="sm"
-          render={<Link to="/dashboard/analytics" search={analytics.range} />}
-        >
-          Analytics
-          <ArrowRightIcon data-icon="inline-end" />
-        </Button>
-      }
+      action={<HomeAnalyticsRangeButton range={analytics.range} preloadScope={preloadScope} />}
     >
       {topLinks.length === 0 ? (
         <Empty>
@@ -429,48 +383,17 @@ function HomeTopLinks({
         </Empty>
       ) : (
         <ol className="-mx-2 flex flex-col">
-          {topLinks.map((row, index) => {
-            const link = linkById.get(row.linkId);
-
-            return (
-              <li key={row.linkId} className="relative">
-                <span
-                  aria-hidden
-                  className="absolute inset-y-1 left-0 rounded-lg bg-chart-2/12"
-                  style={{ width: `${(row.visits / busiest) * 100}%` }}
-                />
-                <Link
-                  to="/dashboard/analytics/$linkId"
-                  params={{ linkId: row.linkId }}
-                  search={analytics.range}
-                  className="relative flex min-w-0 items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  <span className="w-4 shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {index + 1}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate text-sm font-medium">
-                        {link?.name || link?.slug || "Link"}
-                      </span>
-                      <AnalyticsTrustMark link={link} />
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTotalTime(row.totalMs)} viewing time ·{" "}
-                      {analyticsNumberFormat.format(row.viewerIdentities)} unique ·{" "}
-                      {analyticsNumberFormat.format(row.downloads)} downloads
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-sm font-medium tabular-nums">
-                    {analyticsNumberFormat.format(row.visits)}
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">
-                      {row.visits === 1 ? "visit" : "visits"}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          {topLinks.map((row, index) => (
+            <HomeTopLinkItem
+              key={row.linkId}
+              row={row}
+              index={index}
+              busiest={busiest}
+              link={linkById.get(row.linkId)}
+              range={analytics.range}
+              preloadScope={preloadScope}
+            />
+          ))}
         </ol>
       )}
     </HomeSection>
@@ -499,19 +422,19 @@ const firstSteps = [
 ];
 
 /** What Home says while there is nothing to measure: the three steps that make a Visit possible. */
-function HomeFirstSteps() {
+function HomeFirstSteps({ preloadScope }: Readonly<{ preloadScope: string }>) {
   return (
     <HomeSection
       title="Get started"
       action={
-        <Button
-          nativeButton={false}
+        <HomeDestinationButton
+          destination={dashboardDestinations.documents}
+          preloadScope={preloadScope}
           size="sm"
-          render={<Link {...dashboardDestinations.documents.link} />}
         >
           Start here
           <ArrowRightIcon data-icon="inline-end" />
-        </Button>
+        </HomeDestinationButton>
       }
     >
       <ol className="grid gap-4 sm:grid-cols-3">
@@ -521,17 +444,260 @@ function HomeFirstSteps() {
               <span className="flex size-6 items-center justify-center rounded-full bg-chart-2/15 text-xs font-medium tabular-nums">
                 {index + 1}
               </span>
-              <Link
-                {...step.destination.link}
+              <HomeDestinationTitleLink
+                destination={step.destination}
+                preloadScope={preloadScope}
                 className="text-sm font-medium underline-offset-4 hover:underline"
               >
                 {step.title}
-              </Link>
+              </HomeDestinationTitleLink>
             </span>
             <p className="text-xs text-muted-foreground">{step.description}</p>
           </li>
         ))}
       </ol>
     </HomeSection>
+  );
+}
+
+function HomeDestinationButton({
+  destination,
+  preloadScope,
+  children,
+  variant,
+  size,
+}: Readonly<{
+  destination: HomeDestination;
+  preloadScope: string;
+  children: ReactNode;
+  variant?: "outline" | "ghost" | "default";
+  size?: "sm" | "default";
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${destination.link.to}`,
+    preload: () => router.preloadRoute(destination.link),
+  });
+
+  return (
+    <Button
+      nativeButton={false}
+      variant={variant}
+      size={size}
+      render={<Link {...destination.link} {...linkProps} />}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function HomeDestinationTitleLink({
+  destination,
+  preloadScope,
+  children,
+  className,
+}: Readonly<{
+  destination: HomeDestination;
+  preloadScope: string;
+  children: ReactNode;
+  className?: string;
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${destination.link.to}`,
+    preload: () => router.preloadRoute(destination.link),
+  });
+
+  return (
+    <Link {...destination.link} {...linkProps} className={className}>
+      {children}
+    </Link>
+  );
+}
+
+function HomeLibraryItem({
+  destination,
+  total,
+  icon: Icon,
+  detail,
+  preloadScope,
+}: Readonly<{
+  destination: HomeDestination;
+  total: number;
+  icon: ComponentType<{ className?: string }>;
+  detail: string | null;
+  preloadScope: string;
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${destination.link.to}`,
+    preload: () => router.preloadRoute(destination.link),
+  });
+
+  return (
+    <Link
+      {...destination.link}
+      {...linkProps}
+      className="group flex items-center gap-4 px-4 py-4 transition-colors first:pl-1 last:pr-1 hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-chart-2/10 text-chart-2">
+        <Icon className="size-4.5" />
+      </span>
+      <span className="flex min-w-0 flex-col gap-1.5">
+        <span className="text-[0.625rem] font-medium tracking-wide text-muted-foreground uppercase">
+          {destination.label}
+        </span>
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="text-2xl leading-none font-semibold tabular-nums">
+            {analyticsNumberFormat.format(total)}
+          </span>
+          {detail === null ? null : (
+            <span className="truncate text-xs text-muted-foreground">{detail}</span>
+          )}
+        </span>
+      </span>
+      <ArrowUpRightIcon className="ml-auto size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+    </Link>
+  );
+}
+
+function HomeRecentDocument({
+  document,
+  preloadScope,
+}: Readonly<{
+  document: {
+    id: string;
+    title: string;
+    kind: DocumentKind;
+    updatedAt: Date;
+  };
+  preloadScope: string;
+}>) {
+  const router = useRouter();
+  const updated = formatAnalyticsInstant(document.updatedAt);
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${document.id}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/documents/$documentId",
+        params: { documentId: document.id },
+      }),
+  });
+
+  return (
+    <li>
+      <Link
+        to="/dashboard/documents/$documentId"
+        params={{ documentId: document.id }}
+        {...linkProps}
+        className="flex min-w-0 items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <DocumentKindIcon kind={document.kind} className="size-4" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-medium">{document.title || "Untitled"}</span>
+          <span className="text-xs text-muted-foreground">{documentKindLabel(document.kind)}</span>
+        </span>
+        <time
+          dateTime={updated.dateTime}
+          title={updated.label}
+          className="shrink-0 text-xs text-muted-foreground tabular-nums"
+        >
+          {updated.dateTime.slice(0, 10)}
+        </time>
+      </Link>
+    </li>
+  );
+}
+
+function HomeAnalyticsRangeButton({
+  range,
+  preloadScope,
+}: Readonly<{
+  range: HomeAnalytics["range"];
+  preloadScope: string;
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:analytics:${range.from}:${range.to}`,
+    preload: () => router.preloadRoute({ to: "/dashboard/analytics", search: range }),
+  });
+
+  return (
+    <Button
+      nativeButton={false}
+      variant="ghost"
+      size="sm"
+      render={<Link to="/dashboard/analytics" search={range} {...linkProps} />}
+    >
+      Analytics
+      <ArrowRightIcon data-icon="inline-end" />
+    </Button>
+  );
+}
+
+function HomeTopLinkItem({
+  row,
+  index,
+  busiest,
+  link,
+  range,
+  preloadScope,
+}: Readonly<{
+  row: HomeAnalytics["links"][number];
+  index: number;
+  busiest: number;
+  link: ReturnType<ReturnType<typeof getCollections>["links"]["get"]>;
+  range: HomeAnalytics["range"];
+  preloadScope: string;
+}>) {
+  const router = useRouter();
+  const { linkProps } = useIntentPreload({
+    scope: `${preloadScope}:${row.linkId}:${range.from}:${range.to}`,
+    preload: () =>
+      router.preloadRoute({
+        to: "/dashboard/analytics/$linkId",
+        params: { linkId: row.linkId },
+        search: range,
+      }),
+  });
+
+  return (
+    <li className="relative">
+      <span
+        aria-hidden
+        className="absolute inset-y-1 left-0 rounded-lg bg-chart-2/12"
+        style={{ width: `${(row.visits / busiest) * 100}%` }}
+      />
+      <Link
+        to="/dashboard/analytics/$linkId"
+        params={{ linkId: row.linkId }}
+        search={range}
+        {...linkProps}
+        className="relative flex min-w-0 items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <span className="w-4 shrink-0 text-xs text-muted-foreground tabular-nums">{index + 1}</span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-medium">
+              {link?.name || link?.slug || "Link"}
+            </span>
+            <AnalyticsTrustMark link={link} />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {formatTotalTime(row.totalMs)} viewing time ·{" "}
+            {analyticsNumberFormat.format(row.viewerIdentities)} unique ·{" "}
+            {analyticsNumberFormat.format(row.downloads)} downloads
+          </span>
+        </span>
+        <span className="shrink-0 text-sm font-medium tabular-nums">
+          {analyticsNumberFormat.format(row.visits)}
+          <span className="ml-1 text-xs font-normal text-muted-foreground">
+            {row.visits === 1 ? "visit" : "visits"}
+          </span>
+        </span>
+      </Link>
+    </li>
   );
 }
