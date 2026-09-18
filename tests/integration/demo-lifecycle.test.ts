@@ -101,7 +101,7 @@ test("Demo entry provisions one ready environment and resumes its Session", asyn
   expect(entered.status).toBe(201);
   expect(await entered.json()).toMatchObject({
     resumed: false,
-    redirectTo: "/dashboard/documents",
+    redirectTo: "/dashboard",
   });
 
   const environments = await database.select().from(demoEnvironment);

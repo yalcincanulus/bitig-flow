@@ -93,7 +93,7 @@ async function provisionNewDemo(request: Request, entryKeyHash: string) {
         status: 200,
         body: {
           resumed: true,
-          redirectTo: "/dashboard/documents",
+          redirectTo: "/dashboard",
           expiresAt: recoverable.environment.expiresAt,
         },
         setCookies: [
@@ -159,7 +159,7 @@ async function provisionNewDemo(request: Request, entryKeyHash: string) {
       status: 201,
       body: {
         resumed: false,
-        redirectTo: "/dashboard/documents",
+        redirectTo: "/dashboard",
         expiresAt: active.expiresAt,
       },
       setCookies,
@@ -212,7 +212,7 @@ export async function enterDemo(request: Request, idempotencyKey: string) {
         status: 200,
         body: {
           resumed: true,
-          redirectTo: "/dashboard/documents",
+          redirectTo: "/dashboard",
           expiresAt: environment.expiresAt,
         },
         setCookies: [] as string[],
@@ -235,7 +235,7 @@ export async function enterDemo(request: Request, idempotencyKey: string) {
       status: 200,
       body: {
         resumed: true,
-        redirectTo: "/dashboard/documents",
+        redirectTo: "/dashboard",
         expiresAt: recoverable.environment.expiresAt,
       },
       setCookies: [
