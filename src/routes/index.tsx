@@ -92,7 +92,7 @@ function Home() {
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-14 px-6 py-16">
         <section className="flex flex-col items-start gap-5">
           <h1 className="max-w-2xl text-4xl/tight font-semibold tracking-tight text-balance sm:text-5xl/tight">
-            Secure document sharing, designed for deals
+            Document sharing for dealmakers
           </h1>
           <p className="max-w-xl text-lg/relaxed text-pretty text-muted-foreground">
             Securely share documents with password or email protection. Track views, time spent, and
@@ -101,15 +101,27 @@ function Home() {
           <nav className="flex flex-wrap items-center gap-2 pt-1">
             {hasSession ? (
               isDemoSession ? (
-                <Button size="lg" nativeButton={false} render={<Link to="/dashboard" />}>
+                <Button
+                  size="lg"
+                  nativeButton={false}
+                  render={<Link to="/dashboard" preload={false} />}
+                >
                   Resume demo
                 </Button>
               ) : organizationCount > 0 ? (
-                <Button size="lg" nativeButton={false} render={<Link to="/dashboard" />}>
+                <Button
+                  size="lg"
+                  nativeButton={false}
+                  render={<Link to="/dashboard" preload={false} />}
+                >
                   Go to dashboard
                 </Button>
               ) : (
-                <Button size="lg" nativeButton={false} render={<Link to="/onboarding" />}>
+                <Button
+                  size="lg"
+                  nativeButton={false}
+                  render={<Link to="/onboarding" preload={false} />}
+                >
                   Continue setup
                 </Button>
               )
@@ -120,7 +132,7 @@ function Home() {
                   size="lg"
                   variant="outline"
                   nativeButton={false}
-                  render={<Link to="/sign-in" />}
+                  render={<Link to="/sign-in" preload={false} />}
                 >
                   Sign in
                 </Button>
@@ -129,7 +141,7 @@ function Home() {
                     size="lg"
                     variant="ghost"
                     nativeButton={false}
-                    render={<Link to="/sign-up" />}
+                    render={<Link to="/sign-up" preload={false} />}
                   >
                     Create account
                   </Button>
