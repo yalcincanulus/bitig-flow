@@ -10,6 +10,7 @@ import {
 test("the Storage origin is the endpoint's origin, never a path", () => {
   expect(storageOriginFromEndpoint("http://127.0.0.1:3900")).toBe("http://127.0.0.1:3900");
   expect(storageOriginFromEndpoint("http://localhost:3900/bitig")).toBe("http://localhost:3900");
+  expect(storageOriginFromEndpoint("https://s3.example.com/")).toBe("https://s3.example.com");
 });
 
 test("connect-src lists self and the Storage origin so a presigned PUT is allowed", () => {

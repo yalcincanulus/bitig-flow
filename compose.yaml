@@ -6,6 +6,7 @@ name: bitig-flow
 #
 # Values come from .env (see .env.example). Nothing here is production shaped —
 # single-node Garage has no redundancy, and Mailpit swallows every outbound mail.
+# Coolify uses compose.coolify.yaml, not this file.
 
 services:
   postgres:

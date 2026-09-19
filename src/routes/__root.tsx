@@ -16,6 +16,7 @@ import {
   storageOriginFromEndpoint,
   viewerContentSecurityPolicy,
 } from "#/lib/content-security-policy";
+import { resolveStorageEndpoints } from "#/lib/storage-endpoints";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -25,7 +26,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   headers: ({ matches }) => ({
     "Content-Security-Policy": matches.some((match) => isViewerPath(match.pathname))
       ? viewerContentSecurityPolicy()
-      : documentContentSecurityPolicy(storageOriginFromEndpoint(process.env.S3_ENDPOINT ?? "")),
+      : documentContentSecurityPolicy(
+          storageOriginFromEndpoint(resolveStorageEndpoints().publicEndpoint),
+        ),
   }),
   head: () => ({
     meta: [
