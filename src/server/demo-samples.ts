@@ -4,9 +4,21 @@ import { fileURLToPath } from "node:url";
 
 const welcomeMarkdown = `# Welcome to Bitig Flow
 
-Try editing this document, opening the sample files, or sharing the vault.
+Bitig Flow is a document sharing app. You write or upload documents, group them in vaults, and share them through links.
 
-Demo work is deleted automatically. Do not upload confidential, personal, or unlawful material.
+Each link can require a password or an email. Then Bitig Flow records how visitors open and read the documents.
+
+Bitig Flow is an alternative to Papermark and DocSend.
+
+## Try the demo
+
+1. Edit this document.
+2. Open the sample PDF and the sample image.
+3. Share the vault.
+
+Do not upload confidential, personal, or unlawful material.
+
+This demo environment ends after 24 hours. The demo then deletes the work.
 `;
 
 // Washington Irving, 1820. Public domain in the United States.
