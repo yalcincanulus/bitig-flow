@@ -40,7 +40,7 @@ function breadcrumbTrail(markup: string) {
 function sidebarTrigger(markup: string) {
   return (
     (markup.match(/<button\b[\s\S]*?<\/button>/g) ?? []).find((button) =>
-      button.includes("Toggle Sidebar"),
+      button.includes("Toggle sidebar"),
     ) ?? ""
   );
 }
@@ -78,7 +78,7 @@ test("an Organization member receives server-rendered Chrome but no Document pan
   expect(response.status).toBe(200);
   expect(serverRenderedMarkup).toContain('data-slot="sidebar"');
   expect(serverRenderedMarkup).toContain('data-slot="skeleton"');
-  expect(serverRenderedMarkup).toContain('aria-label="Loading Dashboard"');
+  expect(serverRenderedMarkup).toContain('aria-label="Loading dashboard"');
   expect(serverRenderedMarkup).toContain(fixture.member.user.name);
   expect(serverRenderedMarkup).toContain(fixture.organization.name);
   expect(serverRenderedMarkup).not.toContain(">Documents</h1>");
@@ -209,7 +209,7 @@ test("the Dashboard index renders Home without redirecting", async () => {
     expect(navigationLink(markup, "Home")).toContain('aria-current="page"');
     expect(navigationLink(markup, "Documents")).not.toContain('aria-current="page"');
     expect(breadcrumbTrail(markup)).toContain("Home");
-    expect(markup).toContain('aria-label="Loading Dashboard"');
+    expect(markup).toContain('aria-label="Loading dashboard"');
   }
 });
 
@@ -287,7 +287,7 @@ test("the server-rendered Chrome carries the toolbar, its sidebar trigger, and b
 
   expect(response.status).toBe(200);
   expect(serverRenderedMarkup).toContain('data-slot="sidebar-trigger"');
-  expect(serverRenderedMarkup).toContain("Toggle Sidebar");
+  expect(serverRenderedMarkup).toContain("Toggle sidebar");
   // The trigger is icon-only, so whether the sidebar is open has to be on the control itself.
   expect(sidebarTrigger(serverRenderedMarkup)).toContain('aria-expanded="true"');
 
@@ -429,7 +429,7 @@ test("a missing Document, Vault, or Link cold load keeps Chrome around the conte
     expect(serverRenderedMarkup, path).toContain(fixture.member.user.name);
     expect(serverRenderedMarkup, path).toContain(fixture.organization.name);
     expect(serverRenderedMarkup, path).toContain('data-slot="skeleton"');
-    expect(serverRenderedMarkup, path).toContain('aria-label="Loading Dashboard"');
+    expect(serverRenderedMarkup, path).toContain('aria-label="Loading dashboard"');
     // Recovery copy belongs to the client-only pane after the collection lookup, not the cold load.
     expect(serverRenderedMarkup, path).not.toContain("This Document isn't here");
   }
@@ -470,7 +470,7 @@ test("a Document, Vault, or Link from another Organization is not-found without 
 
     expect(response.status, path).toBe(200);
     expect(serverRenderedMarkup, path).toContain('data-slot="sidebar"');
-    expect(serverRenderedMarkup, path).toContain('aria-label="Loading Dashboard"');
+    expect(serverRenderedMarkup, path).toContain('aria-label="Loading dashboard"');
     expect(html, path).not.toContain(leaked);
   }
 });

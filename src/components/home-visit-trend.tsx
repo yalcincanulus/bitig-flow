@@ -40,8 +40,10 @@ export function HomeVisitTrend({
         areaY(dates, { x: "date", y: "visits", fill: `url(#${gradientId})`, fillOpacity: 1 }),
         lineY(dates, { x: "date", y: "visits", stroke: "var(--chart-2)", strokeWidth: 2 }),
       ],
-      x: { scale: () => scalePoint<string>() },
-      y: { scale: () => scaleLinear().domain([0, busiest]) },
+      scales: {
+        x: { scale: () => scalePoint<string>() },
+        y: { scale: () => scaleLinear().domain([0, busiest]) },
+      },
       guides: false,
       margin: { top: 8, right: 2, bottom: 2, left: 2 },
       gradients: [

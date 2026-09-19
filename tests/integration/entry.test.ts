@@ -29,11 +29,11 @@ test("the closed default explains unavailable Demo entry and hides sign-up", asy
 
   expect(response.status).toBe(200);
   expect(html).toContain("Demo entry is currently unavailable");
-  expect(html).toContain("Demo work is public only when you create a Link");
+  expect(html).toContain("The public demo is closed. Sign in with your existing credentials.");
   expect(html).toContain(">Sign in</a>");
   expect(html).not.toContain(">Try the demo</button>");
   expect(html).not.toContain('href="/sign-up"');
-  expect(html).not.toContain(">Go to Dashboard</a>");
+  expect(html).not.toContain(">Go to dashboard</a>");
   expect(html).not.toContain(">Continue setup</a>");
 });
 
@@ -59,7 +59,7 @@ test("public Demo states distinguish saturation, pause, and maintenance", async 
     .set({ activeEnvironmentCount: initialDeploymentPolicy.activeEnvironmentCount })
     .where(eq(demoGlobalUsage.id, "demo-global"));
   expect(await (await fetch(new URL("/", process.env.BETTER_AUTH_URL))).text()).toContain(
-    "All Demo Environments are currently in use",
+    "All demo environments are currently in use",
   );
 
   await database
@@ -91,7 +91,7 @@ test("a valid Demo Session receives an accurate resume action", async () => {
 
   expect(response.status).toBe(200);
   expect(html).toContain(">Resume demo</a>");
-  expect(html).not.toContain(">Go to Dashboard</a>");
+  expect(html).not.toContain(">Go to dashboard</a>");
   expect(html).not.toContain(">Try the demo</button>");
 });
 
@@ -113,7 +113,7 @@ test("a signed-in User with no Organization sees continue setup at /", async () 
 
   expect(response.status).toBe(200);
   expect(html).toContain(">Continue setup</a>");
-  expect(html).not.toContain(">Go to Dashboard</a>");
+  expect(html).not.toContain(">Go to dashboard</a>");
 });
 
 test("a signed-in User with an Organization sees the Dashboard link at /", async () => {
@@ -124,7 +124,7 @@ test("a signed-in User with an Organization sees the Dashboard link at /", async
   const html = await response.text();
 
   expect(response.status).toBe(200);
-  expect(html).toContain(">Go to Dashboard</a>");
+  expect(html).toContain(">Go to dashboard</a>");
   expect(html).not.toContain(">Continue setup</a>");
 });
 
@@ -145,7 +145,7 @@ test("a signed-in User with no Organization receives onboarding", async () => {
 
   const html = await response.text();
   expect(response.status).toBe(200);
-  expect(html).toContain(">Create your Organization</h1>");
+  expect(html).toContain(">Create your organization</h1>");
   expect(html).toContain(">Sign out</");
 });
 
@@ -155,7 +155,7 @@ test("a signed-in User with an Organization requesting onboarding is sent to the
     redirect: "manual",
   });
 
-  expectRedirect(response, "/dashboard/documents");
+  expectRedirect(response, "/dashboard");
 });
 
 test("sign-up, OTP, sign-in, and a named Organization open the Dashboard", async () => {
@@ -184,7 +184,7 @@ test("sign-up, OTP, sign-in, and a named Organization open the Dashboard", async
     redirect: "manual",
   });
   expect(onboardingResponse.status).toBe(200);
-  expect(await onboardingResponse.text()).toContain(">Create your Organization</h1>");
+  expect(await onboardingResponse.text()).toContain(">Create your organization</h1>");
 
   const slug = `entry-org-${nonce.slice(0, 8)}`;
   const createOrganizationResponse = await postAuth(http, "/api/auth/organization/create", {

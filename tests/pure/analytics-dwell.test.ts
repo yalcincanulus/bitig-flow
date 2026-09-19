@@ -66,8 +66,8 @@ test("a truncated range is never headed Totals", () => {
   expect(screenSource).toMatch(/visits in this date range are included in the\s+totals below/);
 });
 
-test("the Dwell chart is pinned at exact Charts 0.14.0 and adds no d3 package", () => {
-  expect(packageJson.dependencies?.["@tanstack/charts"]).toBe("0.14.0");
+test("the Dwell chart uses a caret-ranged Charts 0.18 line and adds no d3 package", () => {
+  expect(packageJson.dependencies?.["@tanstack/charts"]).toMatch(/^\^0\.(1[8-9]|[2-9]\d)\.\d+$/);
   const declared = [
     ...Object.keys(packageJson.dependencies ?? {}),
     ...Object.keys(packageJson.devDependencies ?? {}),
@@ -92,6 +92,7 @@ test("the Dwell chart keeps its page and millisecond seam as Charts gains an Ope
   );
   expect(chartSource).toMatch(/pages:\s*ReadonlyArray<\{\s*page:\s*number;\s*ms:\s*number\s*\}>/);
   expect(chartSource).toMatch(/useMemo\(\(\)\s*=>\s*\{[\s\S]*defineChart\(/);
+  expect(chartSource).toMatch(/scales:\s*\{/);
   expect(chartSource).toMatch(/row\.page === .*page && row\.ms === .*ms/);
   expect(chartSource).toMatch(/,\s*\[pages\]\)/);
   expect(chartSource).toMatch(/ariaLabel=/);

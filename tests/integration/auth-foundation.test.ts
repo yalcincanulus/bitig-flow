@@ -90,7 +90,7 @@ test("the bound Operator is sent to TOTP enrollment without an Organization", as
     { redirect: "manual" },
   );
   expect(enrollment.status).toBe(200);
-  expect(await enrollment.text()).toContain(">Secure Operations</h1>");
+  expect(await enrollment.text()).toContain(">Secure operations</h1>");
 
   const authEntry = await fixture.http(new URL("/sign-in", process.env.BETTER_AUTH_URL), {
     redirect: "manual",
@@ -129,7 +129,7 @@ test("the TOTP-enrolled Operator receives Organization-blind Operations", async 
 
   expect(response.status).toBe(200);
   expect(html).toContain(">Operations</h1>");
-  expect(html).toContain(">Run Reaper now</button>");
+  expect(html).toContain(">Run cleanup now</button>");
   expect(html).toContain(fixture.user.email);
   expect(html).not.toContain("Impersonate");
 });

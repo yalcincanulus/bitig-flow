@@ -28,18 +28,20 @@ export function OperationsTrendChart({
             stroke: "var(--chart-4)",
           }),
         ],
-        x: {
-          scale: () => scaleBand<string>().padding(0.18),
-          axis: {
-            label: "UTC start date",
-            ticks: { format: (value) => value.slice(5) },
+        scales: {
+          x: {
+            scale: () => scaleBand<string>().padding(0.18),
+            axis: {
+              label: "UTC start date",
+              ticks: { format: (value) => value.slice(5) },
+            },
           },
-        },
-        y: {
-          scale: scaleLinear,
-          nice: true,
-          grid: true,
-          axis: { label: "Aggregate count" },
+          y: {
+            scale: scaleLinear,
+            nice: true,
+            grid: true,
+            axis: { label: "Aggregate count" },
+          },
         },
       }),
     [trend],

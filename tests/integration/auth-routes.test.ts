@@ -11,7 +11,7 @@ const authRoutes = [
   { path: "/two-factor", heading: "Two-factor authentication" },
   {
     path: "/accept-invitation/fixture-invitation-id",
-    heading: "This Invitation isn't available.",
+    heading: "This invitation isn't available.",
   },
 ] as const;
 

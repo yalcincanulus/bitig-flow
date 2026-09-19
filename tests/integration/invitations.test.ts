@@ -302,7 +302,7 @@ test("a stranger signs up, verifies, accepts, and never receives onboarding", as
     redirect: "manual",
   });
   expect(onboarding.status).toBe(307);
-  expect(onboarding.headers.get("location")).toBe("/dashboard/documents");
+  expect(onboarding.headers.get("location")).toBe("/dashboard");
 
   const dashboard = await http(new URL("/dashboard/documents", process.env.BETTER_AUTH_URL), {
     redirect: "manual",
@@ -396,7 +396,7 @@ test("a signed-in User with the wrong address sees their account and a way out",
 
   const copy = await invitationPageCopy(row.id, fixture.member.http);
 
-  expect(copy).toContain("This account cannot accept the Invitation.");
+  expect(copy).toContain("This account cannot accept the invitation.");
   expect(copy).toContain(fixture.member.user.email);
   expect(copy).toContain("Sign out");
   expect(copy).not.toContain(row.email);
@@ -417,8 +417,8 @@ test("an expired Invitation page names the Organization, says it expired, and of
   const copy = await invitationPageCopy(row.id);
 
   expect(copy).toContain(fixture.organization.name);
-  expect(copy).toContain("This Invitation has expired.");
-  expect(copy).toContain("Ask the Organization for a new Invitation.");
+  expect(copy).toContain("This invitation has expired.");
+  expect(copy).toContain("Ask the organization for a new invitation.");
   expect(copy).not.toContain(row.email);
   expect(copy).not.toMatch(/resend/i);
 });
@@ -441,8 +441,8 @@ test("canceled and invented Invitation pages name nobody and offer the same reme
   ]);
 
   expect(canceledCopy).toBe(inventedCopy);
-  expect(canceledCopy).toContain("This Invitation isn't available.");
-  expect(canceledCopy).toContain("Ask the Organization for a new Invitation.");
+  expect(canceledCopy).toContain("This invitation isn't available.");
+  expect(canceledCopy).toContain("Ask the organization for a new invitation.");
   expect(canceledCopy).not.toContain(fixture.organization.name);
   expect(canceledCopy).not.toContain(fixture.owner.user.name);
   expect(canceledCopy).not.toMatch(/resend/i);

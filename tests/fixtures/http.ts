@@ -1,4 +1,5 @@
-import { defaultSerovalPlugins, isNotFound } from "@tanstack/router-core";
+import { isNotFound } from "@tanstack/router-core";
+import { defaultSerovalDeserializerPlugins } from "@tanstack/router-core/ssr/client";
 import makeFetchCookie from "fetch-cookie";
 import { fromCrossJSON, toJSONAsync } from "seroval";
 import { CookieJar } from "tough-cookie";
@@ -91,7 +92,7 @@ export async function callServerFunction(http: typeof fetch, call: ServerFunctio
     const decoded = fromCrossJSON<{
       result?: unknown;
       error?: unknown;
-    }>(await response.json(), { plugins: defaultSerovalPlugins });
+    }>(await response.json(), { plugins: defaultSerovalDeserializerPlugins });
 
     if (isNotFound(decoded.error)) {
       return Response.json(decoded.error, { status: 404 });

@@ -239,7 +239,7 @@ test("GET of a public Link writes one Visit and reveals the sender plus the Targ
 
   expect(response.status).toBe(200);
   expect(textOf(markup)).toContain(
-    `${fixture.member.user.name} at ${fixture.organization.name} shared this Document with you.`,
+    `${fixture.member.user.name} at ${fixture.organization.name} shared this document with you.`,
   );
   expect(textOf(markup)).toContain(distinctiveTitle);
   expect(textOf(markup)).not.toMatch(/Back to/);
@@ -333,7 +333,7 @@ test("GET of a public markdown Link renders the Document and resolves images thr
 
   expect(response.status).toBe(200);
   expect(textOf(markup)).toContain(
-    `${fixture.member.user.name} at ${fixture.organization.name} shared this Document with you.`,
+    `${fixture.member.user.name} at ${fixture.organization.name} shared this document with you.`,
   );
   expect(textOf(markup)).toContain(distinctiveTitle);
   expect(markup).toContain("<p>The indemnity survives closing.</p>");
@@ -458,7 +458,7 @@ test("a pending image or pdf Document renders an uploading state with Retry, and
   const imageResponse = await visitor.http(viewerUrl(imageLink.slug), { redirect: "manual" });
   const imageMarkup = serverRenderedMarkupOf(await imageResponse.text());
   expect(imageResponse.status).toBe(200);
-  expect(textOf(imageMarkup)).toContain("This Document is still uploading.");
+  expect(textOf(imageMarkup)).toContain("This document is still uploading.");
   expect(imageMarkup).toMatch(/<button[^>]*type="button"[^>]*>Retry<\/button>/);
   expect(imageMarkup).not.toContain("<img ");
   expect(imageMarkup).not.toMatch(/<form[\s\S]*Retry/);
@@ -466,7 +466,7 @@ test("a pending image or pdf Document renders an uploading state with Retry, and
   const pdfResponse = await visitor.http(viewerUrl(pdfLink.slug), { redirect: "manual" });
   const pdfMarkup = serverRenderedMarkupOf(await pdfResponse.text());
   expect(pdfResponse.status).toBe(200);
-  expect(textOf(pdfMarkup)).toContain("This Document is still uploading.");
+  expect(textOf(pdfMarkup)).toContain("This document is still uploading.");
   expect(pdfMarkup).toMatch(/<button[^>]*type="button"[^>]*>Retry<\/button>/);
 
   const bytesUrl = new URL(
@@ -809,7 +809,7 @@ test("a Vault index lists members including a pending upload, and an empty Vault
   expect(emptyCopy).toContain("There's nothing in here yet.");
   expect(emptyHtml).toContain(distinctiveVaultName);
   expect(emptyCopy).toContain(
-    `${fixture.member.user.name} at ${fixture.organization.name} shared these Documents with you.`,
+    `${fixture.member.user.name} at ${fixture.organization.name} shared these documents with you.`,
   );
 
   const filledVisitor = createCookieClient();
@@ -822,7 +822,7 @@ test("a Vault index lists members including a pending upload, and an empty Vault
   expect(filledResponse.status).toBe(200);
   expect(filledHtml).toContain("Filled Data Room");
   expect(filledCopy).toContain(
-    `${fixture.member.user.name} at ${fixture.organization.name} shared these Documents with you.`,
+    `${fixture.member.user.name} at ${fixture.organization.name} shared these documents with you.`,
   );
   expect(filledCopy).toContain(distinctiveTitle);
   expect(filledCopy).toContain("Markdown");
@@ -889,7 +889,7 @@ test("opening a Vault member writes document_opened per visit including a revisi
   });
   const pendingMarkup = serverRenderedMarkupOf(await pendingResponse.text());
   expect(pendingResponse.status).toBe(200);
-  expect(textOf(pendingMarkup)).toContain("This Document is still uploading.");
+  expect(textOf(pendingMarkup)).toContain("This document is still uploading.");
   expect(pendingMarkup).toMatch(/<button[^>]*type="button"[^>]*>Retry<\/button>/);
 
   const events = await database
@@ -1686,7 +1686,7 @@ test("password then email then code mints a verified Visit and the next GET is t
   const copy = textOf(serverRenderedMarkupOf(html));
   expect(revealed.status).toBe(200);
   expect(copy).toContain(
-    `${fixture.member.user.name} at ${fixture.organization.name} shared this Document with you.`,
+    `${fixture.member.user.name} at ${fixture.organization.name} shared this document with you.`,
   );
   expect(copy).toContain(distinctiveTitle);
   expect(copy).toContain("Fixture document content.");

@@ -4,14 +4,14 @@ import { defineConfig, defineProject } from "vitest/config";
 const sourceDirectory = fileURLToPath(new URL("./src", import.meta.url));
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "#": sourceDirectory,
+    },
+  },
   test: {
     projects: [
       defineProject({
-        resolve: {
-          alias: {
-            "#": sourceDirectory,
-          },
-        },
         test: {
           name: "pure",
           environment: "node",
@@ -19,11 +19,6 @@ export default defineConfig({
         },
       }),
       defineProject({
-        resolve: {
-          alias: {
-            "#": sourceDirectory,
-          },
-        },
         test: {
           name: "integration",
           environment: "node",

@@ -34,17 +34,19 @@ export function AnalyticsDwellChart({ pages: incoming }: AnalyticsDwellChartProp
           fill: "var(--chart-1)",
         }),
       ],
-      x: {
-        scale: () => scaleBand<number>().padding(0.18),
-        axis: { label: "Page" },
-      },
-      y: {
-        scale: scaleLinear,
-        nice: true,
-        grid: true,
-        axis: {
-          label: "Total time",
-          ticks: { format: (value) => formatTotalTime(value) },
+      scales: {
+        x: {
+          scale: () => scaleBand<number>().padding(0.18),
+          axis: { label: "Page" },
+        },
+        y: {
+          scale: scaleLinear,
+          nice: true,
+          grid: true,
+          axis: {
+            label: "Total time",
+            ticks: { format: (value) => formatTotalTime(value) },
+          },
         },
       },
     });

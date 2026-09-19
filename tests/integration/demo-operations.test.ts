@@ -691,7 +691,7 @@ test("Operations routes expose aggregate controls without Organization or report
   );
   expect(environments.status).toBe(200);
   const environmentsHtml = await environments.text();
-  expect(environmentsHtml).toContain(">Demo Environments</h1>");
+  expect(environmentsHtml).toContain(">Demo environments</h1>");
   expect(environmentsHtml).toContain(environment.anonymousReference);
   expect(environmentsHtml).toContain("global paused");
   expect(environmentsHtml).not.toContain(environment.organizationId);
@@ -701,9 +701,9 @@ test("Operations routes expose aggregate controls without Organization or report
   const policy = await operator.http(new URL("/operations/policy", process.env.BETTER_AUTH_URL));
   expect(policy.status).toBe(200);
   const policyHtml = await policy.text();
-  expect(policyHtml).toContain(">Deployment Policy</h1>");
+  expect(policyHtml).toContain(">Deployment policy</h1>");
   expect(policyHtml).toContain("Accept new demos");
-  expect(policyHtml).toContain("Delete all Demo Environments");
+  expect(policyHtml).toContain("Delete all demo environments");
 
   const records = await operator.http(
     new URL("/api/operations/demo-records", process.env.BETTER_AUTH_URL),
