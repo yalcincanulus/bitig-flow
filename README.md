@@ -36,7 +36,7 @@ Scripts:
 - **Garage provisions itself.** `garage server --single-node` assigns and applies the
   cluster layout on first start, and `--default-bucket` creates the bucket and imports
   the access key from `.env`. A one-shot `garage-init` sidecar then applies bucket CORS
-  (plain S3 `PutBucketCors`, which the Garage CLI does not cover). No manual steps.
+  through Garage's admin API. No manual steps.
 - **Do not rotate `S3_SECRET_ACCESS_KEY` against an existing volume.** Garage refuses
   to start if the key id already exists with a different secret. Run `pnpm infra:reset`
   first.

@@ -118,40 +118,20 @@ services:
       - "3900"
 
   garage-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    # One-shot Alpine job. Storage is Garage; this calls its admin API.
+    image: alpine:3.23
     restart: "no"
     exclude_from_hc: true
     depends_on:
       garage:
         condition: service_healthy
     environment:
-      MC_HOST_garage: http://GK${SERVICE_HEX_32_S3ACCESS}:${SERVICE_HEX_64_S3SECRET}@garage:3900
+      GARAGE_ADMIN_TOKEN: ${SERVICE_REALBASE64_32_ADMIN}
       S3_BUCKET: bitig
-      APP_ORIGIN: ${SERVICE_URL_APP}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        origin=$$(printf '%s' "$$APP_ORIGIN" | sed 's:/*$$::')
-        if [ -z "$$origin" ]; then
-          echo "APP_ORIGIN is empty; assign a domain to the app service first." >&2
-          exit 1
-        fi
-        cat > /tmp/cors.xml <<EOF
-        <?xml version="1.0" encoding="UTF-8"?>
-        <CORSConfiguration>
-          <CORSRule>
-            <AllowedOrigin>$${origin}</AllowedOrigin>
-            <AllowedMethod>GET</AllowedMethod>
-            <AllowedMethod>PUT</AllowedMethod>
-            <AllowedMethod>HEAD</AllowedMethod>
-            <AllowedHeader>*</AllowedHeader>
-            <ExposeHeader>ETag</ExposeHeader>
-            <MaxAgeSeconds>3000</MaxAgeSeconds>
-          </CORSRule>
-        </CORSConfiguration>
-        EOF
-        mc cors set garage/$${S3_BUCKET} /tmp/cors.xml
+      CORS_ORIGINS: ${SERVICE_URL_APP}
+    volumes:
+      - ./infra/docker/garage-cors.sh:/garage-cors.sh:ro
+    entrypoint: ["/bin/sh", "/garage-cors.sh"]
 
   app:
     build: *app-build
