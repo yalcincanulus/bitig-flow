@@ -31,7 +31,30 @@ if [ -z "$id" ]; then
   exit 1
 fi
 
-rules=""
+# Coolify stores the container port on the domain (https://app.example:3000).
+# Browsers omit the default port, so the preflight Origin is https://app.example.
+collected=""
+append_origin() {
+  candidate=$1
+  if [ -z "$candidate" ]; then
+    return
+  fi
+  case $candidate in
+    *\"* | *\\*)
+      echo "CORS origin must not contain a quote or backslash" >&2
+      exit 1
+      ;;
+  esac
+  case ",$collected," in
+    *,"$candidate",*) return ;;
+  esac
+  if [ -z "$collected" ]; then
+    collected=$candidate
+  else
+    collected=$collected,$candidate
+  fi
+}
+
 rest=$origins
 while [ -n "$rest" ]; do
   origin=${rest%%,*}
@@ -40,14 +63,20 @@ while [ -n "$rest" ]; do
     *) rest="" ;;
   esac
   origin=$(printf '%s' "$origin" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s:/*$::')
-  if [ -z "$origin" ]; then
-    continue
+  append_origin "$origin"
+  without_port=$(printf '%s' "$origin" | sed 's#^\(https://[^/:]*\):[0-9][0-9]*$#\1#;s#^\(http://[^/:]*\):[0-9][0-9]*$#\1#')
+  if [ "$without_port" != "$origin" ]; then
+    append_origin "$without_port"
   fi
-  case $origin in
-    *\"* | *\\*)
-      echo "CORS origin must not contain a quote or backslash" >&2
-      exit 1
-      ;;
+done
+
+rules=""
+rest=$collected
+while [ -n "$rest" ]; do
+  origin=${rest%%,*}
+  case $rest in
+    *,*) rest=${rest#*,} ;;
+    *) rest="" ;;
   esac
   rule=$(printf '{"AllowedOrigin":["%s"],"AllowedMethod":["GET","PUT","HEAD"],"AllowedHeader":["*"],"ExposeHeader":["ETag"],"MaxAgeSeconds":3000}' "$origin")
   if [ -z "$rules" ]; then
