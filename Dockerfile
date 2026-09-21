@@ -2,10 +2,12 @@ FROM node:26-bookworm-slim AS build
 
 WORKDIR /app
 
+# Node 26 does not ship Corepack. Install the pnpm release that wrote the lockfile.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
-  && corepack enable
+  && npm install -g pnpm@11.22.0 \
+  && pnpm --version
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -23,8 +25,7 @@ ENV NODE_ENV=production \
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/* \
-  && corepack enable
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=build /app/node_modules ./node_modules
