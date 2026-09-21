@@ -13,4 +13,6 @@ else
   exit 1
 fi
 
-exec ./node_modules/.bin/srvx --prod --host 0.0.0.0 --port "${PORT:-3000}" -s dist/client "$entry"
+# srvx resolves --static from the server entry directory unless --dir is set,
+# which turns "dist/client" into "dist/server/dist/client".
+exec ./node_modules/.bin/srvx --prod --host 0.0.0.0 --port "${PORT:-3000}" --dir . --entry "$entry" -s dist/client

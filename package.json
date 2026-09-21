@@ -18,7 +18,7 @@
     "operator:bootstrap": "node --env-file=.env --import tsx src/server/operator-bootstrap-cli.ts",
     "operator:recover": "node --env-file=.env --import tsx src/server/operator-recover-cli.ts",
     "build": "vite build",
-    "start": "srvx --prod --host 0.0.0.0 -s dist/client dist/server/server.js",
+    "start": "srvx --prod --host 0.0.0.0 --dir . --entry dist/server/server.js -s dist/client",
     "preview": "vite preview",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
