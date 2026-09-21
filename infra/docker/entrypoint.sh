@@ -3,9 +3,15 @@ set -eu
 
 node --import tsx infra/docker/migrate.ts
 
-# garage-init runs once per deploy and can keep a stale origin. The app service
-# has no extra command; sidecars do. Reapply CORS before serving uploads.
-if [ "$#" -eq 0 ] && [ -n "${GARAGE_ADMIN_TOKEN:-}" ] && [ -n "${BETTER_AUTH_URL:-}" ] && [ -n "${S3_BUCKET:-}" ]; then
+# Reaper, Sweep, and summary fold pass their own command. Run that instead of
+# the web server.
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+
+# garage-init runs once per deploy and can keep a stale origin. Reapply CORS
+# before serving uploads.
+if [ -n "${GARAGE_ADMIN_TOKEN:-}" ] && [ -n "${BETTER_AUTH_URL:-}" ] && [ -n "${S3_BUCKET:-}" ]; then
   GARAGE_ADMIN_URL="${GARAGE_ADMIN_URL:-http://garage:3903}" \
     CORS_ORIGINS="$BETTER_AUTH_URL" \
     /bin/sh infra/docker/garage-cors.sh
