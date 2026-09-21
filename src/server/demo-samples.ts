@@ -1,6 +1,17 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+function readSampleAsset(name: string) {
+  const besideModule = fileURLToPath(new URL(`./demo-sample-assets/${name}`, import.meta.url));
+  if (existsSync(besideModule)) return readFileSync(besideModule);
+  // The production bundle's import.meta.url is dist/server/assets/*.js. Vite does
+  // not copy these binaries beside that chunk. The image keeps the source tree.
+  const inSourceTree = join(process.cwd(), "src/server/demo-sample-assets", name);
+  if (existsSync(inSourceTree)) return readFileSync(inSourceTree);
+  throw new Error(`Demo sample asset not found: ${name}`);
+}
 
 const welcomeMarkdown = `# Welcome to Bitig Flow
 
@@ -22,16 +33,10 @@ This demo environment ends after 24 hours. The demo then deletes the work.
 `;
 
 // Washington Irving, 1820. Public domain in the United States.
-const samplePdf = new Uint8Array(
-  readFileSync(
-    fileURLToPath(new URL("./demo-sample-assets/the-legend-of-sleepy-hollow.pdf", import.meta.url)),
-  ),
-);
+const samplePdf = new Uint8Array(readSampleAsset("the-legend-of-sleepy-hollow.pdf"));
 
 // NASA / Bill Anders, 1968. U.S. government work, public domain.
-const sampleImage = new Uint8Array(
-  readFileSync(fileURLToPath(new URL("./demo-sample-assets/earthrise.jpg", import.meta.url))),
-);
+const sampleImage = new Uint8Array(readSampleAsset("earthrise.jpg"));
 
 function checksum(bytes: Uint8Array) {
   return createHash("sha256").update(bytes).digest("hex");
