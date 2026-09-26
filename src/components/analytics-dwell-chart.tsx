@@ -4,11 +4,16 @@ import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { useMemo, useState } from "react";
 
-import { formatTotalTime } from "#/lib/analytics-format";
+import { analyticsNumberFormat, formatTotalTime } from "#/lib/analytics-format";
 
 type AnalyticsDwellChartProps = Readonly<{
   pages: ReadonlyArray<{ page: number; ms: number }>;
+  /** How many Views reached each page, read out beside the time on hover. */
+  readersByPage?: ReadonlyMap<number, number>;
+  views?: number;
 }>;
+
+type DwellPage = AnalyticsDwellChartProps["pages"][number];
 
 function sameDwellPages(
   left: AnalyticsDwellChartProps["pages"],
@@ -20,10 +25,28 @@ function sameDwellPages(
   );
 }
 
-export function AnalyticsDwellChart({ pages: incoming }: AnalyticsDwellChartProps) {
+function pageReading(
+  page: DwellPage,
+  readersByPage: ReadonlyMap<number, number> | undefined,
+  views: number | undefined,
+) {
+  const time = page.ms > 0 ? formatTotalTime(page.ms) : "not read";
+  if (readersByPage === undefined || views === undefined || views === 0) {
+    return `Page ${page.page} · ${time}`;
+  }
+  const readers = analyticsNumberFormat.format(readersByPage.get(page.page) ?? 0);
+  return `Page ${page.page} · ${time} · reached in ${readers} of ${analyticsNumberFormat.format(views)} views`;
+}
+
+export function AnalyticsDwellChart({
+  pages: incoming,
+  readersByPage,
+  views,
+}: AnalyticsDwellChartProps) {
   // The caller rebuilds this array every render, so hold the last one that differed by value.
   const [pages, setPages] = useState(incoming);
   if (!sameDwellPages(pages, incoming)) setPages(incoming);
+  const [focused, setFocused] = useState<DwellPage | null>(null);
 
   const definition = useMemo(() => {
     return defineChart({
@@ -31,33 +54,44 @@ export function AnalyticsDwellChart({ pages: incoming }: AnalyticsDwellChartProp
         barY(pages, {
           x: "page",
           y: "ms",
-          fill: "var(--chart-1)",
+          fill: "var(--chart-2)",
+          radius: { end: 3 },
         }),
       ],
       scales: {
         x: {
-          scale: () => scaleBand<number>().padding(0.18),
+          scale: () => scaleBand<number>().padding(0.2),
           axis: { label: "Page" },
         },
         y: {
           scale: scaleLinear,
           nice: true,
-          grid: true,
+          grid: { strokeOpacity: 0.4 },
           axis: {
-            label: "Total time",
-            ticks: { format: (value) => formatTotalTime(value) },
+            ticks: { format: (value) => (value === 0 ? "0" : formatTotalTime(value)) },
           },
         },
       },
+      tooltip: false,
     });
   }, [pages]);
 
   return (
-    <Chart
-      definition={definition}
-      height={280}
-      ariaLabel="Time per page"
-      className="w-full text-foreground [--ts-chart-1:var(--chart-1)]"
-    />
+    <figure className="m-0 flex flex-col gap-2">
+      <Chart
+        definition={definition}
+        height={220}
+        ariaLabel="Time per page"
+        className="w-full text-muted-foreground [--ts-chart-2:var(--chart-2)]"
+        onFocusChange={(point) => setFocused(point?.datum ?? null)}
+      />
+      <figcaption className="min-h-4 text-[0.6875rem] text-muted-foreground tabular-nums">
+        <span aria-live="polite" className={focused === null ? undefined : "text-foreground"}>
+          {focused === null
+            ? "Hover or focus a bar to read one page."
+            : pageReading(focused, readersByPage, views)}
+        </span>
+      </figcaption>
+    </figure>
   );
 }

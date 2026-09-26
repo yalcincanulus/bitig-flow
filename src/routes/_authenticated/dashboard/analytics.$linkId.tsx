@@ -1,8 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { SettingsIcon } from "lucide-react";
+import { SettingsIcon, ShieldAlertIcon, TableIcon } from "lucide-react";
+import { useState } from "react";
 
 import { AnalyticsDwellChart } from "#/components/analytics-dwell-chart";
+import { CompletionMeter } from "#/components/analytics-reading";
 import { AnalyticsRangeControls } from "#/components/analytics-range-controls";
 import { AnalyticsVisitTimeline } from "#/components/analytics-visit-timeline";
 import { DemoAnalyticsNotice } from "#/components/demo-analytics-notice";
@@ -32,9 +34,12 @@ import {
 import {
   analyticsNumberFormat,
   formatAnalyticsInstant,
+  formatCompletion,
   formatTotalTime,
 } from "#/lib/analytics-format";
+import { foldLinkReading, type DocumentReading } from "#/lib/analytics-reading";
 import { analyticsRangeSchema } from "#/lib/dashboard-search";
+import { documentKindLabel, type DocumentKind } from "#/lib/document-kind";
 import { isLinkSlug, linkViewerPath } from "#/lib/link-slug";
 import { analyticsTrustworthy } from "#/lib/link-trust";
 import { getAnalyticsLink } from "#/server/functions/analytics";
@@ -71,19 +76,41 @@ function AnalyticsLinkPage() {
   });
   const documentById = new Map(documentRows.map((document) => [document.id, document]));
   const analytics = loaded.analytics;
+  const reading = foldLinkReading(analytics.identities, documentById);
   const lastActive = lastActiveIso(analytics.lastSeenAt);
-  const visitLabel = analytics.truncated ? "Visits shown" : "Visits";
+  const { totals } = analytics;
   const metrics = [
-    { label: visitLabel, value: analyticsNumberFormat.format(analytics.totals.visits) },
+    {
+      label: analytics.truncated ? "Visits shown" : "Visits",
+      value: analyticsNumberFormat.format(totals.visits),
+    },
     {
       label: "Unique visitors",
-      value: analyticsNumberFormat.format(analytics.totals.viewerIdentities),
+      value: analyticsNumberFormat.format(totals.viewerIdentities),
+      detail: `${analyticsNumberFormat.format(totals.emails)} with an email`,
     },
-    { label: "Captured emails", value: analyticsNumberFormat.format(analytics.totals.emails) },
-    { label: "Total time", value: formatTotalTime(analytics.totals.totalMs) },
-    { label: "Downloads", value: analyticsNumberFormat.format(analytics.totals.downloads) },
+    ...(reading.completion === null
+      ? []
+      : [
+          {
+            label: "Avg. completion",
+            value: formatCompletion(reading.completion),
+            detail: "Share of PDF pages read",
+          },
+        ]),
+    {
+      label: "Total time",
+      value: formatTotalTime(totals.totalMs),
+      detail:
+        totals.visits > 0
+          ? `${formatTotalTime(Math.round(totals.totalMs / totals.visits))} per visit`
+          : undefined,
+    },
+    { label: "Downloads", value: analyticsNumberFormat.format(totals.downloads) },
   ];
-  const shownDocuments = documentsForLink(link.documentId, analytics.documents);
+  const shownDocuments = [...documentsForLink(link.documentId, analytics.documents)].sort(
+    (first, second) => second.totalMs - first.totalMs,
+  );
 
   return (
     <Page>
@@ -126,56 +153,127 @@ function AnalyticsLinkPage() {
         </Alert>
       ) : null}
 
+      <section aria-label="Summary" className="flex flex-col gap-2">
+        <Card>
+          <CardContent>
+            <StatList stats={metrics} />
+          </CardContent>
+        </Card>
+        {!analyticsTrustworthy(link) ? (
+          <p className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
+            <ShieldAlertIcon className="size-3.5 shrink-0" />
+            Anyone with this URL can visit, including bots. Require a password or email to reduce
+            automated visits.
+          </p>
+        ) : null}
+      </section>
+
       <Card>
         <CardHeader>
-          <CardTitle>
-            {analytics.truncated ? <>Most recent {ANALYTICS_VISIT_CAP} visits</> : "Totals"}
-          </CardTitle>
-          {!analyticsTrustworthy(link) ? (
-            <CardDescription>
-              Anyone with this URL can visit, including bots. Require a password or email to reduce
-              automated visits.
-            </CardDescription>
-          ) : null}
+          <CardTitle>{shownDocuments.length === 1 ? "Document" : "Documents"}</CardTitle>
+          <CardDescription>How each document was read in this range.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <StatList stats={metrics} />
+        <CardContent className="flex flex-col divide-y divide-border">
+          {shownDocuments.map((row) => (
+            <DocumentReadingSection
+              key={row.documentId}
+              row={row}
+              document={documentById.get(row.documentId)}
+              reading={reading.documents.get(row.documentId)}
+            />
+          ))}
         </CardContent>
       </Card>
 
-      {shownDocuments.map((row) => {
-        const document = documentById.get(row.documentId);
-        const kind = document?.kind;
-        const showPages = kind === "pdf";
-        const pages = showPages ? dwellPagesWithZeros(document?.pageCount ?? null, row.pages) : [];
-
-        return (
-          <Card key={row.documentId}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {kind ? (
-                  <DocumentKindIcon kind={kind} className="size-3.5 text-muted-foreground" />
-                ) : null}
-                {document?.title || "Document"}
-              </CardTitle>
-              <CardDescription>
-                {analyticsNumberFormat.format(row.views)} views · total time{" "}
-                {formatTotalTime(row.totalMs)}
-                {kind === "markdown" ? " · Time is measured for the whole document." : ""}
-              </CardDescription>
-            </CardHeader>
-            {showPages ? (
-              <CardContent className="flex flex-col gap-4">
-                <AnalyticsDwellChart pages={pages} />
-                <DwellTable pages={pages} views={row.views} />
-              </CardContent>
-            ) : null}
-          </Card>
-        );
-      })}
-
-      <AnalyticsVisitTimeline identities={analytics.identities} documents={documentById} />
+      <AnalyticsVisitTimeline
+        identities={analytics.identities}
+        documents={documentById}
+        readings={reading.identities}
+      />
     </Page>
+  );
+}
+
+function DocumentReadingSection({
+  row,
+  document,
+  reading,
+}: Readonly<{
+  row: AnalyticsLinkDocument;
+  document: { title: string; kind: DocumentKind; pageCount: number | null } | undefined;
+  reading: DocumentReading | undefined;
+}>) {
+  const [showTable, setShowTable] = useState(false);
+  const kind = document?.kind;
+  const showPages = kind === "pdf";
+  const pages = showPages ? dwellPagesWithZeros(document?.pageCount ?? null, row.pages) : [];
+
+  return (
+    <section className="flex flex-col gap-4 py-4 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="flex min-w-0 flex-1 basis-56 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+            {kind ? (
+              <DocumentKindIcon kind={kind} className="size-4 text-muted-foreground" />
+            ) : null}
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <h3 className="truncate text-sm font-medium">{document?.title || "Document"}</h3>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              {kind ? documentKindLabel(kind) : "Document"}
+              {showPages && document?.pageCount ? ` · ${document.pageCount} pages` : ""}
+              {kind === "markdown" ? " · Time is measured for the whole document." : ""}
+            </p>
+          </div>
+        </div>
+        <dl className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs tabular-nums">
+          <DocumentFigure label="Views" value={analyticsNumberFormat.format(row.views)} />
+          <DocumentFigure label="Total time" value={formatTotalTime(row.totalMs)} />
+          {row.downloads > 0 ? (
+            <DocumentFigure label="Downloads" value={analyticsNumberFormat.format(row.downloads)} />
+          ) : null}
+          {reading?.completion != null ? (
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-[0.625rem] text-muted-foreground">Avg. completion</dt>
+              <dd>
+                <CompletionMeter value={reading.completion} label="Average completion" />
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      </div>
+      {showPages ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-xs font-medium">Time per page</h4>
+            <Button
+              variant="ghost"
+              size="xs"
+              aria-expanded={showTable}
+              onClick={() => setShowTable((current) => !current)}
+            >
+              <TableIcon data-icon="inline-start" />
+              {showTable ? "Hide table" : "Show table"}
+            </Button>
+          </div>
+          <AnalyticsDwellChart
+            pages={pages}
+            readersByPage={reading?.readersByPage}
+            views={reading?.views}
+          />
+          {showTable ? <DwellTable pages={pages} views={row.views} readers={reading} /> : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DocumentFigure({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[0.625rem] text-muted-foreground">{label}</dt>
+      <dd className="font-medium whitespace-nowrap">{value}</dd>
+    </div>
   );
 }
 
@@ -200,9 +298,11 @@ function documentsForLink(
 function DwellTable({
   pages,
   views,
+  readers,
 }: Readonly<{
   pages: ReadonlyArray<{ page: number; ms: number }>;
   views: number;
+  readers: DocumentReading | undefined;
 }>) {
   return (
     <Table>
@@ -214,6 +314,7 @@ function DwellTable({
       <TableHeader>
         <TableRow>
           <TableHead>Page</TableHead>
+          <TableHead className="text-right">Views that reached it</TableHead>
           <TableHead className="text-right">Total time</TableHead>
         </TableRow>
       </TableHeader>
@@ -221,6 +322,9 @@ function DwellTable({
         {pages.map((row) => (
           <TableRow key={row.page}>
             <TableCell>Page {row.page}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {analyticsNumberFormat.format(readers?.readersByPage.get(row.page) ?? 0)}
+            </TableCell>
             <TableCell className="text-right tabular-nums">{formatTotalTime(row.ms)}</TableCell>
           </TableRow>
         ))}

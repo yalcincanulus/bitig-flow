@@ -1,8 +1,10 @@
-import { ChartNoAxesCombinedIcon, ChevronRightIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { ChartNoAxesCombinedIcon, ChevronRightIcon, DownloadIcon, UserIcon } from "lucide-react";
 
-import { Button } from "#/components/ui/button";
+import { CompletionMeter, PageStrip } from "#/components/analytics-reading";
+import { DocumentKindIcon } from "#/components/document-kind";
+import { Avatar, AvatarFallback } from "#/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "#/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "#/components/ui/collapsible";
 import {
   Empty,
   EmptyDescription,
@@ -10,49 +12,51 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "#/components/ui/empty";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "#/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#/components/ui/tooltip";
 import { dwellPagesWithZeros, type AnalyticsLinkPayload } from "#/lib/analytics-fold";
 import {
   analyticsNumberFormat,
-  formatAnalyticsInstant,
+  formatAnalyticsMoment,
+  formatAnalyticsSpan,
   formatDownloadCount,
   formatTotalTime,
   unidentifiedVisitorLabel,
 } from "#/lib/analytics-format";
+import { identityKey, viewCompletion, type IdentityReading } from "#/lib/analytics-reading";
+import type { DocumentKind } from "#/lib/document-kind";
 
 type TimelineIdentity = AnalyticsLinkPayload["identities"][number];
 type TimelineVisit = TimelineIdentity["visits"][number];
 type TimelineDocument = TimelineVisit["documents"][number];
 type DocumentRecord = {
   title: string;
-  kind: "markdown" | "pdf" | "image";
+  kind: DocumentKind;
   pageCount: number | null;
 };
+
+function plural(count: number, one: string, many: string) {
+  return `${analyticsNumberFormat.format(count)} ${count === 1 ? one : many}`;
+}
 
 export function AnalyticsVisitTimeline({
   identities,
   documents,
+  readings,
 }: Readonly<{
   identities: AnalyticsLinkPayload["identities"];
   documents: ReadonlyMap<string, DocumentRecord>;
+  readings: ReadonlyMap<string, IdentityReading>;
 }>) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Visits</CardTitle>
+        <CardTitle>Visitors</CardTitle>
         <CardDescription>
-          Newest first. Visits with and without an email address can appear as separate visitors.
+          Most recent first. Open a visitor to see each visit. Visits with and without an email
+          address can appear as separate visitors.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+      <CardContent>
         {identities.length === 0 ? (
           <Empty>
             <EmptyHeader>
@@ -64,51 +68,101 @@ export function AnalyticsVisitTimeline({
             </EmptyHeader>
           </Empty>
         ) : (
-          identities.map((identity) => (
-            <IdentityGroup
-              key={identity.email ?? identity.visitorId}
-              identity={identity}
-              documents={documents}
-            />
-          ))
+          <ul className="-mx-2 flex flex-col divide-y divide-border">
+            {identities.map((identity) => (
+              <IdentityRow
+                key={identityKey(identity)}
+                identity={identity}
+                reading={readings.get(identityKey(identity))}
+                documents={documents}
+              />
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>
   );
 }
 
-function IdentityGroup({
+function IdentityRow({
   identity,
+  reading,
   documents,
 }: Readonly<{
   identity: TimelineIdentity;
+  reading: IdentityReading | undefined;
   documents: ReadonlyMap<string, DocumentRecord>;
 }>) {
+  const lastSeen = reading ? formatAnalyticsMoment(reading.lastSeenAt) : null;
+
   return (
-    <section className="flex flex-col gap-3">
-      <header className="flex flex-wrap items-baseline gap-2">
-        <IdentityLabel identity={identity} />
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {analyticsNumberFormat.format(identity.visitCount)} Visits
-        </span>
-      </header>
-      <div className="flex flex-col gap-4">
-        {identity.visits.map((visit) => (
-          <VisitBlock key={visit.visitId} visit={visit} documents={documents} />
-        ))}
-      </div>
-    </section>
+    <li>
+      <Collapsible>
+        <CollapsibleTrigger className="group/identity flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50">
+          <Avatar size="sm">
+            <AvatarFallback className="text-[0.625rem] uppercase">
+              {identity.email !== null ? (
+                identity.email.slice(0, 1)
+              ) : (
+                <UserIcon className="size-3.5" />
+              )}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="flex min-w-0 flex-1 basis-48 flex-col">
+              <IdentityLabel identity={identity} />
+              <span className="text-[0.6875rem] text-muted-foreground">
+                {plural(identity.visitCount, "visit", "visits")}
+                {lastSeen ? (
+                  <>
+                    {" · last seen "}
+                    <time dateTime={lastSeen.dateTime}>{lastSeen.label}</time>
+                  </>
+                ) : null}
+              </span>
+            </div>
+            {reading ? (
+              <div className="flex items-center gap-3 text-xs whitespace-nowrap tabular-nums sm:gap-4">
+                {reading.downloads > 0 ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-muted-foreground"
+                    aria-label={plural(reading.downloads, "download", "downloads")}
+                  >
+                    <DownloadIcon className="size-3" />
+                    {analyticsNumberFormat.format(reading.downloads)}
+                  </span>
+                ) : null}
+                <span className="sm:w-14 sm:text-right">{formatTotalTime(reading.totalMs)}</span>
+                {reading.completion !== null ? (
+                  <CompletionMeter value={reading.completion} label="Average completion" />
+                ) : (
+                  <span className="hidden w-[6.5rem] sm:block" />
+                )}
+              </div>
+            ) : null}
+          </div>
+          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[panel-open]/identity:rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ol className="flex flex-col gap-2 pb-3 pl-2 sm:pl-11">
+            {identity.visits.map((visit) => (
+              <VisitBlock key={visit.visitId} visit={visit} documents={documents} />
+            ))}
+          </ol>
+        </CollapsibleContent>
+      </Collapsible>
+    </li>
   );
 }
 
 function IdentityLabel({ identity }: Readonly<{ identity: TimelineIdentity }>) {
   if (identity.email !== null) {
-    return <h2 className="text-sm font-medium">{identity.email}</h2>;
+    return <span className="truncate text-sm font-medium">{identity.email}</span>;
   }
 
   return (
     <Tooltip>
-      <TooltipTrigger className="font-mono text-sm font-medium">
+      <TooltipTrigger render={<span />} className="w-fit font-mono text-sm font-medium">
         {unidentifiedVisitorLabel(identity.visitorId)}
       </TooltipTrigger>
       <TooltipContent>{identity.visitorId}</TooltipContent>
@@ -123,40 +177,29 @@ function VisitBlock({
   visit: TimelineVisit;
   documents: ReadonlyMap<string, DocumentRecord>;
 }>) {
-  const started = formatAnalyticsInstant(visit.startedAt);
-  const lastSeen = formatAnalyticsInstant(visit.lastSeenAt);
+  const started = formatAnalyticsMoment(visit.startedAt);
 
   return (
-    <article className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">
-        Started <time dateTime={started.dateTime}>{started.label}</time>
-        {" · "}
-        Last seen <time dateTime={lastSeen.dateTime}>{lastSeen.label}</time>
+    <li className="rounded-md bg-muted/40 px-3 py-2.5">
+      <p className="mb-1.5 text-[0.6875rem] text-muted-foreground">
+        <time dateTime={started.dateTime}>
+          {formatAnalyticsSpan(visit.startedAt, visit.lastSeenAt)}
+        </time>
       </p>
       {visit.documents.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No views.</p>
+        <p className="text-xs text-muted-foreground">Opened the link but no document.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Document</TableHead>
-              <TableHead>Total time</TableHead>
-              <TableHead>Pages read</TableHead>
-              <TableHead>Downloads</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visit.documents.map((row, index) => (
-              <DocumentViewRow
-                key={`${visit.visitId}:${row.documentId}:${index}`}
-                row={row}
-                document={documents.get(row.documentId)}
-              />
-            ))}
-          </TableBody>
-        </Table>
+        <ul className="flex flex-col gap-2">
+          {visit.documents.map((row, index) => (
+            <DocumentViewRow
+              key={`${visit.visitId}:${row.documentId}:${index}`}
+              row={row}
+              document={documents.get(row.documentId)}
+            />
+          ))}
+        </ul>
       )}
-    </article>
+    </li>
   );
 }
 
@@ -167,62 +210,47 @@ function DocumentViewRow({
   row: TimelineDocument;
   document: DocumentRecord | undefined;
 }>) {
-  const [open, setOpen] = useState(false);
-  const pagesId = useId();
   const showPages = document?.kind === "pdf";
   const pages = showPages ? dwellPagesWithZeros(document.pageCount ?? null, row.pages) : [];
+  const completion = viewCompletion(row.pagesRead, document);
+  const downloads = formatDownloadCount(row.downloads);
 
   return (
-    <>
-      <TableRow>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            {showPages ? (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Time per page"
-                aria-expanded={open}
-                aria-controls={pagesId}
-                onClick={() => setOpen((current) => !current)}
-              >
-                <ChevronRightIcon
-                  data-icon="inline-start"
-                  className="transition-transform group-aria-expanded/button:rotate-90"
-                />
-              </Button>
-            ) : null}
-            {document?.title || "Document"}
-          </div>
-        </TableCell>
-        <TableCell className="tabular-nums">{formatTotalTime(row.totalMs)}</TableCell>
-        <TableCell className="tabular-nums">
-          {analyticsNumberFormat.format(row.pagesRead)}
-        </TableCell>
-        <TableCell className="tabular-nums">{formatDownloadCount(row.downloads)}</TableCell>
-      </TableRow>
-      {showPages && open ? (
-        <TableRow id={pagesId}>
-          <TableCell colSpan={4}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Page</TableHead>
-                  <TableHead>Total time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pages.map((page) => (
-                  <TableRow key={page.page}>
-                    <TableCell>Page {page.page}</TableCell>
-                    <TableCell className="tabular-nums">{formatTotalTime(page.ms)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableCell>
-        </TableRow>
-      ) : null}
-    </>
+    <li className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-xs">
+          {document ? (
+            <DocumentKindIcon
+              kind={document.kind}
+              className="size-3.5 shrink-0 text-muted-foreground"
+            />
+          ) : null}
+          <span className="truncate">{document?.title || "Document"}</span>
+        </span>
+        <span className="flex items-center gap-3 text-xs whitespace-nowrap text-muted-foreground tabular-nums sm:gap-4">
+          {downloads ? (
+            <span className="inline-flex items-center gap-1" aria-label={`Downloads: ${downloads}`}>
+              <DownloadIcon className="size-3" />
+              {downloads}
+            </span>
+          ) : null}
+          {showPages && document.pageCount !== null ? (
+            <span>
+              {analyticsNumberFormat.format(row.pagesRead)}/
+              {analyticsNumberFormat.format(document.pageCount)} pages
+            </span>
+          ) : null}
+          <span className="text-foreground sm:w-14 sm:text-right">
+            {formatTotalTime(row.totalMs)}
+          </span>
+          {completion !== null ? (
+            <CompletionMeter value={completion} />
+          ) : (
+            <span className="hidden w-[6.5rem] sm:block" />
+          )}
+        </span>
+      </div>
+      {showPages && pages.length > 0 ? <PageStrip pages={pages} className="pl-5.5" /> : null}
+    </li>
   );
 }

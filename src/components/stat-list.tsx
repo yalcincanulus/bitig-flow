@@ -1,6 +1,6 @@
 import { cn } from "#/lib/utils";
 
-export type Stat = Readonly<{ label: string; value: string }>;
+export type Stat = Readonly<{ label: string; value: string; detail?: string }>;
 
 /**
  * The one way this Dashboard prints a row of numbers: a small caps label above a large figure.
@@ -20,6 +20,9 @@ export function StatList({
             {stat.label}
           </dt>
           <dd className="text-xl leading-tight font-semibold tabular-nums">{stat.value}</dd>
+          {stat.detail ? (
+            <dd className="text-[0.6875rem] text-muted-foreground">{stat.detail}</dd>
+          ) : null}
         </div>
       ))}
     </dl>

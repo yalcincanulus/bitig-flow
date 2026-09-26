@@ -188,6 +188,10 @@ _Avoid_: activity, log, hit
 Time a visitor spent on one page of one document, accumulated in the browser and reported by the **Beacon**. Pages exist for PDFs; markdown and images always report page 1.
 _Avoid_: time on page, engagement, duration
 
+**Completion**:
+The share of a PDF's pages that received Dwell in one View, capped at 100%. Averaged over Views for a document, a Viewer identity, or a link. Only PDFs have one — markdown and images always report page 1, so theirs would say nothing. A View opened and never read counts as 0%, not as missing.
+_Avoid_: progress, read-through, scroll depth
+
 **Beacon**:
 The anonymous `sendBeacon` write that carries dwell from the viewer to our origin — for every Document it accumulated against since the last one, not just the one on screen. It is authenticated solely by the visit cookie and is the only analytics writer that is not the server itself.
 _Avoid_: ping, telemetry, tracker

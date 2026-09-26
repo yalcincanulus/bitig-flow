@@ -17,6 +17,44 @@ export function formatAnalyticsInstant(value: Date | string) {
   return { dateTime, label: `${dateTime.slice(0, 16).replace("T", " ")} UTC` };
 }
 
+const momentFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "UTC",
+});
+const clockFormat = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "UTC",
+});
+const completionFormat = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
+
+/** A UTC instant as a reader scans it — "Sep 26, 13:29 UTC" — with the ISO form for `dateTime`. */
+export function formatAnalyticsMoment(value: Date | string) {
+  const date = new Date(value);
+  return { dateTime: date.toISOString(), label: `${momentFormat.format(date)} UTC` };
+}
+
+/** A Visit's span, printing the date once when it starts and ends on the same UTC date. */
+export function formatAnalyticsSpan(startedAt: Date | string, lastSeenAt: Date | string) {
+  const start = new Date(startedAt);
+  const end = new Date(lastSeenAt);
+  const sameDate = start.toISOString().slice(0, 10) === end.toISOString().slice(0, 10);
+  const endLabel = sameDate ? clockFormat.format(end) : momentFormat.format(end);
+  return `${momentFormat.format(start)} – ${endLabel} UTC`;
+}
+
+export function formatCompletion(value: number) {
+  return completionFormat.format(value);
+}
+
 export function formatDownloadCount(count: number) {
   return count === 0 ? "" : numberFormat.format(count);
 }
