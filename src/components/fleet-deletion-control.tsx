@@ -84,7 +84,7 @@ export function FleetDeletionControl() {
   }
 
   return (
-    <Card>
+    <Card className="ring-destructive/30">
       <CardHeader>
         <CardTitle>Delete all demo environments</CardTitle>
         <CardDescription>
@@ -92,7 +92,7 @@ export function FleetDeletionControl() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Field>
+        <Field className="max-w-md">
           <FieldLabel htmlFor="fleet-deletion-confirmation">
             Type {fleetDeletionConfirmation}
           </FieldLabel>
@@ -111,7 +111,14 @@ export function FleetDeletionControl() {
         <AlertDialog open={open} onOpenChange={setOpen}>
           <AlertDialogTrigger
             disabled={!confirmed || pending}
-            render={<Button type="button" variant="destructive" disabled={!confirmed || pending} />}
+            render={
+              <Button
+                type="button"
+                variant="destructive"
+                className="self-start"
+                disabled={!confirmed || pending}
+              />
+            }
           >
             {pending ? (
               <Spinner data-icon="inline-start" />

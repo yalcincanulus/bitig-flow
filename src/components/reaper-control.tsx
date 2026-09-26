@@ -45,7 +45,7 @@ export function ReaperControl() {
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="flex max-w-sm flex-col items-start gap-3 sm:items-end">
       <Button type="button" variant="outline" disabled={pending} onClick={() => void runReaper()}>
         {pending ? <Spinner data-icon="inline-start" /> : null}
         Run cleanup now

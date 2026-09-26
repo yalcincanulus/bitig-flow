@@ -35,3 +35,7 @@ export function formatOperationsDuration(milliseconds: number) {
   const days = Math.floor(hours / 24);
   return `${days}d ${hours % 24}h`;
 }
+
+export function formatOperationsNoun(count: number, one: string, many: string) {
+  return `${countFormat.format(count)} ${count === 1 ? one : many}`;
+}

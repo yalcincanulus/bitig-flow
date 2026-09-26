@@ -13,20 +13,20 @@ export const Route = createFileRoute("/operations/policy")({
 function OperationsPolicyPage() {
   const policy = Route.useLoaderData();
   return (
-    <Page className="px-0">
+    <Page>
       <PageHeader>
         <PageTitle>Deployment policy</PageTitle>
-        <PageDescription>Set access and usage limits.</PageDescription>
+        <PageDescription>
+          Who can get in, and how much each demo and the whole fleet may use.
+        </PageDescription>
       </PageHeader>
       <DeploymentPolicyForm initialView={policy} />
-      <section aria-labelledby="danger-zone-heading" className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 id="danger-zone-heading" className="text-lg font-medium text-destructive">
+      <section aria-labelledby="danger-zone-heading" className="flex flex-col gap-3 pt-4">
+        <div className="flex flex-col gap-0.5">
+          <h2 id="danger-zone-heading" className="text-sm font-medium text-destructive">
             Danger zone
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Deleting demos permanently removes their content.
-          </p>
+          <p className="text-xs text-muted-foreground">These actions cannot be undone.</p>
         </div>
         <FleetDeletionControl />
       </section>

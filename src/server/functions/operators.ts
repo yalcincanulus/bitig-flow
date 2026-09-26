@@ -25,7 +25,10 @@ export const platformOperatorRouteAccess = createServerFn({ method: "GET" })
 
 export const operationsHeader = createServerFn({ method: "GET" })
   .middleware([operatorMiddleware])
-  .handler(async ({ context }) => ({ email: context.authSession.user.email }));
+  .handler(async ({ context }) => ({
+    email: context.authSession.user.email,
+    name: context.authSession.user.name,
+  }));
 
 export const operationsOverview = createServerFn({ method: "GET" })
   .middleware([operatorMiddleware])

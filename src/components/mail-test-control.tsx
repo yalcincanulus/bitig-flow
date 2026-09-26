@@ -32,19 +32,17 @@ export function MailTestControl({
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="flex max-w-sm flex-col items-start gap-3 sm:items-end">
       <Button
         type="button"
         variant="outline"
+        aria-description={`Sends to ${operatorEmail}`}
         disabled={!available || pending}
         onClick={() => void sendTestEmail()}
       >
         {pending ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}
         Send test email
       </Button>
-      <p className="text-xs text-muted-foreground">
-        Send the test email to the operator: {operatorEmail}.
-      </p>
       {feedback ? (
         <Alert variant={feedback.kind === "failure" ? "destructive" : "default"} aria-live="polite">
           {feedback.kind === "failure" ? <CircleAlertIcon /> : <CheckCircle2Icon />}
