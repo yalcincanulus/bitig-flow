@@ -324,7 +324,7 @@ export function LinkWriteDialog({
           {triggerLabel}
         </DialogTrigger>
       ) : null}
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit link" : "Create link"}</DialogTitle>
@@ -403,11 +403,11 @@ export function LinkWriteDialog({
                     <ToggleGroupItem
                       key={option.value}
                       value={option.value}
-                      className="flex-1"
+                      className="min-w-0 flex-1 shrink"
                       aria-label={option.label}
                       disabled={demo && (option.value === "email" || option.value === "verified")}
                     >
-                      <Icon data-icon="inline-start" />
+                      <Icon data-icon="inline-start" className="max-sm:hidden" />
                       {option.label}
                     </ToggleGroupItem>
                   );
@@ -478,7 +478,7 @@ export function LinkWriteDialog({
                   onValueChange={setExpiresDate}
                   placeholder="Never"
                   clearable
-                  className="w-44"
+                  className="min-w-0 flex-1 sm:w-44 sm:flex-none"
                 />
                 <Input
                   type="time"
